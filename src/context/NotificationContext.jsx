@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { getNotifications, markAsRead, markAllAsRead } from '../services/notificationApi';
 
 const NotificationContext = createContext();
 
@@ -73,14 +74,54 @@ export const NotificationProvider = ({ children }) => {
         }
     }, [user, wsConnected, socketInstance]);
 
-    // Helper to mark a specific notification as read (remove it)
-    const removeNotification = (id) => {
-        setNotifications((prev) => prev.filter(n => n.id !== id));
+    useEffect(() => {
+        // Fetch unread history from database
+        const fetchHistory = async () => {
+            try {
+                if (user) {
+                    const res = await getNotifications();
+                    if (res.data) {
+                        // Only show unread notifications in the top bar
+                        const unread = res.data.filter(n => !n.isRead).map(n => ({
+                            id: n._id,
+                            type: n.type ? n.type.toLowerCase() : 'info',
+                            msg: n.message || n.title || 'System Alert',
+                            time: 'Just now',
+                            ...n
+                        }));
+                        setNotifications(unread);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch notification history:", error);
+            }
+        };
+
+        fetchHistory();
+    }, [user]);
+
+    // Helper to mark a specific notification as read (remove it from TopBar)
+    const removeNotification = async (id) => {
+        try {
+            await markAsRead(id);
+            setNotifications((prev) => prev.filter(n => n.id !== id));
+        } catch (error) {
+            console.error("Failed to mark notification as read", error);
+            // Optmistic UI update fallback
+            setNotifications((prev) => prev.filter(n => n.id !== id));
+        }
     };
 
-    // Helper to clear all notifications
-    const clearAll = () => {
-        setNotifications([]);
+    // Helper to clear all notifications from TopBar
+    const clearAll = async () => {
+        try {
+            await markAllAsRead();
+            setNotifications([]);
+        } catch (error) {
+            console.error("Failed to clear notifications", error);
+            // Optmistic UI update fallback
+            setNotifications([]);
+        }
     };
 
     return (

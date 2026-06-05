@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'reports', label: 'Reports', icon: '📊', path: '/reports', roles: ['admin', 'manager'] },
   { id: 'ai', label: 'AI Forecasting', icon: '🤖', path: '/ai', badge: 'NEW', roles: ['admin', 'manager'] },
   { id: 'settings', label: 'Settings', icon: '⚙️', path: '/settings', roles: ['admin'] },
+  { id: 'audit', label: 'Audit & Security', icon: '🛡️', path: '/audit', roles: ['admin'] },
 ];
 
 const Sidebar = ({ activeRoute, onNavigate }) => {

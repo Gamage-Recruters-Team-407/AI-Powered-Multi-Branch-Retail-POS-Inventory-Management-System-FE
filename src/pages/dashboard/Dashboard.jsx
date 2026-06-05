@@ -15,6 +15,7 @@ const WarehouseList = lazy(() => import('../warehouse/WarehouseList'));
 import { useNavigate } from 'react-router-dom';
 import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
+import NotificationsModule from '../../components/dashboard/NotificationsModule';
 
 
 const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
@@ -35,7 +36,7 @@ const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
 const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
 const UserListPage = lazy(() => import("../users/UserListPage")); 
-
+const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -774,7 +775,11 @@ case 'product-edit':
       case 'notifications':
         return <NotificationsModule />;
       case 'audit-logs':
-        return <AuditLogsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AuditSecurityPage />
+          </Suspense>
+        );
       case 'ai-intelligence':
         return <AIIntelligenceHub />;
       default:
@@ -1517,27 +1522,7 @@ const ReportingModule = () => (
   </div>
 );
 
-// Notifications Module
-const NotificationsModule = () => (
-  <div className="notifications-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">🔔</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Notifications & Alerts</h1>
-        <span className="module-page">📄 Page 4 of PDF Document</span>
-      </div>
-    </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Send email, SMS, and push notifications. Trigger inventory and sales alerts. Manage notification queues. Store notification history. Monitor delivery status.
-    </div>
-    <div className="features-grid">
-      {['Central Notification Center', 'Real-time Alerts & Reminders', 'Email & SMS Integration', 'Push Notifications', 'Custom Alert Rules', 'Notification Templates', 'Delivery Status Tracking', 'Notification History Logs'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+
 
 // Audit Logs Module
 const AuditLogsModule = () => (
