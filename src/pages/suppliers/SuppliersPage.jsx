@@ -1,131 +1,15 @@
-import React, { useState, useMemo } from 'react';
-
-// Initial Mock Suppliers Data
-const INITIAL_SUPPLIERS = [
-  {
-    id: 'SUP-001',
-    companyName: 'Lanka Grains & Co.',
-    contactPerson: 'Sunil Perera',
-    email: 'sunil@lankagrains.com',
-    phone: '+94 77 123 4567',
-    address: '142, Kandy Road, Colombo 10',
-    category: 'Grains & Rice',
-    taxId: 'TX-98234-LK',
-    status: 'Active',
-    rating: 4.8,
-    totalSpend: 42500,
-    performance: {
-      onTimeDelivery: 98,
-      qualityScore: 97,
-      leadTimeDays: 3,
-      returnRate: 0.5
-    },
-    aiRecommendation: 'Highly reliable for bulk supply. Standard delivery time is excellent. Recommended for locking in quarterly cereal contracts to save an additional 4%.',
-    transactions: [
-      { id: 'PO-2026-104', date: '2026-05-18', amount: 12500, itemsCount: 250, status: 'Delivered' },
-      { id: 'PO-2026-092', date: '2026-04-12', amount: 18000, itemsCount: 360, status: 'Delivered' },
-      { id: 'PO-2026-081', date: '2026-03-05', amount: 12000, itemsCount: 240, status: 'Delivered' }
-    ]
-  },
-  {
-    id: 'SUP-002',
-    companyName: 'Ceylon Tea Estates Ltd.',
-    contactPerson: 'Menaka Silva',
-    email: 'menaka@ceylontea.lk',
-    phone: '+94 81 765 4321',
-    address: '77, Nuwara Eliya Road, Nuwara Eliya',
-    category: 'Beverages',
-    taxId: 'TX-10943-LK',
-    status: 'Active',
-    rating: 4.5,
-    totalSpend: 28400,
-    performance: {
-      onTimeDelivery: 92,
-      qualityScore: 96,
-      leadTimeDays: 5,
-      returnRate: 1.2
-    },
-    aiRecommendation: 'Stable quality levels, but lead times can fluctuate due to weather conditions. Consider keeping 15% safety stock of premium tea variants.',
-    transactions: [
-      { id: 'PO-2026-110', date: '2026-05-28', amount: 9500, itemsCount: 150, status: 'Pending' },
-      { id: 'PO-2026-099', date: '2026-04-20', amount: 9500, itemsCount: 150, status: 'Delivered' },
-      { id: 'PO-2026-085', date: '2026-03-15', amount: 9400, itemsCount: 145, status: 'Delivered' }
-    ]
-  },
-  {
-    id: 'SUP-003',
-    companyName: 'RichDairy Lanka Pvt Ltd.',
-    contactPerson: 'Anura De Alwis',
-    email: 'anura@richdairy.lk',
-    phone: '+94 11 888 9900',
-    address: '56/B, Industrial Zone, Negombo',
-    category: 'Dairy Products',
-    taxId: 'TX-23491-LK',
-    status: 'Active',
-    rating: 4.9,
-    totalSpend: 54100,
-    performance: {
-      onTimeDelivery: 99,
-      qualityScore: 99,
-      leadTimeDays: 1,
-      returnRate: 0.2
-    },
-    aiRecommendation: 'Exceptional fresh goods provider. Delivery is local and within 24 hours. Highly recommended for daily automatic inventory restocking lists.',
-    transactions: [
-      { id: 'PO-2026-115', date: '2026-06-01', amount: 4800, itemsCount: 80, status: 'Pending' },
-      { id: 'PO-2026-105', date: '2026-05-20', amount: 16500, itemsCount: 300, status: 'Delivered' },
-      { id: 'PO-2026-098', date: '2026-04-29', amount: 16400, itemsCount: 295, status: 'Delivered' },
-      { id: 'PO-2026-089', date: '2026-03-25', amount: 16400, itemsCount: 295, status: 'Delivered' }
-    ]
-  },
-  {
-    id: 'SUP-004',
-    companyName: 'Spices of Serendib',
-    contactPerson: 'Fathima Nazreen',
-    email: 'fathima@spiceserendib.com',
-    phone: '+94 77 999 8888',
-    address: '22, Galle Road, Matara',
-    category: 'Spices & Condiments',
-    taxId: 'TX-87431-LK',
-    status: 'Under Review',
-    rating: 3.9,
-    totalSpend: 15200,
-    performance: {
-      onTimeDelivery: 81,
-      qualityScore: 91,
-      leadTimeDays: 7,
-      returnRate: 3.5
-    },
-    aiRecommendation: 'High return rates (3.5%) recorded on ground spices last month due to moisture content. Quality audit recommended before issuing next purchase order.',
-    transactions: [
-      { id: 'PO-2026-102', date: '2026-05-14', amount: 5200, itemsCount: 100, status: 'Delivered' },
-      { id: 'PO-2026-090', date: '2026-04-10', amount: 10000, itemsCount: 200, status: 'Delivered' }
-    ]
-  },
-  {
-    id: 'SUP-005',
-    companyName: 'Apex Packaging Industries',
-    contactPerson: 'Rohan Wickremasinghe',
-    email: 'rohan@apexpack.lk',
-    phone: '+94 11 555 4444',
-    address: '89, Avissawella Road, Wellampitiya',
-    category: 'Packaging Materials',
-    taxId: 'TX-33887-LK',
-    status: 'Inactive',
-    rating: 3.2,
-    totalSpend: 12000,
-    performance: {
-      onTimeDelivery: 75,
-      qualityScore: 84,
-      leadTimeDays: 10,
-      returnRate: 4.8
-    },
-    aiRecommendation: 'Performance has dropped below acceptable limits. Deliveries delayed on average by 4 days. Marked inactive. Search for alternative boxes & bags suppliers.',
-    transactions: [
-      { id: 'PO-2026-060', date: '2026-01-15', amount: 12000, itemsCount: 400, status: 'Delivered' }
-    ]
-  }
-];
+import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import {
+  getAllSuppliers,
+  addSupplier,
+  updateSupplier,
+  deleteSupplier,
+  updateContract,
+  addTransaction,
+  getProcurementHistory,
+  getDetailedPerformance
+} from '../../services/supplierApi';
 
 const CATEGORIES = [
   'Grains & Rice',
@@ -138,8 +22,62 @@ const CATEGORIES = [
   'Other'
 ];
 
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toISOString().slice(0, 10);
+  } catch (e) {
+    return dateString;
+  }
+};
+
+const normalizeRole = (role) =>
+  String(role || '')
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/^super_admin$|^superadmin$|^administrator$/, 'admin');
+
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalDateStringOffset = (offsetMs) => {
+  const d = new Date(Date.now() + offsetMs);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const sanitizePhoneNumber = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length === 9) {
+    return '0' + digits;
+  }
+  if (digits.length === 11 && digits.startsWith('94')) {
+    return '0' + digits.substring(2);
+  }
+  if (digits.length > 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+};
+
 const SuppliersPage = () => {
-  const [suppliers, setSuppliers] = useState(INITIAL_SUPPLIERS);
+  const { user } = useAuth();
+  const userRole = useMemo(() => normalizeRole(user?.role), [user]);
+  const isAdminOrManager = useMemo(() => userRole === 'admin' || userRole === 'manager', [userRole]);
+
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -147,7 +85,11 @@ const SuppliersPage = () => {
 
   // Details panel state
   const [viewingSupplier, setViewingSupplier] = useState(null);
-  const [activeDetailTab, setActiveDetailTab] = useState('performance'); // performance, history
+  const [activeDetailTab, setActiveDetailTab] = useState('performance'); // performance, contract, history
+  
+  const [selectedSupplierDetails, setSelectedSupplierDetails] = useState(null);
+  const [procurementHistory, setProcurementHistory] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Form modal state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -162,7 +104,6 @@ const SuppliersPage = () => {
     phone: '',
     address: '',
     category: 'Grains & Rice',
-    taxId: '',
     status: 'Active',
     rating: 5.0,
     performance: {
@@ -170,21 +111,108 @@ const SuppliersPage = () => {
       qualityScore: 95,
       leadTimeDays: 3,
       returnRate: 0.0
+    },
+    contract: {
+      startDate: getLocalDateString(),
+      endDate: getLocalDateStringOffset(365 * 24 * 60 * 60 * 1000),
+      status: 'Under Negotiation',
+      terms: '',
+      paymentTerms: 'Net 30',
+      sla: ''
     }
   });
 
   const [formErrors, setFormErrors] = useState({});
 
-  // Summary Metrics
+  // Contract Edit Modal State
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [contractFormData, setContractFormData] = useState({
+    startDate: '',
+    endDate: '',
+    status: 'Under Negotiation',
+    terms: '',
+    paymentTerms: 'Net 30',
+    sla: ''
+  });
+
+  // Transaction Modal State
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [transactionFormData, setTransactionFormData] = useState({
+    id: '',
+    date: new Date().toISOString().substring(0, 10),
+    itemsCount: 50,
+    amount: 0,
+    status: 'Delivered'
+  });
+
+  // Fetch Suppliers List
+  const loadSuppliers = async () => {
+    setLoading(true);
+    try {
+      const categoryFilter = selectedCategory === 'All' ? '' : selectedCategory;
+      const statusFilter = selectedStatus === 'All' ? '' : selectedStatus;
+      const res = await getAllSuppliers(searchQuery, categoryFilter, statusFilter);
+      if (res.success) {
+        setSuppliers(res.data || []);
+        setError(null);
+      } else {
+        setError(res.message || "Failed to load suppliers.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch suppliers from backend API.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch Detailed supplier stats on select
+  const loadSupplierDetails = async (id) => {
+    setLoadingDetails(true);
+    try {
+      const perfRes = await getDetailedPerformance(id);
+      const procRes = await getProcurementHistory(id);
+      
+      if (perfRes.success) {
+        setSelectedSupplierDetails(perfRes.data);
+      }
+      if (procRes.success) {
+        setProcurementHistory(procRes.data);
+      }
+    } catch (err) {
+      console.error("Error loading supplier details", err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSuppliers();
+  }, [searchQuery, selectedCategory, selectedStatus]);
+
+  useEffect(() => {
+    if (viewingSupplier) {
+      loadSupplierDetails(viewingSupplier.id || viewingSupplier._id);
+    } else {
+      setSelectedSupplierDetails(null);
+      setProcurementHistory(null);
+    }
+  }, [viewingSupplier]);
+
+  // Summary Metrics computed from all registered suppliers
   const metrics = useMemo(() => {
     const active = suppliers.filter(s => s.status === 'Active');
-    const totalSpend = suppliers.reduce((acc, curr) => acc + curr.totalSpend, 0);
-    const avgDelivery = Math.round(
-      suppliers.reduce((acc, curr) => acc + curr.performance.onTimeDelivery, 0) / suppliers.length
-    );
+    const totalSpend = suppliers.reduce((acc, curr) => acc + (curr.totalSpend || 0), 0);
+    const avgDelivery = suppliers.length > 0 
+      ? Math.round(suppliers.reduce((acc, curr) => acc + (curr.performance?.onTimeDelivery || 95), 0) / suppliers.length)
+      : 95;
+    
+    // Sum of pending manual transactions or POs across suppliers
     const pendingOrdersCount = suppliers.reduce((acc, curr) => {
-      const pending = curr.transactions.filter(t => t.status === 'Pending').length;
-      return acc + pending;
+      const pendingCount = curr.transactions 
+        ? curr.transactions.filter(t => t.status === 'Pending').length 
+        : 0;
+      return acc + pendingCount;
     }, 0);
 
     return {
@@ -196,59 +224,57 @@ const SuppliersPage = () => {
     };
   }, [suppliers]);
 
-  // Filtering & Sorting Logic
-  const filteredSuppliers = useMemo(() => {
+  // Filtering & Sorting (Client-side Sorting)
+  const sortedSuppliers = useMemo(() => {
     let result = [...suppliers];
-
-    // Search query
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        s =>
-          s.companyName.toLowerCase().includes(query) ||
-          s.contactPerson.toLowerCase().includes(query) ||
-          s.email.toLowerCase().includes(query) ||
-          s.id.toLowerCase().includes(query)
-      );
-    }
-
-    // Category filter
-    if (selectedCategory !== 'All') {
-      result = result.filter(s => s.category === selectedCategory);
-    }
-
-    // Status filter
-    if (selectedStatus !== 'All') {
-      result = result.filter(s => s.status === selectedStatus);
-    }
 
     // Sorting
     result.sort((a, b) => {
       if (sortBy === 'name') {
         return a.companyName.localeCompare(b.companyName);
       } else if (sortBy === 'spend') {
-        return b.totalSpend - a.totalSpend;
+        return (b.totalSpend || 0) - (a.totalSpend || 0);
       } else if (sortBy === 'rating') {
-        return b.rating - a.rating;
+        return (b.rating || 5.0) - (a.rating || 5.0);
       } else if (sortBy === 'delivery') {
-        return b.performance.onTimeDelivery - a.performance.onTimeDelivery;
+        return (b.performance?.onTimeDelivery || 0) - (a.performance?.onTimeDelivery || 0);
       }
       return 0;
     });
 
     return result;
-  }, [suppliers, searchQuery, selectedCategory, selectedStatus, sortBy]);
+  }, [suppliers, sortBy]);
 
-  // Form handlers
+  // Form input handler
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+      // allow only digits and limit to max 10
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({
+        ...prev,
+        phone: digitsOnly
+      }));
+      return;
+    }
+    if (name === 'companyName' || name === 'contactPerson') {
+      // allow only letters and spaces
+      const lettersOnly = value.replace(/[^A-Za-z\s]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: lettersOnly
+      }));
+      return;
+    }
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
         [parent]: {
           ...prev[parent],
-          [child]: parseFloat(value) || value
+          [child]: child === 'onTimeDelivery' || child === 'qualityScore' || child === 'leadTimeDays' || child === 'returnRate'
+            ? parseFloat(value) || 0
+            : value
         }
       }));
     } else {
@@ -261,17 +287,59 @@ const SuppliersPage = () => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.companyName.trim()) errors.companyName = 'Company name is required';
-    if (!formData.contactPerson.trim()) errors.contactPerson = 'Contact person is required';
-    if (!formData.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Invalid email address';
-    }
-    if (!formData.phone.trim()) errors.phone = 'Phone number is required';
-    if (!formData.taxId.trim()) errors.taxId = 'Tax ID is required';
-    if (!formData.address.trim()) errors.address = 'Address is required';
     
+    const companyName = String(formData.companyName || '').trim();
+    const contactPerson = String(formData.contactPerson || '').trim();
+    const email = String(formData.email || '').trim();
+    const phone = String(formData.phone || '').trim();
+    const address = String(formData.address || '').trim();
+    
+    // Company Name: letters and spaces only
+    if (!companyName) {
+      errors.companyName = 'Company name is required';
+    } else if (!/^[A-Za-z\s]+$/.test(companyName)) {
+      errors.companyName = 'Company name must contain letters only';
+    }
+    
+    // Contact Person Name: letters and spaces only
+    if (!contactPerson) {
+      errors.contactPerson = 'Contact person is required';
+    } else if (!/^[A-Za-z\s]+$/.test(contactPerson)) {
+      errors.contactPerson = 'Contact person name must contain letters only';
+    }
+    
+    // Email: @ character is mandatory & matches general format
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!email.includes('@')) {
+      errors.email = 'Email address must contain @ character';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Invalid email format';
+    }
+    
+    // Phone: exactly 10 digits
+    if (!phone) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d+$/.test(phone)) {
+      errors.phone = 'Phone number must contain numbers only';
+    } else if (phone.length !== 10) {
+      errors.phone = 'Phone number must be exactly 10 digits';
+    }
+    
+    // Address: required
+    if (!address) {
+      errors.address = 'Address is required';
+    }
+    
+    // Contract Start Date: prevent past dates (for creation)
+    if (formMode === 'create' && formData.contract && formData.contract.startDate) {
+      const todayStr = getLocalDateString();
+      if (formData.contract.startDate < todayStr) {
+        errors.startDate = 'Contract start date cannot be in the past';
+      }
+    }
+    
+    console.log('Supplier validation result:', { data: formData, errors });
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -284,7 +352,6 @@ const SuppliersPage = () => {
       phone: '',
       address: '',
       category: 'Grains & Rice',
-      taxId: '',
       status: 'Active',
       rating: 5.0,
       performance: {
@@ -292,6 +359,14 @@ const SuppliersPage = () => {
         qualityScore: 95,
         leadTimeDays: 3,
         returnRate: 0.0
+      },
+      contract: {
+        startDate: getLocalDateString(),
+        endDate: getLocalDateStringOffset(365 * 24 * 60 * 60 * 1000),
+        status: 'Under Negotiation',
+        terms: '',
+        paymentTerms: 'Net 30',
+        sla: ''
       }
     });
     setFormErrors({});
@@ -305,59 +380,157 @@ const SuppliersPage = () => {
       companyName: supplier.companyName,
       contactPerson: supplier.contactPerson,
       email: supplier.email,
-      phone: supplier.phone,
+      phone: sanitizePhoneNumber(supplier.phone),
       address: supplier.address,
       category: supplier.category,
-      taxId: supplier.taxId,
       status: supplier.status,
       rating: supplier.rating,
-      performance: { ...supplier.performance }
+      performance: { ...(supplier.performance || { onTimeDelivery: 95, qualityScore: 95, leadTimeDays: 3, returnRate: 0.0 }) },
+      contract: { ...(supplier.contract || { startDate: '', endDate: '', status: 'Under Negotiation', terms: '', paymentTerms: 'Net 30', sla: '' }) }
     });
     setFormErrors({});
-    setEditingSupplierId(supplier.id);
+    setEditingSupplierId(supplier.id || supplier._id);
     setFormMode('edit');
     setIsFormOpen(true);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    if (formMode === 'create') {
-      const newId = `SUP-0${suppliers.length + 1}`;
-      const newSupplier = {
-        ...formData,
-        id: newId,
-        totalSpend: 0,
-        transactions: [],
-        aiRecommendation: 'New supplier registered. No historical data yet. Initial verification pending.'
-      };
-      setSuppliers(prev => [newSupplier, ...prev]);
-    } else {
-      setSuppliers(prev =>
-        prev.map(s =>
-          s.id === editingSupplierId
-            ? { ...s, ...formData }
-            : s
-        )
-      );
-      // Update viewing supplier details if it is currently open
-      if (viewingSupplier && viewingSupplier.id === editingSupplierId) {
-        setViewingSupplier(prev => ({ ...prev, ...formData }));
+    try {
+      if (formMode === 'create') {
+        const res = await addSupplier(formData);
+        if (res.success) {
+          setIsFormOpen(false);
+          loadSuppliers();
+        } else {
+          alert("Error: " + res.message);
+        }
+      } else {
+        const res = await updateSupplier(editingSupplierId, formData);
+        if (res.success) {
+          setIsFormOpen(false);
+          loadSuppliers();
+          if (viewingSupplier && (viewingSupplier.id === editingSupplierId || viewingSupplier._id === editingSupplierId)) {
+            setViewingSupplier(res.data);
+          }
+        } else {
+          alert("Error: " + res.message);
+        }
       }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save supplier details.");
     }
-    setIsFormOpen(false);
   };
 
-  const handleToggleStatus = (id, currentStatus, e) => {
+  const handleToggleStatus = async (id, currentStatus, e) => {
     e.stopPropagation();
     const nextStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    setSuppliers(prev =>
-      prev.map(s => (s.id === id ? { ...s, status: nextStatus } : s))
-    );
-    if (viewingSupplier && viewingSupplier.id === id) {
-      setViewingSupplier(prev => ({ ...prev, status: nextStatus }));
+    try {
+      const res = await updateSupplier(id, { status: nextStatus });
+      if (res.success) {
+        loadSuppliers();
+        if (viewingSupplier && (viewingSupplier.id === id || viewingSupplier._id === id)) {
+          setViewingSupplier(res.data);
+        }
+      }
+    } catch (err) {
+      console.error(err);
     }
+  };
+
+  const handleDeleteSupplier = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this supplier?")) return;
+    try {
+      const res = await deleteSupplier(id);
+      if (res.success) {
+        setViewingSupplier(null);
+        loadSuppliers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Open Edit Contract Modal
+  const handleOpenContractModal = () => {
+    const contract = selectedSupplierDetails?.contract || viewingSupplier?.contract || {};
+    setContractFormData({
+      startDate: contract.startDate ? formatDate(contract.startDate) : '',
+      endDate: contract.endDate ? formatDate(contract.endDate) : '',
+      status: contract.status || 'Under Negotiation',
+      terms: contract.terms || '',
+      paymentTerms: contract.paymentTerms || 'Net 30',
+      sla: contract.sla || ''
+    });
+    setIsContractModalOpen(true);
+  };
+
+  // Submit Contract Update
+  const handleContractSubmit = async (e) => {
+    e.preventDefault();
+    const todayStr = new Date().toISOString().substring(0, 10);
+    if (contractFormData.startDate && contractFormData.startDate < todayStr) {
+      alert("Error: Contract start date cannot be in the past.");
+      return;
+    }
+    const id = viewingSupplier.id || viewingSupplier._id;
+    try {
+      const res = await updateContract(id, contractFormData);
+      if (res.success) {
+        setIsContractModalOpen(false);
+        loadSupplierDetails(id);
+        loadSuppliers();
+      } else {
+        alert("Error: " + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update supplier contract.");
+    }
+  };
+
+  // Open Transaction Modal
+  const handleOpenTransactionModal = () => {
+    setTransactionFormData({
+      id: `TXN-${Math.floor(100 + Math.random() * 900)}`,
+      date: new Date().toISOString().substring(0, 10),
+      itemsCount: 50,
+      amount: 5000,
+      status: 'Delivered'
+    });
+    setIsTransactionModalOpen(true);
+  };
+
+  // Submit Transaction Log
+  const handleTransactionSubmit = async (e) => {
+    e.preventDefault();
+    const id = viewingSupplier.id || viewingSupplier._id;
+    try {
+      const res = await addTransaction(id, transactionFormData);
+      if (res.success) {
+        setIsTransactionModalOpen(false);
+        loadSupplierDetails(id);
+        loadSuppliers();
+      } else {
+        alert("Error: " + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to record manual transaction.");
+    }
+  };
+
+  // AI Insights Style Helper
+  const getAIRecommendationStyle = (rec) => {
+    if (!rec) return 'normal';
+    if (rec.includes('Excellent')) return 'excellent';
+    if (rec.includes('Caution')) return 'caution';
+    if (rec.includes('Warning')) return 'warning';
+    return 'normal';
   };
 
   return (
@@ -393,8 +566,8 @@ const SuppliersPage = () => {
         <div className="metric-card bg-glass">
           <div className="metric-icon-wrapper gold">💰</div>
           <div className="metric-details">
-            <span className="metric-label">Total Procurement Spend</span>
-            <div className="metric-value">${metrics.totalSpend.toLocaleString()}</div>
+            <span className="metric-label">Total Spend</span>
+            <div className="metric-value">Rs. {metrics.totalSpend.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -440,9 +613,11 @@ const SuppliersPage = () => {
             </select>
           </div>
 
-          <button className="register-btn" onClick={handleOpenCreateForm}>
-            <span className="plus-icon">+</span> Register Supplier
-          </button>
+          {isAdminOrManager && (
+            <button className="register-btn" onClick={handleOpenCreateForm}>
+              <span className="plus-icon">+</span> Register Supplier
+            </button>
+          )}
         </div>
       </div>
 
@@ -451,10 +626,22 @@ const SuppliersPage = () => {
         {/* Suppliers List */}
         <div className="suppliers-list-panel">
           <div className="list-header">
-            <h3>Registered Suppliers ({filteredSuppliers.length})</h3>
+            <h3>Registered Suppliers ({sortedSuppliers.length})</h3>
           </div>
 
-          {filteredSuppliers.length === 0 ? (
+          {loading ? (
+            <div className="loading-spinner bg-glass">
+              <div className="spinner"></div>
+              <p>Fetching suppliers from database...</p>
+            </div>
+          ) : error ? (
+            <div className="empty-state bg-glass error-state">
+              <span className="empty-icon">⚠️</span>
+              <p className="empty-title">Error Loading Suppliers</p>
+              <p className="empty-subtitle">{error}</p>
+              <button className="edit-icon-btn" onClick={loadSuppliers}>Retry Connection</button>
+            </div>
+          ) : sortedSuppliers.length === 0 ? (
             <div className="empty-state bg-glass">
               <span className="empty-icon">🚚</span>
               <p className="empty-title">No Suppliers Found</p>
@@ -462,10 +649,10 @@ const SuppliersPage = () => {
             </div>
           ) : (
             <div className="suppliers-grid">
-              {filteredSuppliers.map(supplier => (
+              {sortedSuppliers.map(supplier => (
                 <div
-                  key={supplier.id}
-                  className={`supplier-item-card bg-glass hover-scale ${viewingSupplier?.id === supplier.id ? 'selected' : ''}`}
+                  key={supplier.id || supplier._id}
+                  className={`supplier-item-card bg-glass hover-scale ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
                   onClick={() => {
                     setViewingSupplier(supplier);
                     setActiveDetailTab('performance');
@@ -474,7 +661,7 @@ const SuppliersPage = () => {
                   <div className="card-top">
                     <div className="supplier-icon-placeholder">🏢</div>
                     <div className="title-area">
-                      <span className="supplier-id">{supplier.id}</span>
+                      <span className="supplier-id">{supplier.id || supplier._id}</span>
                       <h4 className="supplier-name">{supplier.companyName}</h4>
                       <span className="category-badge">{supplier.category}</span>
                     </div>
@@ -495,7 +682,7 @@ const SuppliersPage = () => {
                     <div className="info-row">
                       <span>⭐ Rating:</span>
                       <div className="star-rating">
-                        <span className="stars">★</span> {supplier.rating.toFixed(1)}
+                        <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
                       </div>
                     </div>
                   </div>
@@ -503,27 +690,36 @@ const SuppliersPage = () => {
                   <div className="card-mini-metrics">
                     <div className="mini-stat">
                       <span className="label">Delivery</span>
-                      <span className={`value ${supplier.performance.onTimeDelivery >= 90 ? 'good' : supplier.performance.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
-                        {supplier.performance.onTimeDelivery}%
+                      <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
+                        {supplier.performance?.onTimeDelivery || 95}%
                       </span>
                     </div>
                     <div className="mini-stat">
                       <span className="label">Spend</span>
-                      <span className="value">${supplier.totalSpend.toLocaleString()}</span>
+                      <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
                     </div>
                   </div>
 
-                  <div className="card-actions">
-                    <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
-                      ✏️ Edit
-                    </button>
-                    <button
-                      className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
-                      onClick={(e) => handleToggleStatus(supplier.id, supplier.status, e)}
-                    >
-                      {supplier.status === 'Active' ? '⏸️ Deactivate' : '▶️ Activate'}
-                    </button>
-                  </div>
+                  {isAdminOrManager && (
+                    <div className="card-actions">
+                      <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
+                        ✏️ Edit
+                      </button>
+                      <button
+                        className="edit-icon-btn delete-btn"
+                        onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
+                        title="Delete Supplier"
+                      >
+                        🗑️ Delete
+                      </button>
+                      <button
+                        className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
+                        onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
+                      >
+                        {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -538,7 +734,7 @@ const SuppliersPage = () => {
               <button className="detail-close-btn" onClick={() => setViewingSupplier(null)}>✕</button>
 
               <div className="detail-header">
-                <span className="detail-id">{viewingSupplier.id}</span>
+                <span className="detail-id">{viewingSupplier.id || viewingSupplier._id}</span>
                 <h2>{viewingSupplier.companyName}</h2>
                 <div className="header-meta">
                   <span className="category-badge large">{viewingSupplier.category}</span>
@@ -554,140 +750,212 @@ const SuppliersPage = () => {
                   className={`tab-btn ${activeDetailTab === 'performance' ? 'active' : ''}`}
                   onClick={() => setActiveDetailTab('performance')}
                 >
-                  📈 Performance & Insights
+                  📈 Performance
+                </button>
+                <button
+                  className={`tab-btn ${activeDetailTab === 'contract' ? 'active' : ''}`}
+                  onClick={() => setActiveDetailTab('contract')}
+                >
+                  📜 Contract
                 </button>
                 <button
                   className={`tab-btn ${activeDetailTab === 'history' ? 'active' : ''}`}
                   onClick={() => setActiveDetailTab('history')}
                 >
-                  📜 Order History ({viewingSupplier.transactions.length})
+                  ⏳ Timeline ({procurementHistory?.history?.length || 0})
                 </button>
               </div>
 
               {/* Tab Content */}
-              <div className="tab-pane-content">
-                {activeDetailTab === 'performance' ? (
-                  <div className="performance-tab-content">
-                    {/* Main Performance Grid */}
-                    <div className="perf-grid">
-                      <div className="perf-meter-card">
-                        <div className="progress-circle" style={{ '--progress-pct': `${viewingSupplier.performance.onTimeDelivery}` }}>
-                          <span className="value">{viewingSupplier.performance.onTimeDelivery}%</span>
+              {loadingDetails ? (
+                <div className="detail-loading">
+                  <div className="spinner"></div>
+                  <p>Analyzing metrics and procurement logs...</p>
+                </div>
+              ) : (
+                <div className="tab-pane-content">
+                  {activeDetailTab === 'performance' && (
+                    <div className="performance-tab-content">
+                      {/* Main Performance Grid */}
+                      <div className="perf-grid">
+                        <div className="perf-meter-card">
+                          <div className="progress-circle" style={{ '--progress-pct': `${selectedSupplierDetails?.performance?.onTimeDelivery || 95}` }}>
+                            <span className="value">{selectedSupplierDetails?.performance?.onTimeDelivery || 95}%</span>
+                          </div>
+                          <span className="label">On-Time Delivery</span>
                         </div>
-                        <span className="label">On-Time Delivery</span>
+
+                        <div className="perf-meter-card">
+                          <div className="progress-circle" style={{ '--progress-pct': `${selectedSupplierDetails?.performance?.qualityScore || 95}` }}>
+                            <span className="value">{selectedSupplierDetails?.performance?.qualityScore || 95}%</span>
+                          </div>
+                          <span className="label">Quality Index</span>
+                        </div>
+
+                        <div className="perf-stat-card">
+                          <span className="label">⏰ Avg. Lead Time</span>
+                          <div className="number">{selectedSupplierDetails?.performance?.leadTimeDays || 3} Days</div>
+                          <span className="subtext">From PO to Delivery</span>
+                        </div>
+
+                        <div className="perf-stat-card">
+                          <span className="label">🔄 Return Rate</span>
+                          <div className={`number ${selectedSupplierDetails?.performance?.returnRate > 10 ? 'bad' : 'good'}`}>
+                            {selectedSupplierDetails?.performance?.returnRate || 0.0}%
+                          </div>
+                          <span className="subtext">Damaged/Rejected items</span>
+                        </div>
                       </div>
 
-                      <div className="perf-meter-card">
-                        <div className="progress-circle" style={{ '--progress-pct': `${viewingSupplier.performance.qualityScore}` }}>
-                          <span className="value">{viewingSupplier.performance.qualityScore}%</span>
+                      {/* AI Recommendation Card */}
+                      <div className={`ai-insight-card ${getAIRecommendationStyle(selectedSupplierDetails?.aiRecommendation)}`}>
+                        <div className="ai-insight-title">
+                          <span className="sparkles">✨</span>
+                          <h4>AI Procurement Recommendation</h4>
                         </div>
-                        <span className="label">Quality Index</span>
+                        <p className="ai-insight-text">
+                          {selectedSupplierDetails?.aiRecommendation || "Stable performance. Standard operations recommended."}
+                        </p>
                       </div>
 
-                      <div className="perf-stat-card">
-                        <span className="label">⏰ Avg. Lead Time</span>
-                        <div className="number">{viewingSupplier.performance.leadTimeDays} Days</div>
-                        <span className="subtext">From PO to Delivery</span>
-                      </div>
-
-                      <div className="perf-stat-card">
-                        <span className="label">🔄 Return Rate</span>
-                        <div className={`number ${viewingSupplier.performance.returnRate > 2 ? 'bad' : 'good'}`}>
-                          {viewingSupplier.performance.returnRate}%
+                      {/* Additional Details */}
+                      <div className="contact-details-box">
+                        <h4>Contact & Business Details</h4>
+                        <div className="contact-grid">
+                          <div className="grid-item">
+                            <span>Contact Person</span>
+                            <strong>{viewingSupplier.contactPerson}</strong>
+                          </div>
+                          <div className="grid-item">
+                            <span>Email Address</span>
+                            <strong>{viewingSupplier.email}</strong>
+                          </div>
+                          <div className="grid-item">
+                            <span>Phone Number</span>
+                            <strong>{viewingSupplier.phone}</strong>
+                          </div>
+                          <div className="grid-item full-width">
+                            <span>Office Address</span>
+                            <strong>{viewingSupplier.address}</strong>
+                          </div>
                         </div>
-                        <span className="subtext">Damaged/Incorrect goods</span>
                       </div>
                     </div>
+                  )}
 
-                    {/* AI Recommendation Card */}
-                    <div className="ai-insight-card">
-                      <div className="ai-insight-title">
-                        <span className="sparkles">✨</span>
-                        <h4>AI Procurement Insight</h4>
+                  {activeDetailTab === 'contract' && (
+                    <div className="contract-tab-content">
+                      <div className="contract-status-summary">
+                        <div className="info-badge-row">
+                          <span className={`status-pill ${((selectedSupplierDetails?.contract?.status || viewingSupplier?.contract?.status || 'Under Negotiation').toLowerCase().replace(' ', '-'))}`}>
+                            Contract: {selectedSupplierDetails?.contract?.status || viewingSupplier?.contract?.status || 'Under Negotiation'}
+                          </span>
+                        </div>
+                        {isAdminOrManager && (
+                          <button className="register-btn contract-edit-btn" onClick={handleOpenContractModal}>
+                            ✏️ Manage Contract
+                          </button>
+                        )}
                       </div>
-                      <p className="ai-insight-text">{viewingSupplier.aiRecommendation}</p>
-                    </div>
 
-                    {/* Additional Details */}
-                    <div className="contact-details-box">
-                      <h4>Contact & Business Details</h4>
-                      <div className="contact-grid">
-                        <div className="grid-item">
-                          <span>Contact Person</span>
-                          <strong>{viewingSupplier.contactPerson}</strong>
+                      <div className="contract-details-grid">
+                        <div className="contract-detail-item">
+                          <span>Start Date</span>
+                          <strong>{selectedSupplierDetails?.contract?.startDate ? formatDate(selectedSupplierDetails.contract.startDate) : 'Not Specified'}</strong>
                         </div>
-                        <div className="grid-item">
-                          <span>Email Address</span>
-                          <strong>{viewingSupplier.email}</strong>
+                        <div className="contract-detail-item">
+                          <span>End Date</span>
+                          <strong>{selectedSupplierDetails?.contract?.endDate ? formatDate(selectedSupplierDetails.contract.endDate) : 'Not Specified'}</strong>
                         </div>
-                        <div className="grid-item">
-                          <span>Phone Number</span>
-                          <strong>{viewingSupplier.phone}</strong>
+                        <div className="contract-detail-item">
+                          <span>Payment Terms</span>
+                          <strong className="badge-term">{selectedSupplierDetails?.contract?.paymentTerms || viewingSupplier?.contract?.paymentTerms || 'COD'}</strong>
                         </div>
-                        <div className="grid-item">
-                          <span>Tax Registration ID</span>
-                          <strong>{viewingSupplier.taxId}</strong>
+                        <div className="contract-detail-item full-width">
+                          <span>SLA (Service Level Agreements)</span>
+                          <p className="doc-paragraph">{selectedSupplierDetails?.contract?.sla || viewingSupplier?.contract?.sla || 'No SLA terms defined yet.'}</p>
                         </div>
-                        <div className="grid-item full-width">
-                          <span>Office Address</span>
-                          <strong>{viewingSupplier.address}</strong>
+                        <div className="contract-detail-item full-width">
+                          <span>Terms & Conditions</span>
+                          <p className="doc-paragraph">{selectedSupplierDetails?.contract?.terms || viewingSupplier?.contract?.terms || 'No contract terms defined.'}</p>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="history-tab-content">
-                    <div className="table-responsive">
-                      <table className="transaction-table">
-                        <thead>
-                          <tr>
-                            <th>Order ID</th>
-                            <th>Date</th>
-                            <th>Items Count</th>
-                            <th>Total Cost</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {viewingSupplier.transactions.length === 0 ? (
+                  )}
+
+                  {activeDetailTab === 'history' && (
+                    <div className="history-tab-content">
+                      <div className="history-header">
+                        <div className="history-stats">
+                          <span>Spend: <strong>Rs. {procurementHistory?.totalSpend?.toLocaleString() || 0}</strong></span>
+                          <span>PO: <strong>{procurementHistory?.metrics?.purchaseOrderCount || 0}</strong></span>
+                          <span>Manual: <strong>{procurementHistory?.metrics?.manualCount || 0}</strong></span>
+                        </div>
+                        {isAdminOrManager && (
+                          <button className="register-btn record-txn-btn" onClick={handleOpenTransactionModal}>
+                            + Log Manual Supply
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="table-responsive">
+                        <table className="transaction-table">
+                          <thead>
                             <tr>
-                              <td colSpan="5" style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b' }}>
-                                No purchase orders found for this supplier.
-                              </td>
+                              <th>ID</th>
+                              <th>Date</th>
+                              <th>Items</th>
+                              <th>Cost</th>
+                              <th>Type</th>
+                              <th>Status</th>
                             </tr>
-                          ) : (
-                            viewingSupplier.transactions.map(tx => (
-                              <tr key={tx.id}>
-                                <td className="order-id">📋 {tx.id}</td>
-                                <td>{tx.date}</td>
-                                <td>{tx.itemsCount} units</td>
-                                <td><strong>${tx.amount.toLocaleString()}</strong></td>
-                                <td>
-                                  <span className={`status-pill ${tx.status.toLowerCase()}`}>
-                                    {tx.status}
-                                  </span>
+                          </thead>
+                          <tbody>
+                            {!procurementHistory?.history || procurementHistory.history.length === 0 ? (
+                              <tr>
+                                <td colSpan="6" style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b' }}>
+                                  No transaction records found.
                                 </td>
                               </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
+                            ) : (
+                              procurementHistory.history.map(tx => (
+                                <tr key={tx.id}>
+                                  <td className="order-id">📋 {tx.id}</td>
+                                  <td>{formatDate(tx.date)}</td>
+                                  <td>{tx.itemsCount} units</td>
+                                  <td><strong>Rs. {tx.amount.toLocaleString()}</strong></td>
+                                  <td>
+                                    <span className={`type-badge ${tx.type.toLowerCase().replace(' ', '-')}`}>
+                                      {tx.type}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className={`status-pill ${tx.status.toLowerCase()}`}>
+                                      {tx.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="no-selection bg-glass">
               <span className="big-icon">📊</span>
               <h3>No Supplier Selected</h3>
-              <p>Click a supplier card to inspect performance analytics, contact information, and purchase order history.</p>
+              <p>Click a supplier card to inspect performance analytics, contract information, and procurement logs.</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Supplier Form Modal */}
+      {/* Supplier Registration / Edit Form Modal */}
       {isFormOpen && (
         <div className="modal-backdrop">
           <div className="modal-content bg-glass">
@@ -725,19 +993,6 @@ const SuppliersPage = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Tax Registration ID (TIN) <span className="required">*</span></label>
-                  <input
-                    type="text"
-                    name="taxId"
-                    value={formData.taxId}
-                    onChange={handleInputChange}
-                    className={formErrors.taxId ? 'error' : ''}
-                    placeholder="e.g. TX-XXXXX-LK"
-                  />
-                  {formErrors.taxId && <span className="error-text">{formErrors.taxId}</span>}
-                </div>
-
-                <div className="form-group">
                   <label>Email Address <span className="required">*</span></label>
                   <input
                     type="email"
@@ -758,7 +1013,8 @@ const SuppliersPage = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     className={formErrors.phone ? 'error' : ''}
-                    placeholder="e.g. +94 77 123 4567"
+                    placeholder="e.g. 0771234567"
+                    maxLength={10}
                   />
                   {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
                 </div>
@@ -792,9 +1048,82 @@ const SuppliersPage = () => {
                   {formErrors.address && <span className="error-text">{formErrors.address}</span>}
                 </div>
 
+                {/* Contract initialization if creating */}
+                {formMode === 'create' && (
+                  <>
+                    <div className="form-section-title full-width">
+                      <h4>📜 Initial Contract Information</h4>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Contract Start Date</label>
+                      <input
+                        type="date"
+                        name="contract.startDate"
+                        value={formData.contract.startDate}
+                        onChange={handleInputChange}
+                        className={formErrors.startDate ? 'error' : ''}
+                        min={getLocalDateString()}
+                      />
+                      {formErrors.startDate && <span className="error-text">{formErrors.startDate}</span>}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Contract End Date</label>
+                      <input
+                        type="date"
+                        name="contract.endDate"
+                        value={formData.contract.endDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Payment Terms</label>
+                      <select name="contract.paymentTerms" value={formData.contract.paymentTerms} onChange={handleInputChange}>
+                        <option value="Net 30">Net 30</option>
+                        <option value="Net 60">Net 60</option>
+                        <option value="COD">COD (Cash on Delivery)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Contract Status</label>
+                      <select name="contract.status" value={formData.contract.status} onChange={handleInputChange}>
+                        <option value="Under Negotiation">Under Negotiation</option>
+                        <option value="Active">Active</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Terminated">Terminated</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Contract SLA (Service Level Agreement)</label>
+                      <input
+                        type="text"
+                        name="contract.sla"
+                        value={formData.contract.sla}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Deliver within 3 days of order placement"
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Terms & Conditions</label>
+                      <textarea
+                        name="contract.terms"
+                        value={formData.contract.terms}
+                        onChange={handleInputChange}
+                        placeholder="Detail any contract agreements and pricing policies here..."
+                        rows="2"
+                      />
+                    </div>
+                  </>
+                )}
+
                 {/* Initial performance scores (For simulation/edit) */}
                 <div className="form-section-title full-width">
-                  <h4>📊 Initial Performance Metrics (for simulation)</h4>
+                  <h4>📊 Performance Metrics</h4>
                 </div>
 
                 <div className="form-group">
@@ -852,6 +1181,175 @@ const SuppliersPage = () => {
                 </button>
                 <button type="submit" className="submit-btn">
                   {formMode === 'create' ? 'Register Supplier' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Contract Edit Modal */}
+      {isContractModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content bg-glass">
+            <div className="modal-header">
+              <h3>📜 Edit Supplier Contract</h3>
+              <button className="close-btn" onClick={() => setIsContractModalOpen(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleContractSubmit}>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Contract Start Date</label>
+                  <input
+                    type="date"
+                    value={contractFormData.startDate}
+                    onChange={e => setContractFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    min={new Date().toISOString().substring(0, 10)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Contract End Date</label>
+                  <input
+                    type="date"
+                    value={contractFormData.endDate}
+                    onChange={e => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Contract Status</label>
+                  <select
+                    value={contractFormData.status}
+                    onChange={e => setContractFormData(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="Under Negotiation">Under Negotiation</option>
+                    <option value="Active">Active</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Terminated">Terminated</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Payment Terms</label>
+                  <select
+                    value={contractFormData.paymentTerms}
+                    onChange={e => setContractFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                  >
+                    <option value="Net 30">Net 30</option>
+                    <option value="Net 60">Net 60</option>
+                    <option value="COD">COD (Cash on Delivery)</option>
+                  </select>
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Service Level Agreement (SLA)</label>
+                  <input
+                    type="text"
+                    value={contractFormData.sla}
+                    onChange={e => setContractFormData(prev => ({ ...prev, sla: e.target.value }))}
+                    placeholder="e.g. Delivery within 2 days of PO issuance"
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Contract Terms & Conditions</label>
+                  <textarea
+                    value={contractFormData.terms}
+                    onChange={e => setContractFormData(prev => ({ ...prev, terms: e.target.value }))}
+                    placeholder="Enter detailed contract terms..."
+                    rows="4"
+                  />
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="cancel-btn" onClick={() => setIsContractModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn">
+                  Update Contract
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Transaction Modal */}
+      {isTransactionModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content bg-glass">
+            <div className="modal-header">
+              <h3>➕ Record Manual Procurement Supply</h3>
+              <button className="close-btn" onClick={() => setIsTransactionModalOpen(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleTransactionSubmit}>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Transaction/Ref ID <span className="required">*</span></label>
+                  <input
+                    type="text"
+                    value={transactionFormData.id}
+                    onChange={e => setTransactionFormData(prev => ({ ...prev, id: e.target.value }))}
+                    placeholder="e.g. TXN-101"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Supply Date <span className="required">*</span></label>
+                  <input
+                    type="date"
+                    value={transactionFormData.date}
+                    onChange={e => setTransactionFormData(prev => ({ ...prev, date: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Total Items Count <span className="required">*</span></label>
+                  <input
+                    type="number"
+                    value={transactionFormData.itemsCount}
+                    onChange={e => setTransactionFormData(prev => ({ ...prev, itemsCount: parseInt(e.target.value) || 0 }))}
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Total Cost (Rs.) <span className="required">*</span></label>
+                  <input
+                    type="number"
+                    value={transactionFormData.amount}
+                    onChange={e => setTransactionFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Supply Delivery Status</label>
+                  <select
+                    value={transactionFormData.status}
+                    onChange={e => setTransactionFormData(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="Delivered">Delivered</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="cancel-btn" onClick={() => setIsTransactionModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn">
+                  Record Supply
                 </button>
               </div>
             </form>
@@ -1012,6 +1510,7 @@ const SuppliersPage = () => {
           cursor: pointer;
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 6px;
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
           transition: transform 0.15s, box-shadow 0.15s;
@@ -1077,6 +1576,39 @@ const SuppliersPage = () => {
           gap: 16px;
         }
 
+        /* Loading UI & Spinner */
+        .loading-spinner {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          text-align: center;
+          color: #64748b;
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(59, 130, 246, 0.1);
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .detail-loading {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 80px 20px;
+          color: #64748b;
+          font-size: 13px;
+        }
+
         /* Cards style */
         .supplier-item-card {
           padding: 16px;
@@ -1110,6 +1642,7 @@ const SuppliersPage = () => {
           display: flex;
           flex-direction: column;
           flex: 1;
+          min-width: 0;
         }
         .supplier-id {
           font-size: 10px;
@@ -1124,7 +1657,6 @@ const SuppliersPage = () => {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          max-width: 140px;
         }
         .category-badge {
           font-size: 10px;
@@ -1143,14 +1675,18 @@ const SuppliersPage = () => {
 
         .status-pill {
           font-size: 9px;
-          padding: 2px 8px;
+          padding: 3px 8px;
           border-radius: 10px;
           font-weight: 700;
           text-transform: uppercase;
+          white-space: nowrap;
         }
         .status-pill.active { background: rgba(16, 185, 129, 0.15); color: #059669; }
         .status-pill.under-review { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+        .status-pill.under-negotiation { background: rgba(245, 158, 11, 0.15); color: #d97706; }
         .status-pill.inactive { background: rgba(100, 116, 139, 0.15); color: #64748b; }
+        .status-pill.expired { background: rgba(100, 116, 139, 0.15); color: #64748b; }
+        .status-pill.terminated { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
         .status-pill.delivered { background: rgba(16, 185, 129, 0.15); color: #059669; }
         .status-pill.pending { background: rgba(245, 158, 11, 0.15); color: #d97706; }
         .status-pill.cancelled { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
@@ -1197,28 +1733,31 @@ const SuppliersPage = () => {
         .card-actions {
           display: flex;
           justify-content: space-between;
-          gap: 10px;
+          gap: 8px;
+          flex-wrap: wrap;
         }
         .edit-icon-btn {
           font-size: 11px;
           background: rgba(255,255,255,0.7);
           border: 1px solid rgba(0,0,0,0.1);
           border-radius: 6px;
-          padding: 6px 12px;
+          padding: 6px 10px;
           cursor: pointer;
           font-weight: 600;
           color: #475569;
         }
         .edit-icon-btn:hover { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+        .edit-icon-btn.delete-btn:hover { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
 
         .status-toggle-btn {
           font-size: 11px;
           background: transparent;
           border: 1px dashed rgba(0,0,0,0.15);
           border-radius: 6px;
-          padding: 6px 12px;
+          padding: 6px 10px;
           cursor: pointer;
           font-weight: 600;
+          margin-left: auto;
         }
         .status-toggle-btn.deactivate { color: #dc2626; }
         .status-toggle-btn.deactivate:hover { background: rgba(239, 68, 68, 0.1); }
@@ -1344,13 +1883,28 @@ const SuppliersPage = () => {
 
         /* AI Insight */
         .ai-insight-card {
-          background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%);
-          border: 1px solid rgba(37, 99, 235, 0.2);
           border-radius: 12px;
           padding: 16px;
           margin-bottom: 20px;
           position: relative;
           overflow: hidden;
+          border: 1px solid transparent;
+        }
+        .ai-insight-card.excellent {
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+          border-color: rgba(16, 185, 129, 0.2);
+        }
+        .ai-insight-card.caution {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.05) 100%);
+          border-color: rgba(245, 158, 11, 0.25);
+        }
+        .ai-insight-card.warning {
+          background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(245, 158, 11, 0.05) 100%);
+          border-color: rgba(239, 68, 68, 0.2);
+        }
+        .ai-insight-card.normal {
+          background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%);
+          border-color: rgba(37, 99, 235, 0.15);
         }
         .ai-insight-card::before {
           content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
@@ -1361,14 +1915,19 @@ const SuppliersPage = () => {
           display: flex;
           align-items: center;
           gap: 6px;
-          color: #6d28d9;
+          color: #1e293b;
           font-weight: 700;
           font-size: 13px;
           margin-bottom: 6px;
         }
+        .ai-insight-card.excellent .ai-insight-title { color: #047857; }
+        .ai-insight-card.caution .ai-insight-title { color: #b45309; }
+        .ai-insight-card.warning .ai-insight-title { color: #b91c1c; }
+        .ai-insight-card.normal .ai-insight-title { color: #1d4ed8; }
+
         .sparkles { font-size: 14px; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        .ai-insight-text { font-size: 12px; color: #1e1b4b; line-height: 1.5; font-weight: 500; }
+        .ai-insight-text { font-size: 12px; color: #334155; line-height: 1.5; font-weight: 500; }
 
         /* Contact Box */
         .contact-details-box {
@@ -1388,7 +1947,82 @@ const SuppliersPage = () => {
         .grid-item span { font-size: 10px; color: #64748b; font-weight: 500; }
         .grid-item strong { font-size: 12px; color: #1e293b; font-weight: 600; word-break: break-all; }
 
+        /* Contract tab styles */
+        .contract-status-summary {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(15, 23, 42, 0.03);
+          padding: 12px 16px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+        }
+        .contract-edit-btn {
+          height: 32px;
+          align-self: center;
+        }
+        .contract-details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+        .contract-detail-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .contract-detail-item.full-width {
+          grid-column: span 2;
+        }
+        .contract-detail-item span {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 600;
+        }
+        .contract-detail-item strong {
+          font-size: 14px;
+          color: #0f172a;
+        }
+        .badge-term {
+          font-size: 12px;
+          background: rgba(37, 99, 235, 0.1);
+          color: #1d4ed8;
+          padding: 4px 10px;
+          border-radius: 6px;
+          align-self: flex-start;
+        }
+        .doc-paragraph {
+          font-size: 13px;
+          color: #334155;
+          line-height: 1.6;
+          background: rgba(255, 255, 255, 0.4);
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(0,0,0,0.03);
+          margin-top: 4px;
+        }
+
         /* Transaction History Tab */
+        .history-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .history-stats {
+          display: flex;
+          gap: 12px;
+          font-size: 12px;
+          color: #475569;
+        }
+        .record-txn-btn {
+          height: 32px;
+          align-self: center;
+          font-size: 12px;
+          padding: 0 12px;
+        }
         .table-responsive {
           width: 100%;
           overflow-x: auto;
@@ -1413,6 +2047,15 @@ const SuppliersPage = () => {
           background: rgba(0, 0, 0, 0.01);
         }
         .order-id { font-weight: 600; color: #2563eb; }
+
+        .type-badge {
+          font-size: 10px;
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        .type-badge.manual { background: rgba(147, 51, 234, 0.1); color: #7c3aed; }
+        .type-badge.purchase-order { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
 
         /* Modal styling */
         .modal-backdrop {
@@ -1485,10 +2128,10 @@ const SuppliersPage = () => {
 
         .form-section-title {
           margin-top: 14px;
-          border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.08);
           padding-bottom: 6px;
         }
-        .form-section-title h4 { font-size: 12px; font-weight: 700; color: #475569; }
+        .form-section-title h4 { font-size: 12px; font-weight: 700; color: #1d4ed8; }
 
         .form-actions {
           display: flex;
@@ -1520,9 +2163,13 @@ const SuppliersPage = () => {
           justify-content: center;
           text-align: center;
         }
+        .empty-state.error-state {
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          background: rgba(239, 68, 68, 0.03);
+        }
         .empty-icon { font-size: 40px; margin-bottom: 12px; }
         .empty-title { font-size: 14px; font-weight: 700; color: #334155; }
-        .empty-subtitle { font-size: 12px; color: #64748b; }
+        .empty-subtitle { font-size: 12px; color: #64748b; margin-bottom: 14px; }
       `}</style>
     </div>
   );

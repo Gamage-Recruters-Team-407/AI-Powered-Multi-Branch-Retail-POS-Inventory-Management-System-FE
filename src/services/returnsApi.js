@@ -6,6 +6,12 @@ const returnsApi = axios.create({
   baseURL: `${API_URL}/api/returns`,
 });
 
+returnsApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export const getInvoices = async () => {
   const response = await returnsApi.get("/invoices");
   return response.data;

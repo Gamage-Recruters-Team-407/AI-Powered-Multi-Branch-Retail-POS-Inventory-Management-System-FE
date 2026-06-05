@@ -8,6 +8,41 @@ export default function SchedulePlanner() {
   const [editingShift, setEditingShift] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchError, setSearchError] = useState("");
+  const [errorTimeout, setErrorTimeout] = useState(null);
+
+  const handleSearchChange = (e) => {
+    const rawVal = e.target.value;
+    if (rawVal.length > 100) return;
+    
+    const sanitized = rawVal
+      .replace(/[^a-zA-Z0-9\s\.\-\@]/g, "")
+      .replace(/^\s+/, "");
+      
+    setSearchQuery(sanitized);
+    
+    const specialCharRegex = /[^a-zA-Z0-9\s\.\-\@]/g;
+    if (specialCharRegex.test(rawVal)) {
+      setSearchError("Letters, numbers, spaces, and @ . - allowed");
+      if (errorTimeout) clearTimeout(errorTimeout);
+      const t = setTimeout(() => setSearchError(""), 3000);
+      setErrorTimeout(t);
+    } else {
+      setSearchError("");
+    }
+  };
+
+  const filteredEmployees = employees.filter((emp) => {
+    if (searchQuery.trim()) {
+      const searchLower = searchQuery.toLowerCase();
+      const fullName = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase();
+      const email = (emp.email || "").toLowerCase();
+      return fullName.includes(searchLower) || email.includes(searchLower);
+    }
+    return true;
+  });
+
   const SHIFTS = [
     { label: "Morning (08:00 AM - 05:00 PM)", value: "Morning", color: "bg-sky-50 text-sky-700 border-sky-200" },
     { label: "Evening (02:00 PM - 10:00 PM)", value: "Evening", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
@@ -83,43 +118,75 @@ export default function SchedulePlanner() {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
       
-      {/* Planner Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      {/* Planner Header & Controls */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Weekly Shift Planner</h2>
           <p className="text-xs text-slate-500 mt-0.5">Assign shifts, monitor schedules, and check staffing levels.</p>
         </div>
         
-        {/* Navigation & Range */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => adjustWeek(-7)}
-            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition"
-          >
-            ◀ Prev Week
-          </button>
-          <span className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl">
-            {weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} — {weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-          </span>
-          <button
-            onClick={() => adjustWeek(7)}
-            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition"
-          >
-            Next Week ▶
-          </button>
+        {/* Controls container - Side by Side */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+          {/* Search box inline */}
+          <div className="flex items-center gap-2 w-full sm:w-64 md:w-72 relative">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search staff..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className={`w-full rounded-xl border bg-slate-50 px-3.5 py-2 text-xs font-medium outline-none transition focus:ring-2 ${searchError ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"}`}
+              />
+              {searchError && (
+                <span className="absolute bottom-full left-0 mb-1.5 text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-lg z-20 shadow-sm whitespace-nowrap">
+                  ⚠️ {searchError}
+                </span>
+              )}
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchError("");
+                }}
+                className="rounded-xl border border-blue-100 bg-blue-50 text-blue-600 px-3.5 py-2 text-xs font-bold hover:bg-blue-100 transition whitespace-nowrap"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Navigation & Range */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => adjustWeek(-7)}
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition whitespace-nowrap"
+            >
+              ◀ Prev Week
+            </button>
+            <span className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl whitespace-nowrap">
+              {weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} — {weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+            <button
+              onClick={() => adjustWeek(7)}
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition whitespace-nowrap"
+            >
+              Next Week ▶
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Roster Timeline Grid */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
         <table className="w-full min-w-[800px] border-collapse text-left border border-slate-100">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-3.5 text-xs font-extrabold text-slate-500 w-[200px]">Employee</th>
+            <tr className="border-b border-slate-100">
+              <th className="sticky top-0 bg-slate-50 px-4 py-3.5 text-xs font-extrabold text-slate-500 w-[200px] z-10 border-b border-slate-200">Employee</th>
               {weekDays.map((day, idx) => {
                 const isToday = day.toISOString().split("T")[0] === new Date().toISOString().split("T")[0];
                 return (
-                  <th key={idx} className={`px-3 py-3.5 text-center text-xs font-extrabold border-l border-slate-100 ${isToday ? "bg-blue-50 text-blue-700" : "text-slate-500"}`}>
+                  <th key={idx} className={`sticky top-0 px-3 py-3.5 text-center text-xs font-extrabold border-l border-b border-slate-200 z-10 ${isToday ? "bg-blue-50 text-blue-700 border-l-slate-100" : "bg-slate-50 text-slate-500 border-l-slate-100"}`}>
                     <span className="block">{day.toLocaleDateString(undefined, { weekday: "short" })}</span>
                     <span className="block text-sm font-black mt-0.5">{day.getDate()}</span>
                   </th>
@@ -128,12 +195,14 @@ export default function SchedulePlanner() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {employees.length === 0 ? (
+            {filteredEmployees.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-xs text-slate-400">No active employees to schedule.</td>
+                <td colSpan={8} className="p-8 text-center text-xs text-slate-400">
+                  {employees.length === 0 ? "No active employees to schedule." : "No employees match the specified filters."}
+                </td>
               </tr>
             ) : (
-              employees.map((emp) => (
+              filteredEmployees.map((emp) => (
                 <tr key={emp._id} className="hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3 flex items-center gap-3">
                     <img src={emp.photo} alt={emp.firstName} className="h-8 w-8 rounded-lg object-cover" />
@@ -220,12 +289,22 @@ export default function SchedulePlanner() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">Shift Notes (Optional)</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-slate-500">Shift Notes (Optional)</label>
+                  <span className="text-[10px] font-bold text-slate-400">{editingNotes.length}/100</span>
+                </div>
                 <input
                   type="text"
                   placeholder="e.g. Opening register duties, Stock receiving..."
                   value={editingNotes}
-                  onChange={(e) => setEditingNotes(e.target.value)}
+                  onChange={(e) => {
+                    const rawVal = e.target.value;
+                    if (rawVal.length > 100) return;
+                    const sanitized = rawVal
+                      .replace(/[^a-zA-Z0-9\s\.\,\-\_\#\@\(\)\:\!\?]/g, "")
+                      .replace(/^\s+/, "");
+                    setEditingNotes(sanitized);
+                  }}
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>

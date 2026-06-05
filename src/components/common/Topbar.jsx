@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 
-const Topbar = ({ pageTitle, wsConnected, onRoleChange }) => {
+const Topbar = ({ pageTitle, onRoleChange }) => {
   const { user } = useAuth();
+  const { notifications = [], wsConnected = false, removeNotification, clearAll } = useNotification() || {};
   const [time, setTime] = useState(new Date());
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -10,12 +12,6 @@ const Topbar = ({ pageTitle, wsConnected, onRoleChange }) => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  const notifications = [
-    { id: 1, type: 'warning', msg: '12 items are low on stock at Kandy Branch', time: '2m ago' },
-    { id: 2, type: 'success', msg: 'Daily sales target achieved at Galle Branch', time: '18m ago' },
-    { id: 3, type: 'info', msg: 'New supplier order approved - Reference #ORD-2847', time: '1h ago' },
-  ];
 
   return (
     <header className="topbar">
@@ -52,23 +48,42 @@ const Topbar = ({ pageTitle, wsConnected, onRoleChange }) => {
         <div className="notif-wrapper">
           <button className="notif-btn" onClick={() => setNotifOpen(!notifOpen)}>
             🔔
-            <span className="notif-count">{notifications.length}</span>
+            {notifications.length > 0 && <span className="notif-count">{notifications.length}</span>}
           </button>
           {notifOpen && (
             <div className="notif-panel">
               <div className="notif-header">
                 <span>Notifications</span>
-                <button onClick={() => setNotifOpen(false)}>×</button>
-              </div>
-              {notifications.map(n => (
-                <div key={n.id} className={`notif-item notif-${n.type}`}>
-                  <span className="notif-dot" />
-                  <div>
-                    <div className="notif-msg">{n.msg}</div>
-                    <div className="notif-time">{n.time}</div>
-                  </div>
+                <div style={{display: 'flex', gap: '10px'}}>
+                  {notifications.length > 0 && (
+                    <button onClick={clearAll} style={{fontSize: '0.8rem', color: 'var(--blue-500)', fontWeight: 'bold'}}>Clear</button>
+                  )}
+                  <button onClick={() => setNotifOpen(false)}>×</button>
                 </div>
-              ))}
+              </div>
+              <div style={{maxHeight: '400px', overflowY: 'auto'}}>
+                {notifications.length === 0 ? (
+                  <div style={{padding: '20px', textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.9rem'}}>
+                    No new notifications
+                  </div>
+                ) : (
+                  notifications.map(n => (
+                    <div key={n.id} className={`notif-item notif-${n.type}`}>
+                      <span className="notif-dot" />
+                      <div style={{flex: 1}}>
+                        <div className="notif-msg">{n.msg}</div>
+                        <div className="notif-time">{n.time}</div>
+                      </div>
+                      <button 
+                        onClick={() => removeNotification(n.id)}
+                        style={{background: 'none', border: 'none', color: 'var(--gray-300)', cursor: 'pointer', fontSize: '1rem', padding: '0 4px'}}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { getProductById } from "../../services/productManagementApi";
 
-function ProductDetailsPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+function ProductDetailsPage({ productId, onBack, onEdit }) {
+  const id = productId;
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   const fetchProductDetails = async () => {
+    if (!id) {
+      setMessage("Product ID not found");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setMessage("");
+
       const response = await getProductById(id);
       setProduct(response.data.product);
     } catch (error) {
@@ -24,6 +30,7 @@ function ProductDetailsPage() {
 
   useEffect(() => {
     fetchProductDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) {
@@ -43,7 +50,8 @@ function ProductDetailsPage() {
           <p className="text-red-600">{message || "Product not found"}</p>
 
           <button
-            onClick={() => navigate("/products")}
+            type="button"
+            onClick={onBack}
             className="mt-4 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
           >
             Back to Products
@@ -62,20 +70,23 @@ function ProductDetailsPage() {
               Product Details
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              View complete product information, pricing, barcode, and status.
+              View complete product information, category, supplier, pricing,
+              barcode, and status.
             </p>
           </div>
 
           <div className="flex gap-3">
             <button
-              onClick={() => navigate(`/products/edit/${product._id}`)}
+              type="button"
+              onClick={() => onEdit(product._id)}
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               Edit Product
             </button>
 
             <button
-              onClick={() => navigate("/products")}
+              type="button"
+              onClick={onBack}
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               Back
@@ -158,6 +169,24 @@ function ProductDetailsPage() {
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase text-slate-500">
+                  Category
+                </p>
+                <p className="mt-1 text-base font-semibold text-slate-900">
+                  {product.category?.name || "N/A"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-slate-500">
+                  Supplier
+                </p>
+                <p className="mt-1 text-base font-semibold text-slate-900">
+                  {product.supplier?.companyName || "N/A"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-slate-500">
                   Unit
                 </p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
@@ -173,6 +202,50 @@ function ProductDetailsPage() {
                   {product.reorderLevel || 0}
                 </p>
               </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase text-blue-700">
+                Supplier Information
+              </p>
+
+              {product.supplier ? (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Company:</span>{" "}
+                    {product.supplier.companyName || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Contact Person:</span>{" "}
+                    {product.supplier.contactPerson || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Phone:</span>{" "}
+                    {product.supplier.phone || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Email:</span>{" "}
+                    {product.supplier.email || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Status:</span>{" "}
+                    {product.supplier.status || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Rating:</span>{" "}
+                    {product.supplier.rating || "N/A"}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">
+                  No supplier assigned to this product.
+                </p>
+              )}
             </div>
 
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">

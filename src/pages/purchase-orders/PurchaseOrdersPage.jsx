@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  FiAlertTriangle,
+  FiBarChart2,
   FiCheckCircle,
   FiClipboard,
+  FiDownload,
+  FiEye,
+  FiFilter,
   FiPackage,
-  FiPieChart,
   FiPlus,
   FiRefreshCw,
+  FiSearch,
   FiShield,
   FiTruck,
   FiUsers,
   FiXCircle,
 } from 'react-icons/fi'
-import './PurchaseOrdersPage.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 const API_URL = `${API_BASE_URL}/api/purchase-orders`
 
 const initialPurchaseOrders = [
@@ -22,41 +26,97 @@ const initialPurchaseOrders = [
     supplier: 'BlueLine Wholesale',
     branch: 'Colombo Central',
     date: '2026-06-02',
+    expectedDate: '2026-06-06',
     amount: '$18,450.00',
     status: 'Pending',
+    priority: 'High',
+    items: 24,
+    category: 'Grocery Essentials',
+    owner: 'Kasun Perera',
   },
   {
     po: 'PO-2026-1047',
     supplier: 'NorthStar Distributors',
     branch: 'Kandy City',
     date: '2026-06-01',
+    expectedDate: '2026-06-05',
     amount: '$9,780.00',
     status: 'Approved',
+    priority: 'Medium',
+    items: 13,
+    category: 'Electronics',
+    owner: 'Nimali Silva',
   },
   {
     po: 'PO-2026-1046',
     supplier: 'Metro Retail Supply',
     branch: 'Galle Fort',
     date: '2026-05-31',
+    expectedDate: '2026-06-03',
     amount: '$24,120.00',
     status: 'Received',
+    priority: 'Normal',
+    items: 31,
+    category: 'General Merchandise',
+    owner: 'Ravi Fernando',
   },
   {
     po: 'PO-2026-1045',
     supplier: 'Prime Foods Lanka',
     branch: 'Negombo',
     date: '2026-05-30',
+    expectedDate: '2026-06-04',
     amount: '$7,360.00',
     status: 'Rejected',
+    priority: 'Low',
+    items: 9,
+    category: 'Fresh Foods',
+    owner: 'Ayesha Noor',
   },
 ]
 
-const workflow = [
-  { label: 'Draft Created', detail: 'Supplier and branch selected', active: true },
-  { label: 'Manager Review', detail: 'Budget and stock levels checked', active: true },
-  { label: 'Approval Decision', detail: 'Approve or reject purchase request', active: true },
-  { label: 'Goods Receiving', detail: 'Inventory quantity updated by branch', active: false },
+const reorderRecommendations = [
+  { item: 'Premium Basmati Rice', branch: 'Colombo Central', stock: 50, reorder: 500, confidence: '96%', supplier: 'BlueLine Wholesale' },
+  { item: 'Organic Coconut Oil', branch: 'Kandy City', stock: 23, reorder: 200, confidence: '93%', supplier: 'Prime Foods Lanka' },
+  { item: 'Milk Powder 400g', branch: 'Negombo', stock: 42, reorder: 150, confidence: '91%', supplier: 'Metro Retail Supply' },
 ]
+
+const supplierScorecards = [
+  { name: 'BlueLine Wholesale', score: 96, metric: 'On-time delivery', open: 12 },
+  { name: 'NorthStar Distributors', score: 91, metric: 'Best price match', open: 8 },
+  { name: 'Prime Foods Lanka', score: 86, metric: 'Fresh-stock reliability', open: 5 },
+]
+
+const statuses = ['All', 'Pending', 'Approved', 'Received', 'Rejected']
+
+const cn = (...classes) => classes.filter(Boolean).join(' ')
+
+const buttonBase = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border-0 px-4 font-extrabold transition hover:-translate-y-0.5'
+const panelClass = 'rounded-2xl border border-[#dbe8f7] bg-white/95 p-5 shadow-[0_16px_42px_rgba(18,58,114,0.09)]'
+const sectionLabel = 'm-0 text-xs font-black uppercase tracking-[0.08em] text-[#0a62df]'
+const headingTwo = 'mt-1 text-[22px] font-black leading-tight text-[#101b31]'
+
+const kpiToneClasses = {
+  value: 'text-[#1643b7] bg-[#e7ebff]',
+  warning: 'text-[#975400] bg-[#fff4db]',
+  success: 'text-[#087b55] bg-[#e3f8ef]',
+  danger: 'text-[#b42318] bg-[#ffebe8]',
+  info: 'text-[#0b7297] bg-[#dff7ff]',
+}
+
+const statusBadgeClasses = {
+  Pending: 'text-[#945500] bg-[#fff1d6]',
+  Approved: 'text-[#075e42] bg-[#def7eb]',
+  Received: 'text-[#0757d4] bg-[#e4f0ff]',
+  Rejected: 'text-[#9f1d2f] bg-[#ffe6ea]',
+}
+
+const priorityBadgeClasses = {
+  High: 'text-[#9f1d2f] bg-[#ffe6ea]',
+  Medium: 'text-[#945500] bg-[#fff1d6]',
+  Normal: 'text-[#0757d4] bg-[#e4f0ff]',
+  Low: 'text-[#075e42] bg-[#def7eb]',
+}
 
 const parseAmount = (amount) => Number(String(amount).replace(/[$,]/g, '')) || 0
 
@@ -72,101 +132,90 @@ const normalizeOrder = (order) => ({
   supplier: order.supplier ?? order.supplierName ?? '',
   branch: order.branch ?? '',
   date: order.date ?? order.orderDate ?? '',
+  expectedDate: order.expectedDate ?? order.deliveryDate ?? 'Not scheduled',
   amount: formatAmount(order.amount ?? order.totalAmount ?? 0),
   status: order.status ?? 'Pending',
+  priority: order.priority ?? 'Normal',
+  items: order.items ?? order.itemCount ?? 1,
+  category: order.category ?? 'Mixed Stock',
+  owner: order.owner ?? 'Procurement Team',
 })
 
 function PurchaseOrdersPage() {
   const [purchaseOrders, setPurchaseOrders] = useState(initialPurchaseOrders)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState(initialPurchaseOrders[0])
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [lastSync, setLastSync] = useState('Ready')
   const [apiMessage, setApiMessage] = useState('Using sample data until MongoDB responds')
   const [form, setForm] = useState({
     supplier: '',
     branch: '',
     date: new Date().toISOString().slice(0, 10),
+    expectedDate: '',
     amount: '',
+    priority: 'Normal',
+    category: '',
+    items: 1,
   })
 
   const loadPurchaseOrders = useCallback(async () => {
     try {
       const response = await fetch(API_URL)
-      if (!response.ok) {
-        throw new Error('Could not load purchase orders')
-      }
+      if (!response.ok) throw new Error('Could not load purchase orders')
 
       const orders = await response.json()
       if (orders.length > 0) {
-        setPurchaseOrders(orders.map(normalizeOrder))
+        const normalized = orders.map(normalizeOrder)
+        setPurchaseOrders(normalized)
+        setSelectedOrder(normalized[0])
       }
       setApiMessage('Connected to MongoDB purchase orders')
-      setLastSync(`Synced at ${new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })}`)
+      setLastSync(`Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
     } catch {
-      setApiMessage('Database not connected. Showing sample data.')
+      setApiMessage('Database not connected. Showing polished demo data.')
     }
   }, [])
 
   useEffect(() => {
-    // Initial synchronization with the purchase order API.
     loadPurchaseOrders()
   }, [loadPurchaseOrders])
+
+  const filteredOrders = useMemo(() => {
+    const search = query.trim().toLowerCase()
+    return purchaseOrders.filter((order) => {
+      const matchesStatus = statusFilter === 'All' || order.status === statusFilter
+      const matchesSearch =
+        !search ||
+        [order.po, order.supplier, order.branch, order.category, order.owner].some((value) =>
+          String(value).toLowerCase().includes(search),
+        )
+      return matchesStatus && matchesSearch
+    })
+  }, [purchaseOrders, query, statusFilter])
 
   const kpis = useMemo(() => {
     const pending = purchaseOrders.filter((order) => order.status === 'Pending').length
     const approved = purchaseOrders.filter((order) => order.status === 'Approved').length
-    const received = purchaseOrders.filter((order) => order.status === 'Received').length
-    const totalValue = purchaseOrders.reduce((sum, order) => {
-      return sum + parseAmount(order.amount)
-    }, 0)
+    const totalValue = purchaseOrders.reduce((sum, order) => sum + parseAmount(order.amount), 0)
+    const highPriority = purchaseOrders.filter((order) => order.priority === 'High').length
 
     return [
-      {
-        label: 'Total Purchase Orders',
-        value: purchaseOrders.length.toString(),
-        trend: 'Live order register',
-        icon: FiClipboard,
-        tone: 'primary',
-      },
-      {
-        label: 'Pending Approvals',
-        value: pending.toString(),
-        trend: 'Awaiting manager review',
-        icon: FiShield,
-        tone: 'warning',
-      },
-      {
-        label: 'Approved Orders',
-        value: approved.toString(),
-        trend: 'Ready for supplier processing',
-        icon: FiCheckCircle,
-        tone: 'success',
-      },
-      {
-        label: 'Received Orders',
-        value: received.toString(),
-        trend: 'Inventory updated',
-        icon: FiPackage,
-        tone: 'info',
-      },
-      {
-        label: 'Total Purchase Value',
-        value: `$${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
-        trend: 'Based on listed purchase orders',
-        icon: FiPieChart,
-        tone: 'value',
-      },
+      { label: 'Open PO Value', value: `$${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, trend: 'Across active branches', icon: FiBarChart2, tone: 'value' },
+      { label: 'Pending Approval', value: pending.toString(), trend: 'Needs manager decision', icon: FiShield, tone: 'warning' },
+      { label: 'Approved Orders', value: approved.toString(), trend: 'Ready for supplier dispatch', icon: FiCheckCircle, tone: 'success' },
+      { label: 'AI Reorder Alerts', value: reorderRecommendations.length.toString(), trend: 'Low-stock suggestions', icon: FiAlertTriangle, tone: 'danger' },
+      { label: 'High Priority', value: highPriority.toString(), trend: 'Expedite before stock-out', icon: FiTruck, tone: 'info' },
     ]
   }, [purchaseOrders])
 
   const updateOrderStatus = async (order, status) => {
     if (!order.id) {
-      setPurchaseOrders((orders) =>
-        orders.map((item) => (item.po === order.po ? { ...item, status } : item)),
-      )
-      setApiMessage('Sample row updated locally. Create a DB row to save changes.')
+      const updated = { ...order, status }
+      setPurchaseOrders((orders) => orders.map((item) => (item.po === order.po ? updated : item)))
+      setSelectedOrder(updated)
+      setApiMessage(`${order.po} updated locally as ${status}`)
       return
     }
 
@@ -177,14 +226,11 @@ function PurchaseOrdersPage() {
         body: JSON.stringify({ status }),
       })
 
-      if (!response.ok) {
-        throw new Error('Could not update purchase order')
-      }
+      if (!response.ok) throw new Error('Could not update purchase order')
 
       const updatedOrder = normalizeOrder(await response.json())
-      setPurchaseOrders((orders) =>
-        orders.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)),
-      )
+      setPurchaseOrders((orders) => orders.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)))
+      setSelectedOrder(updatedOrder)
       setApiMessage(`${updatedOrder.po} saved as ${status}`)
     } catch {
       setApiMessage('Could not save status. Check backend and MongoDB connection.')
@@ -194,137 +240,299 @@ function PurchaseOrdersPage() {
   const handleCreateOrder = async (event) => {
     event.preventDefault()
 
+    const orderPayload = {
+      supplier: form.supplier.trim(),
+      branch: form.branch.trim(),
+      date: form.date,
+      expectedDate: form.expectedDate || form.date,
+      amount: Number(form.amount),
+      priority: form.priority || 'Normal',
+      category: form.category.trim() || 'Mixed Stock',
+      items: Number(form.items) || 1,
+    }
+
+    if (!orderPayload.supplier || !orderPayload.branch || !orderPayload.date || orderPayload.amount <= 0) {
+      setApiMessage('Supplier, branch, order date, and a positive amount are required.')
+      return
+    }
+
+    const localOrder = normalizeOrder({
+      ...orderPayload,
+      id: `local-${Date.now()}`,
+      po: `PO-2026-${Math.floor(1100 + Math.random() * 800)}`,
+      status: 'Pending',
+      owner: 'Procurement Team',
+    })
+
+    setPurchaseOrders((orders) => [localOrder, ...orders])
+    setSelectedOrder(localOrder)
+    setApiMessage(`${localOrder.po} created locally. Saving to MongoDB...`)
+    setForm({
+      supplier: '',
+      branch: '',
+      date: new Date().toISOString().slice(0, 10),
+      expectedDate: '',
+      amount: '',
+      priority: 'Normal',
+      category: '',
+      items: 1,
+    })
+    setIsCreateOpen(false)
+
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(orderPayload),
       })
 
-      if (!response.ok) {
-        throw new Error('Could not create purchase order')
-      }
+      if (!response.ok) throw new Error('Could not create purchase order')
 
       const createdOrder = normalizeOrder(await response.json())
-      setPurchaseOrders((orders) => [createdOrder, ...orders])
-      setForm({
-        supplier: '',
-        branch: '',
-        date: new Date().toISOString().slice(0, 10),
-        amount: '',
-      })
-      setIsCreateOpen(false)
+      setPurchaseOrders((orders) => orders.map((order) => (order.id === localOrder.id ? createdOrder : order)))
+      setSelectedOrder(createdOrder)
       setApiMessage(`${createdOrder.po} saved to MongoDB`)
     } catch {
-      setApiMessage('Create failed. Check MongoDB Atlas connection and backend console.')
+      setApiMessage(`${localOrder.po} created locally. MongoDB is not connected, so it is not saved permanently yet.`)
     }
   }
 
-  const handleSync = () => {
-    loadPurchaseOrders()
+  const handleExport = () => {
+    const headers = ['PO Number', 'Supplier', 'Branch', 'Date', 'Expected', 'Amount', 'Status', 'Priority', 'Items']
+    const rows = filteredOrders.map((order) => [
+      order.po,
+      order.supplier,
+      order.branch,
+      order.date,
+      order.expectedDate,
+      order.amount,
+      order.status,
+      order.priority,
+      order.items,
+    ])
+    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'purchase-orders.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+    setApiMessage(`Exported ${filteredOrders.length} purchase orders`)
   }
 
   return (
-    <main className="dashboard-shell">
-      <section className="hero-panel">
-        <nav className="topbar" aria-label="Dashboard navigation">
-          <div className="brand-mark">
-            <span className="brand-icon">
-              <FiTruck aria-hidden="true" />
-            </span>
-            <span>RetailPOS AI</span>
+    <main className="min-h-svh bg-[radial-gradient(circle_at_12%_0%,rgba(37,99,235,0.16),transparent_28%),radial-gradient(circle_at_90%_12%,rgba(16,185,129,0.12),transparent_24%),linear-gradient(180deg,rgba(239,246,255,0.94),rgba(248,250,252,0.98)),#f8fafc] p-3.5 md:p-7">
+      <section className="overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_48%,#0f766e_100%)] text-white shadow-[0_24px_60px_rgba(16,91,194,0.26)] md:rounded-3xl">
+        <nav className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-5 border-b border-white/20 px-[18px] py-5 md:flex-row md:items-center md:px-7" aria-label="Purchase order navigation">
+          <div className="flex items-center gap-3 text-sm font-extrabold">
+            <span className="inline-grid size-[42px] place-items-center rounded-xl bg-white text-[#0e63de]"><FiClipboard aria-hidden="true" /></span>
+            <span>Procurement Control</span>
           </div>
-          <div className="topbar-actions">
-            <button className="ghost-button" type="button" onClick={handleSync}>
-              <FiRefreshCw aria-hidden="true" />
-              Sync
+          <div className="flex w-full flex-wrap items-center justify-end gap-3 md:w-auto">
+            <button className={cn(buttonBase, 'w-full bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)] md:w-auto')} type="button" onClick={loadPurchaseOrders}>
+              <FiRefreshCw aria-hidden="true" /> Sync
             </button>
-            <button className="primary-button" type="button" onClick={() => setIsCreateOpen(true)}>
-              <FiPlus aria-hidden="true" />
-              Create Purchase Order
+            <button className={cn(buttonBase, 'w-full bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)] md:w-auto')} type="button" onClick={handleExport}>
+              <FiDownload aria-hidden="true" /> Export
+            </button>
+            <button className={cn(buttonBase, 'w-full bg-white text-[#0b5fdc] shadow-[0_12px_28px_rgba(2,50,116,0.2)] md:w-auto')} type="button" onClick={() => setIsCreateOpen(true)}>
+              <FiPlus aria-hidden="true" /> New PO
             </button>
           </div>
         </nav>
 
-        <div className="hero-content">
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-end gap-7 px-[18px] py-8 md:px-7 lg:grid-cols-[minmax(0,1fr)_280px] lg:py-11">
           <div>
-            <p className="eyebrow">Procurement Control Center</p>
-            <h1>Purchase Order Management</h1>
-            <p className="subtitle">
-              Manage supplier orders, approvals, goods receiving, inventory
-              updates, and purchase reports efficiently.
+            <p className="m-0 text-xs font-black uppercase tracking-[0.08em] text-white/80">Purchase Order Management</p>
+            <h1 className="mt-2.5 max-w-[820px] text-[34px] font-black leading-none tracking-normal md:text-[56px] xl:text-[64px]">Approve, track, and receive supplier orders from one workspace.</h1>
+            <p className="mt-4 max-w-[820px] text-base leading-relaxed text-white/85 md:text-lg">
+              Built for fast procurement decisions with AI reorder alerts, supplier scorecards,
+              approval actions, delivery tracking, and exportable purchase reports.
             </p>
           </div>
-          <div className="hero-summary" aria-label="Current workflow summary">
-            <span>Today</span>
-            <strong>{purchaseOrders.filter((order) => order.status === 'Pending').length} approvals</strong>
-            <small>{lastSync} across 5 active branches</small>
-            <small>{apiMessage}</small>
+          <div className="min-h-0 rounded-[18px] bg-white/15 p-[22px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.22)] lg:min-h-[150px]" aria-label="Current workflow summary">
+            <span className="block text-white/75">Today</span>
+            <strong className="my-2 block text-[34px] font-black leading-none">{purchaseOrders.filter((order) => order.status === 'Pending').length} approvals</strong>
+            <small className="block text-white/75">{lastSync} across 5 active branches</small>
+            <small className="mt-2 block text-white/75">{apiMessage}</small>
           </div>
         </div>
       </section>
 
-      <section className="kpi-grid" aria-label="Purchase order statistics">
+      <section className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-3 py-6 md:grid-cols-3 xl:grid-cols-5 xl:gap-4" aria-label="Purchase order statistics">
         {kpis.map((item) => {
           const Icon = item.icon
           return (
-            <article className={`kpi-card ${item.tone}`} key={item.label}>
-              <div className="card-icon">
-                <Icon aria-hidden="true" />
-              </div>
+            <article className="flex min-h-[120px] gap-3.5 rounded-2xl border border-[#dbe8f7] bg-white/95 p-5 shadow-[0_16px_42px_rgba(18,58,114,0.09)] xl:min-h-[148px]" key={item.label}>
+              <div className={cn('inline-grid size-12 shrink-0 place-items-center rounded-[14px]', kpiToneClasses[item.tone])}><Icon aria-hidden="true" /></div>
               <div>
-                <p>{item.label}</p>
-                <strong>{item.value}</strong>
-                <span>{item.trend}</span>
+                <p className="m-0 text-[13px] font-extrabold leading-snug text-[#637083]">{item.label}</p>
+                <strong className="my-2 block text-[28px] font-black leading-none text-[#101b31]">{item.value}</strong>
+                <span className="text-xs font-extrabold text-[#0a62df]">{item.trend}</span>
               </div>
             </article>
           )
         })}
       </section>
 
-      <section className="content-grid">
-        <article className="panel supplier-panel">
-          <div className="panel-heading">
+      <section className={cn(panelClass, 'mx-auto mb-4 flex w-full max-w-[1440px] flex-col items-stretch gap-3.5 lg:flex-row lg:items-center')} aria-label="Purchase order filters">
+        <label className="flex min-h-[46px] flex-1 basis-80 items-center gap-2.5 rounded-xl border border-[#dbe8f7] bg-[#f8fbff] px-3.5 text-[#5f6f86]">
+          <FiSearch aria-hidden="true" />
+          <input className="w-full border-0 bg-transparent font-bold text-[#172033] outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search PO, supplier, branch, owner..." />
+        </label>
+        <div className="inline-flex shrink-0 gap-1 overflow-x-auto rounded-xl bg-[#eef4fb] p-1" role="tablist" aria-label="Filter by order status">
+          {statuses.map((status) => (
+            <button
+              className={cn('min-h-9 rounded-[9px] border-0 px-3 text-sm font-black text-[#516177]', statusFilter === status && 'bg-[#0f172a] text-white shadow-[0_10px_20px_rgba(15,23,42,0.16)]')}
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex min-h-[38px] items-center gap-2 whitespace-nowrap rounded-full bg-[#e3faf5] px-3 text-[13px] font-black text-[#0f766e]"><FiFilter aria-hidden="true" /> {filteredOrders.length} results</div>
+      </section>
+
+      <section className="mx-auto mb-4 grid w-full max-w-[1440px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <article className={cn(panelClass, 'p-5 md:p-6')}>
+          <div className="mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="section-label">Supplier Linked Orders</p>
-              <h2>Priority Suppliers</h2>
+              <p className={sectionLabel}>Live Order Register</p>
+              <h2 className={headingTwo}>Purchase Orders</h2>
             </div>
-            <FiUsers aria-hidden="true" />
+            <button className={cn(buttonBase, 'min-h-10 bg-[#0a62df] text-white shadow-[0_12px_24px_rgba(3,77,181,0.26)]')} type="button" onClick={() => setIsCreateOpen(true)}>
+              <FiPlus aria-hidden="true" /> Create PO
+            </button>
           </div>
-          <div className="supplier-list">
-            <div>
-              <span>BlueLine Wholesale</span>
-              <strong>12 active POs</strong>
-              <small>Fast moving groceries and essentials</small>
-            </div>
-            <div>
-              <span>NorthStar Distributors</span>
-              <strong>8 active POs</strong>
-              <small>Electronics, accessories, and POS hardware</small>
-            </div>
-            <div>
-              <span>Prime Foods Lanka</span>
-              <strong>5 active POs</strong>
-              <small>Fresh stock replenishment for branch stores</small>
-            </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1120px] border-collapse">
+              <thead className="bg-[#f5f9ff]">
+                <tr>
+                  {['PO', 'Supplier', 'Branch', 'ETA', 'Amount', 'Status', 'Priority', 'Actions'].map((header) => (
+                    <th className="border-b border-[#e4edf7] px-3.5 py-4 text-left text-xs font-black uppercase tracking-[0.04em] text-[#637083] whitespace-nowrap" key={header}>{header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => (
+                  <tr key={order.id ?? order.po} className={cn('hover:bg-[#f8fbff]', selectedOrder?.po === order.po && 'bg-[#f1f7ff]')}>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-black text-[#0a62df] whitespace-nowrap">{order.po}<small className="mt-1 block text-xs font-bold text-[#77869a]">{order.items} items</small></td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap">{order.supplier}<small className="mt-1 block text-xs font-bold text-[#77869a]">{order.category}</small></td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap">{order.branch}<small className="mt-1 block text-xs font-bold text-[#77869a]">{order.owner}</small></td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap">{order.expectedDate}</td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap">{order.amount}</td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap"><span className={cn('inline-flex min-h-[30px] min-w-[92px] items-center justify-center rounded-full px-3 text-xs font-black', statusBadgeClasses[order.status])}>{order.status}</span></td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap"><span className={cn('inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-black', priorityBadgeClasses[order.priority])}>{order.priority}</span></td>
+                    <td className="border-b border-[#e4edf7] px-3.5 py-4 text-sm font-bold text-[#26344d] whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <button className={cn(buttonBase, 'min-h-[34px] bg-[#eef4fb] px-2.5 text-xs text-[#29364a]')} type="button" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.po}`}>
+                          <FiEye aria-hidden="true" /> View
+                        </button>
+                        <button className={cn(buttonBase, 'min-h-[34px] bg-[#e6f8ef] px-2.5 text-xs text-[#075e42]')} type="button" onClick={() => updateOrderStatus(order, 'Approved')} aria-label={`Approve ${order.po}`}>
+                          <FiCheckCircle aria-hidden="true" /> Approve
+                        </button>
+                        <button className={cn(buttonBase, 'min-h-[34px] bg-[#e6f0ff] px-2.5 text-xs text-[#0757d4]')} type="button" onClick={() => updateOrderStatus(order, 'Received')} aria-label={`Receive goods for ${order.po}`}>
+                          <FiPackage aria-hidden="true" /> Receive
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </article>
 
-        <article className="panel workflow-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="section-label">Approval Workflow</p>
-              <h2>Status Tracking</h2>
+        <aside className="grid content-start gap-4">
+          <article className={panelClass}>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className={sectionLabel}>Selected Order</p>
+                <h2 className={headingTwo}>{selectedOrder?.po ?? 'No order selected'}</h2>
+              </div>
+              <FiClipboard className="size-[26px] text-[#0a62df]" aria-hidden="true" />
             </div>
-            <FiShield aria-hidden="true" />
+            {selectedOrder && (
+              <>
+                <div className="mb-4 text-4xl font-black leading-none text-[#101b31]">{selectedOrder.amount}</div>
+                <dl className="m-0 grid gap-3">
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e4edf7] pb-3"><dt className="text-xs font-black uppercase text-[#637083]">Supplier</dt><dd className="m-0 text-right text-sm font-black text-[#101b31]">{selectedOrder.supplier}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e4edf7] pb-3"><dt className="text-xs font-black uppercase text-[#637083]">Branch</dt><dd className="m-0 text-right text-sm font-black text-[#101b31]">{selectedOrder.branch}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e4edf7] pb-3"><dt className="text-xs font-black uppercase text-[#637083]">Expected Delivery</dt><dd className="m-0 text-right text-sm font-black text-[#101b31]">{selectedOrder.expectedDate}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e4edf7] pb-3"><dt className="text-xs font-black uppercase text-[#637083]">Owner</dt><dd className="m-0 text-right text-sm font-black text-[#101b31]">{selectedOrder.owner}</dd></div>
+                </dl>
+                <div className="mt-4 flex gap-2.5">
+                  <button className={cn(buttonBase, 'min-h-[34px] flex-1 bg-[#e6f8ef] px-2.5 text-xs text-[#075e42]')} type="button" onClick={() => updateOrderStatus(selectedOrder, 'Approved')}>
+                    <FiCheckCircle aria-hidden="true" /> Approve
+                  </button>
+                  <button className={cn(buttonBase, 'min-h-[34px] flex-1 bg-[#ffe8ec] px-2.5 text-xs text-[#9f1d2f]')} type="button" onClick={() => updateOrderStatus(selectedOrder, 'Rejected')}>
+                    <FiXCircle aria-hidden="true" /> Reject
+                  </button>
+                </div>
+              </>
+            )}
+          </article>
+
+          <article className={panelClass}>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className={sectionLabel}>AI Smart Reordering</p>
+                <h2 className={headingTwo}>Low-stock suggestions</h2>
+              </div>
+              <FiAlertTriangle className="size-[26px] text-[#0a62df]" aria-hidden="true" />
+            </div>
+            <div className="grid gap-3">
+              {reorderRecommendations.map((item) => (
+                <div className="rounded-[14px] border border-[#e4edf7] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(245,249,255,0.98))] p-4" key={item.item}>
+                  <strong className="block font-black text-[#101b31]">{item.item}</strong>
+                  <span className="mt-1.5 block text-[13px] font-black text-[#b45309]">{item.branch} stock: {item.stock} units</span>
+                  <small className="mt-1 block leading-snug text-[#637083]">Suggest {item.reorder} units from {item.supplier} - {item.confidence} confidence</small>
+                </div>
+              ))}
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section className="mx-auto mb-4 grid w-full max-w-[1440px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)]">
+        <article className={panelClass}>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className={sectionLabel}>Supplier-linked Purchases</p>
+              <h2 className={headingTwo}>Supplier scorecards</h2>
+            </div>
+            <FiUsers className="size-[26px] text-[#0a62df]" aria-hidden="true" />
           </div>
-          <div className="workflow">
-            {workflow.map((step, index) => (
-              <div className={step.active ? 'workflow-step active' : 'workflow-step'} key={step.label}>
-                <span>{index + 1}</span>
+          <div className="grid gap-3">
+            {supplierScorecards.map((supplier) => (
+              <div className="rounded-[14px] border border-[#e3edf8] bg-[#f8fbff] p-4" key={supplier.name}>
+                <span className="block font-black text-[#101b31]">{supplier.name}</span>
+                <strong className="mt-1.5 block text-sm font-bold text-[#0a62df]">{supplier.score}% {supplier.metric}</strong>
+                <small className="mt-1 block leading-snug text-[#637083]">{supplier.open} active purchase orders</small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className={panelClass}>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className={sectionLabel}>Approval Workflow</p>
+              <h2 className={headingTwo}>Status tracking</h2>
+            </div>
+            <FiShield className="size-[26px] text-[#0a62df]" aria-hidden="true" />
+          </div>
+          <div className="grid gap-3.5">
+            {['Draft created', 'Manager review', 'Approval decision', 'Goods receiving'].map((step, index) => (
+              <div className="grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3" key={step}>
+                <span className={cn('grid size-[38px] place-items-center rounded-full font-black', index < 3 ? 'bg-[#0a62df] text-white' : 'bg-[#eef4fb] text-[#67768b]')}>{index + 1}</span>
                 <div>
-                  <strong>{step.label}</strong>
-                  <small>{step.detail}</small>
+                  <strong className="block text-[15px] font-bold text-[#101b31]">{step}</strong>
+                  <small className="mt-1 block leading-snug text-[#637083]">{index === 3 ? 'Inventory updates after receiving notes are confirmed' : 'Tracked in the order audit trail'}</small>
                 </div>
               </div>
             ))}
@@ -332,143 +540,43 @@ function PurchaseOrdersPage() {
         </article>
       </section>
 
-      <section className="panel table-panel">
-        <div className="table-header">
-          <div>
-            <p className="section-label">Recent Purchase Orders</p>
-            <h2>Order Register</h2>
-          </div>
-          <button className="primary-button compact" type="button" onClick={() => setIsCreateOpen(true)}>
-            <FiPlus aria-hidden="true" />
-            Create Purchase Order
-          </button>
-        </div>
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>PO Number</th>
-                <th>Supplier Name</th>
-                <th>Branch</th>
-                <th>Order Date</th>
-                <th>Total Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {purchaseOrders.map((order) => (
-                <tr key={order.id ?? order.po}>
-                  <td className="po-number">{order.po}</td>
-                  <td>{order.supplier}</td>
-                  <td>{order.branch}</td>
-                  <td>{order.date}</td>
-                  <td>{order.amount}</td>
-                  <td>
-                    <span className={`status-badge ${order.status.toLowerCase()}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="action approve"
-                        type="button"
-                        onClick={() => updateOrderStatus(order, 'Approved')}
-                        aria-label={`Approve ${order.po}`}
-                      >
-                        <FiCheckCircle aria-hidden="true" />
-                        Approve
-                      </button>
-                      <button
-                        className="action reject"
-                        type="button"
-                        onClick={() => updateOrderStatus(order, 'Rejected')}
-                        aria-label={`Reject ${order.po}`}
-                      >
-                        <FiXCircle aria-hidden="true" />
-                        Reject
-                      </button>
-                      <button
-                        className="action receive"
-                        type="button"
-                        onClick={() => updateOrderStatus(order, 'Received')}
-                        aria-label={`Receive goods for ${order.po}`}
-                      >
-                        <FiPackage aria-hidden="true" />
-                        Receive Goods
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {isCreateOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="create-po-title">
-            <div className="modal-header">
+        <div className="fixed inset-0 z-20 grid place-items-center bg-[rgba(11,30,58,0.42)] p-5 backdrop-blur-xl" role="presentation">
+          <section className="w-full max-w-[560px] rounded-[20px] border border-[#dbe8f7] bg-white p-6 shadow-[0_28px_80px_rgba(8,35,80,0.24)]" role="dialog" aria-modal="true" aria-labelledby="create-po-title">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="section-label">New Supplier Order</p>
-                <h2 id="create-po-title">Create Purchase Order</h2>
+                <p className={sectionLabel}>New Supplier Order</p>
+                <h2 className={headingTwo} id="create-po-title">Create Purchase Order</h2>
               </div>
-              <button className="icon-button" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
+              <button className="inline-grid size-10 place-items-center rounded-xl border-0 bg-[#eef4fb] text-[#5f6f86]" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
                 <FiXCircle aria-hidden="true" />
               </button>
             </div>
 
-            <form className="po-form" onSubmit={handleCreateOrder}>
-              <label>
-                Supplier Name
-                <input
-                  value={form.supplier}
-                  onChange={(event) => setForm({ ...form, supplier: event.target.value })}
-                  placeholder="Example: BlueLine Wholesale"
-                  required
-                />
+            <form className="grid gap-4" onSubmit={handleCreateOrder}>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Supplier Name<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="BlueLine Wholesale" required /></label>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Branch<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })} placeholder="Colombo Central" required /></label>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Category<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Mixed Stock" /></label>
+              <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Order Date<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label>
+                <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Expected Date<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" type="date" value={form.expectedDate} onChange={(event) => setForm({ ...form, expectedDate: event.target.value })} /></label>
+              </div>
+              <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Total Amount<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" type="number" min="1" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="12500.00" required /></label>
+                <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Item Count<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" type="number" min="1" value={form.items} onChange={(event) => setForm({ ...form, items: event.target.value })} required /></label>
+              </div>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">
+                Priority
+                <select className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
+                  <option>Normal</option>
+                  <option>Low</option>
+                  <option>Medium</option>
+                  <option>High</option>
+                </select>
               </label>
-              <label>
-                Branch
-                <input
-                  value={form.branch}
-                  onChange={(event) => setForm({ ...form, branch: event.target.value })}
-                  placeholder="Example: Colombo Central"
-                  required
-                />
-              </label>
-              <label>
-                Order Date
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(event) => setForm({ ...form, date: event.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                Total Amount
-                <input
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={form.amount}
-                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                  placeholder="12500.00"
-                  required
-                />
-              </label>
-              <div className="form-actions">
-                <button className="ghost-form-button" type="button" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
-                </button>
-                <button className="primary-button" type="submit">
-                  <FiPlus aria-hidden="true" />
-                  Create Purchase Order
-                </button>
+              <div className="mt-1.5 flex flex-col-reverse justify-end gap-3 md:flex-row">
+                <button className="min-h-10 rounded-[10px] border-0 bg-[#edf4fb] px-4 font-black text-[#34445d]" type="button" onClick={() => setIsCreateOpen(false)}>Cancel</button>
+                <button className={cn(buttonBase, 'bg-[#0a62df] text-white shadow-[0_12px_24px_rgba(3,77,181,0.26)]')} type="submit"><FiPlus aria-hidden="true" /> Create Purchase Order</button>
               </div>
             </form>
           </section>

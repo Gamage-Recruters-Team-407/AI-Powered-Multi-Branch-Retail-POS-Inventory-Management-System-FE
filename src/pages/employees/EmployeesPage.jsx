@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useEmployees } from "../../context/EmployeeContext";
+import { useBranches } from "../../context/BranchContext";
 import { EmployeeCard, EmployeeDetailModal } from "../../components/employees/Employee";
 import SchedulePlanner from "../../components/employees/SchedulePlanner";
 import AttendanceSimulator from "../../components/employees/AttendanceSimulator";
@@ -7,6 +8,7 @@ import AttendanceSimulator from "../../components/employees/AttendanceSimulator"
 export default function EmployeesPage() {
   const {
     employees,
+    schedules,
     attendanceLogs,
     performanceMetrics,
     registerEmployee,
@@ -14,10 +16,119 @@ export default function EmployeesPage() {
     loading,
     error,
     logPerformance,
+    loadEmployees,
+    loadSchedules,
+    loadAttendance,
+    loadPerformance,
+    employeesLoading,
+    schedulesLoading,
+    attendanceLoading,
+    performanceLoading,
+    employeesError,
+    schedulesError,
+    attendanceError,
+    performanceError
   } = useEmployees();
+
+  const { branches, fetchBranches } = useBranches();
+
+  const getTodayLocalDateStr = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Attendance Log Filters & Validation State
+  const [attSearchQuery, setAttSearchQuery] = useState("");
+  const [attSearchError, setAttSearchError] = useState("");
+  const [attStatusFilter, setAttStatusFilter] = useState("All");
+  const [attDateFilter, setAttDateFilter] = useState(getTodayLocalDateStr());
+  const [attDateError, setAttDateError] = useState("");
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setAttSearchQuery(value);
+    const specialCharRegex = /[^\w\s\-\.\@]/g;
+    if (specialCharRegex.test(value)) {
+      setAttSearchError("Letters, numbers, spaces, and @ . - allowed");
+    } else {
+      setAttSearchError("");
+    }
+  };
+
+  const handleDateFilterChange = (e) => {
+    const selectedDateStr = e.target.value;
+    setAttDateFilter(selectedDateStr);
+    if (selectedDateStr) {
+      const selectedDate = new Date(selectedDateStr);
+      const today = new Date();
+      selectedDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate > today) {
+        setAttDateError("Future date cannot be selected");
+      } else {
+        setAttDateError("");
+      }
+    } else {
+      setAttDateError("");
+    }
+  };
+
+  // Filter out any logs belonging to deleted employees, then apply search/filter criteria
+  const activeAttendanceLogs = attendanceLogs.filter(log => {
+    const emp = employees.find(e => e._id === log.employeeId);
+    if (!emp) return false;
+
+    // Search query check (Name or Email)
+    if (attSearchQuery.trim()) {
+      const searchLower = attSearchQuery.toLowerCase();
+      const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const email = (emp.email || "").toLowerCase();
+      if (!fullName.includes(searchLower) && !email.includes(searchLower)) {
+        return false;
+      }
+    }
+
+    // Status filter check
+    if (attStatusFilter !== "All" && log.status !== attStatusFilter) {
+      return false;
+    }
+
+    // Date filter check (only if there's no validation error)
+    if (attDateFilter && !attDateError && log.date !== attDateFilter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState("roster");
+
+  // Fetch data dynamically on tab switch
+  useEffect(() => {
+    if (activeTab === "roster") {
+      loadEmployees(employees.length > 0); // silent if already loaded
+    } else if (activeTab === "schedules") {
+      loadSchedules(schedules.length > 0);
+    } else if (activeTab === "attendance") {
+      loadAttendance(attendanceLogs.length > 0);
+    } else if (activeTab === "performance") {
+      loadPerformance(performanceMetrics.length > 0);
+    } else if (activeTab === "reports") {
+      Promise.all([
+        loadEmployees(true),
+        loadAttendance(true),
+        loadPerformance(true)
+      ]);
+    }
+  }, [activeTab]);
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,6 +139,8 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formEmployee, setFormEmployee] = useState(null); // If editing
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPerfSubmitting, setIsPerfSubmitting] = useState(false);
 
   // Performance Form State
   const [perfEmpId, setPerfEmpId] = useState("");
@@ -43,11 +156,192 @@ export default function EmployeesPage() {
     email: "",
     phone: "",
     role: "cashier",
-    branch: "1",
-    salary: 40000,
-    hireDate: new Date().toISOString().split("T")[0],
+    branch: "",
+    salary: "",
+    hireDate: "",
     photo: "",
   });
+
+  const [formErrors, setFormErrors] = useState({});
+
+  const validateField = (name, value) => {
+    let error = "";
+    
+    switch (name) {
+      case "firstName":
+        if (!value || !value.trim()) {
+          error = "First name is required.";
+        } else if (!/^[a-zA-Z\s\-']{2,50}$/.test(value.trim())) {
+          error = "Must be 2-50 characters (letters only).";
+        }
+        break;
+      case "lastName":
+        if (!value || !value.trim()) {
+          error = "Last name is required.";
+        } else if (!/^[a-zA-Z\s\-']{2,50}$/.test(value.trim())) {
+          error = "Must be 2-50 characters (letters only).";
+        }
+        break;
+      case "email":
+        if (!value || !value.trim()) {
+          error = "Email address is required.";
+        } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value.trim())) {
+          error = "Please enter a valid email address.";
+        }
+        break;
+      case "phone":
+        if (!value || !value.trim()) {
+          error = "Phone number is required.";
+        } else {
+          const cleanPhone = value.replace(/[\s\-\(\)]/g, "");
+          if (!/^(?:\+94|0)?7[0-9]{8}$/.test(cleanPhone)) {
+            error = "Enter a valid Sri Lankan mobile number.";
+          }
+        }
+        break;
+      case "salary":
+        if (value === undefined || value === null || value === "" || isNaN(value) || Number(value) <= 0) {
+          error = "Salary must be a positive number above 0.";
+        }
+        break;
+      case "hireDate":
+        if (!value) {
+          error = "Hire date is required.";
+        } else {
+          const inputDate = new Date(value);
+          const minDate = new Date("2000-01-01");
+          const maxDate = new Date();
+          maxDate.setHours(23, 59, 59, 999);
+          if (isNaN(inputDate.getTime()) || inputDate < minDate || inputDate > maxDate) {
+            error = "Date must be between year 2000 and today.";
+          }
+        }
+        break;
+      case "photo":
+        if (value) {
+          if (typeof value === "string" && value.trim()) {
+            const isDataUri = value.trim().startsWith('data:image/');
+            const urlRegex = /^(https?:\/\/|\/?uploads\/).*\.(?:png|jpg|jpeg|gif|webp)/i;
+            if (!isDataUri && !urlRegex.test(value.trim())) {
+              error = "Must be a valid image URL (ending in .png, .jpg, .jpeg, or .webp).";
+            }
+          } else if (value instanceof File) {
+            if (!value.type.startsWith("image/")) {
+              error = "Only image files are allowed.";
+            } else if (value.size > 5 * 1024 * 1024) {
+              error = "Image size must be less than 5MB.";
+            }
+          }
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setFormErrors(prev => ({
+      ...prev,
+      [name]: error ? error : null
+    }));
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // First Name
+    if (!formData.firstName || !formData.firstName.trim()) {
+      errors.firstName = "First name is required.";
+    } else if (!/^[a-zA-Z\s\-']{2,50}$/.test(formData.firstName.trim())) {
+      errors.firstName = "Must be 2-50 characters (letters only).";
+    }
+    
+    // Last Name
+    if (!formData.lastName || !formData.lastName.trim()) {
+      errors.lastName = "Last name is required.";
+    } else if (!/^[a-zA-Z\s\-']{2,50}$/.test(formData.lastName.trim())) {
+      errors.lastName = "Must be 2-50 characters (letters only).";
+    }
+    
+    // Email
+    if (!formData.email || !formData.email.trim()) {
+      errors.email = "Email address is required.";
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email.trim())) {
+      errors.email = "Please enter a valid email address.";
+    }
+    
+    // Phone
+    if (!formData.phone || !formData.phone.trim()) {
+      errors.phone = "Phone number is required.";
+    } else {
+      const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, "");
+      if (!/^(?:\+94|0)?7[0-9]{8}$/.test(cleanPhone)) {
+        errors.phone = "Enter a valid Sri Lankan mobile number.";
+      }
+    }
+    
+    // Salary
+    if (formData.salary === undefined || formData.salary === null || formData.salary === "" || isNaN(formData.salary) || Number(formData.salary) <= 0) {
+      errors.salary = "Salary must be a positive number above 0.";
+    }
+    
+    // Hire Date
+    if (!formData.hireDate) {
+      errors.hireDate = "Hire date is required.";
+    } else {
+      const inputDate = new Date(formData.hireDate);
+      const minDate = new Date("2000-01-01");
+      const maxDate = new Date();
+      maxDate.setHours(23, 59, 59, 999);
+      if (isNaN(inputDate.getTime()) || inputDate < minDate || inputDate > maxDate) {
+        errors.hireDate = "Date must be between year 2000 and today.";
+      }
+    }
+    
+    // Profile Photo (Optional)
+    if (formData.photo) {
+      if (typeof formData.photo === "string" && formData.photo.trim()) {
+        const isDataUri = formData.photo.trim().startsWith('data:image/');
+        const urlRegex = /^(https?:\/\/|\/?uploads\/).*\.(?:png|jpg|jpeg|gif|webp)/i;
+        if (!isDataUri && !urlRegex.test(formData.photo.trim())) {
+          errors.photo = "Must be a valid image URL (ending in .png, .jpg, .jpeg, or .webp).";
+        }
+      } else if (formData.photo instanceof File) {
+        if (!formData.photo.type.startsWith("image/")) {
+          errors.photo = "Only image files are allowed.";
+        } else if (formData.photo.size > 5 * 1024 * 1024) {
+          errors.photo = "Image size must be less than 5MB.";
+        }
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };  const formatPhoneNumber = (value) => {
+    let cleaned = value.replace(/[^\d+]/g, "");
+    if (cleaned.startsWith("+94")) {
+      const parts = [];
+      const code = cleaned.slice(0, 3);
+      const rest = cleaned.slice(3);
+      if (rest.length > 0) parts.push(rest.slice(0, 2));
+      if (rest.length > 2) parts.push(rest.slice(2, 5));
+      if (rest.length > 5) parts.push(rest.slice(5, 9));
+      return `${code} ${parts.join(" ")}`.trim();
+    } else if (cleaned.startsWith("0")) {
+      const parts = [];
+      if (cleaned.length > 0) parts.push(cleaned.slice(0, 3));
+      if (cleaned.length > 3) parts.push(cleaned.slice(3, 6));
+      if (cleaned.length > 6) parts.push(cleaned.slice(6, 10));
+      return parts.join(" ");
+    }
+    return value;
+  };
+
+
+
+  useEffect(() => {
+    if (branches.length > 0 && !formData.branch) {
+      setFormData(prev => ({ ...prev, branch: branches[0]._id }));
+    }
+  }, [branches, formData.branch]);
 
   const branchNames = {
     "1": "Colombo Head Office",
@@ -58,15 +352,17 @@ export default function EmployeesPage() {
 
   const handleOpenRegister = () => {
     setFormEmployee(null);
+    setFormErrors({});
+    setIsSubmitting(false);
     setFormData({
       firstName: "",
       lastName: "",
       email: "",
       phone: "",
       role: "cashier",
-      branch: "1",
-      salary: 40000,
-      hireDate: new Date().toISOString().split("T")[0],
+      branch: branches[0]?._id || "1",
+      salary: "",
+      hireDate: "",
       photo: "",
     });
     setIsFormOpen(true);
@@ -74,15 +370,28 @@ export default function EmployeesPage() {
 
   const handleOpenEdit = (emp) => {
     setFormEmployee(emp);
+    setFormErrors({});
+    setIsSubmitting(false);
+
+    let formattedDate = "";
+    const rawDate = emp.hireDate || emp.joiningDate;
+    if (rawDate) {
+      try {
+        formattedDate = new Date(rawDate).toISOString().substring(0, 10);
+      } catch (e) {
+        formattedDate = String(rawDate).substring(0, 10);
+      }
+    }
+
     setFormData({
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      email: emp.email,
-      phone: emp.phone,
-      role: emp.role,
-      branch: emp.branch,
-      salary: emp.salary || 40000,
-      hireDate: emp.hireDate || new Date().toISOString().split("T")[0],
+      firstName: emp.firstName || "",
+      lastName: emp.lastName || "",
+      email: emp.email || "",
+      phone: emp.phone || "",
+      role: emp.role || "cashier",
+      branch: emp.branch || "",
+      salary: emp.salary || "",
+      hireDate: formattedDate,
       photo: emp.photo || "",
     });
     setIsFormOpen(true);
@@ -90,21 +399,40 @@ export default function EmployeesPage() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm() || isSubmitting) return;
+    setIsSubmitting(true);
     try {
+      const submitData = new FormData();
+      submitData.append("firstName", formData.firstName);
+      submitData.append("lastName", formData.lastName);
+      submitData.append("email", formData.email);
+      submitData.append("phone", formData.phone);
+      submitData.append("role", formData.role);
+      submitData.append("branch", formData.branch);
+      submitData.append("salary", formData.salary);
+      submitData.append("hireDate", formData.hireDate);
+      if (formData.photo !== undefined && formData.photo !== null) {
+        submitData.append("photo", formData.photo);
+      }
+
       if (formEmployee) {
-        await updateEmployee(formEmployee._id, formData);
+        await updateEmployee(formEmployee._id, submitData);
       } else {
-        await registerEmployee(formData);
+        await registerEmployee(submitData);
       }
       setIsFormOpen(false);
     } catch (err) {
-      alert("Error saving employee details");
+      const errMsg = err.response?.data?.message || "Error saving employee details";
+      alert(errMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handlePerfSubmit = async (e) => {
     e.preventDefault();
-    if (!perfEmpId) return;
+    if (!perfEmpId || isPerfSubmitting) return;
+    setIsPerfSubmitting(true);
     try {
       await logPerformance({
         employeeId: perfEmpId,
@@ -118,17 +446,22 @@ export default function EmployeesPage() {
       // Reset
       setPerfEmpId("");
     } catch (err) {
+      console.error("Performance log submission error:", err);
       alert("Error logging performance details");
+    } finally {
+      setIsPerfSubmitting(false);
     }
   };
 
   // Filters logic
   const filteredEmployees = employees.filter((emp) => {
-    const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
-                          emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          emp.phone.includes(searchTerm);
-    const matchesRole = selectedRole === "all" || emp.role === selectedRole;
+    const cleanSearch = searchTerm.trim().toLowerCase();
+    const empName = emp.name || `${emp.firstName || ""} ${emp.lastName || ""}`.trim();
+    const fullName = empName.toLowerCase();
+    const matchesSearch = fullName.includes(cleanSearch) || 
+                          (emp.email && emp.email.toLowerCase().includes(cleanSearch)) ||
+                          (emp.phone && emp.phone.includes(cleanSearch));
+    const matchesRole = selectedRole === "all" || (emp.role && emp.role.toLowerCase() === selectedRole.toLowerCase());
     const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
     return matchesSearch && matchesRole && matchesBranch;
   });
@@ -171,16 +504,20 @@ export default function EmployeesPage() {
               </tr>
             </thead>
             <tbody>
-              ${employees.map(emp => `
-                <tr>
-                  <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
-                  <td>${emp.email}</td>
-                  <td>${emp.role.toUpperCase()}</td>
-                  <td>${branchNames[emp.branch] || emp.branch}</td>
-                  <td>${emp.performanceScore} ★</td>
-                  <td>${emp.status}</td>
-                </tr>
-              `).join("")}
+              ${employees.map(emp => {
+                const branchObj = branches.find(b => b._id === emp.branch);
+                const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                return `
+                  <tr>
+                    <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
+                    <td>${emp.email}</td>
+                    <td>${emp.role.toUpperCase()}</td>
+                    <td>${displayBranch}</td>
+                    <td>${emp.performanceScore} ★</td>
+                    <td>${emp.status}</td>
+                  </tr>
+                `;
+              }).join("")}
             </tbody>
           </table>
         </body>
@@ -189,13 +526,91 @@ export default function EmployeesPage() {
     printWindow.document.close();
     printWindow.print();
   };
+  
+  const triggerExcelExport = () => {
+    const headers = [
+      "Employee Name",
+      "Email",
+      "Role",
+      "Base Salary (Rs.)",
+      "Total Shifts Logged",
+      "Days Present",
+      "Days Late",
+      "Days Absent",
+      "Attendance Rate (%)",
+      "Calculated Payout (Rs.)"
+    ];
 
-  if (loading) {
+    const rows = employees.map(emp => {
+      const empLogs = attendanceLogs.filter(log => log.employeeId === emp._id);
+      const totalLogs = empLogs.length;
+      
+      const presentLogs = empLogs.filter(log => log.status === "Present" || log.status === "PRESENT").length;
+      const lateLogs = empLogs.filter(log => log.status === "Late" || log.status === "LATE").length;
+      const absentLogs = empLogs.filter(log => log.status === "Absent" || log.status === "ABSENT").length;
+      
+      const attendanceRate = totalLogs > 0 
+        ? Math.round(((presentLogs + lateLogs) / totalLogs) * 100)
+        : 100;
+        
+      const baseSalary = emp.salary || 40000;
+      let calculatedPayout = baseSalary;
+      if (totalLogs > 0) {
+        calculatedPayout = Math.round(baseSalary * ((presentLogs + lateLogs) / totalLogs));
+      }
+
+      return [
+        `"${emp.firstName} ${emp.lastName}"`,
+        `"${emp.email}"`,
+        `"${emp.role.toUpperCase()}"`,
+        baseSalary,
+        totalLogs,
+        presentLogs,
+        lateLogs,
+        absentLogs,
+        `"${attendanceRate}%"`,
+        calculatedPayout
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Operational_Shift_Summary_${new Date().toISOString().substring(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (employeesLoading && employees.length === 0) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <div className="text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto" />
           <p className="mt-4 text-xs font-bold text-slate-500">Retrieving employee database files...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (employeesError && employees.length === 0) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center bg-slate-900/10 backdrop-blur-sm p-4">
+        <div className="text-center bg-white border border-slate-100 rounded-3xl p-8 max-w-md shadow-xl">
+          <div className="text-rose-500 font-black text-3xl mb-3">⚠️ Connection Error</div>
+          <p className="text-xs text-slate-500 font-extrabold mb-5 leading-relaxed">{employeesError}</p>
+          <button
+            onClick={() => loadEmployees(false)}
+            className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 hover:bg-blue-700 transition"
+          >
+            Retry Connection
+          </button>
         </div>
       </div>
     );
@@ -208,18 +623,18 @@ export default function EmployeesPage() {
         {/* Module Banner */}
         <div className="emp-module-header">
           <div className="emp-header-info">
-            <h1>👔 Staff & Employee Management</h1>
+            <h1>Employee Management</h1>
             <p>Register staff, set schedules, track shift punctuality, and evaluate performance benchmarks.</p>
           </div>
           <button onClick={handleOpenRegister} className="emp-register-btn">
-            + Register Staff Member
+            + Employee Registration
           </button>
         </div>
 
         {/* Tab Selection */}
         <div className="emp-tabs-container">
           {[
-            { id: "roster", label: "👥 Corporate Roster", icon: "👥" },
+            { id: "roster", label: "👥 Employee Directory", icon: "👥" },
             { id: "schedules", label: "📅 Shift Planner", icon: "📅" },
             { id: "attendance", label: "⏱️ Attendance Logs", icon: "⏱️" },
             { id: "performance", label: "📈 Performance Center", icon: "📈" },
@@ -244,13 +659,20 @@ export default function EmployeesPage() {
               
               {/* Search & Filter Bar */}
               <div className="emp-filters-card">
-                <div className="filter-field" style={{ gridColumn: "span 2" }}>
+                <div className="filter-field">
                   <label>Search Staff</label>
                   <input
                     type="text"
                     placeholder="Search by name, email, or telephone..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      const rawVal = e.target.value;
+                      if (rawVal.length > 100) return; // Limit search to 100 characters
+                      const sanitized = rawVal
+                        .replace(/[^a-zA-Z0-9\s\.\-\@\_\+\(\)]/g, "") // Block all special characters except name/email/phone symbols
+                        .replace(/^\s+/, ""); // Trim leading whitespace
+                      setSearchTerm(sanitized);
+                    }}
                   />
                 </div>
                 
@@ -264,7 +686,6 @@ export default function EmployeesPage() {
                     <option value="admin">Administrator</option>
                     <option value="manager">Manager</option>
                     <option value="cashier">Cashier</option>
-                    <option value="inventory">Inventory Staff</option>
                   </select>
                 </div>
 
@@ -275,9 +696,15 @@ export default function EmployeesPage() {
                     onChange={(e) => setSelectedBranch(e.target.value)}
                   >
                     <option value="all">All Branches</option>
-                    {Object.entries(branchNames).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
+                    {branches.length > 0 ? (
+                      branches.map((b) => (
+                        <option key={b._id} value={b._id}>{b.name}</option>
+                      ))
+                    ) : (
+                      Object.entries(branchNames).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
@@ -288,15 +715,17 @@ export default function EmployeesPage() {
                   No employees match the specified filters.
                 </div>
               ) : (
-                <div className="emp-grid">
-                  {filteredEmployees.map((emp) => (
-                    <EmployeeCard
-                      key={emp._id}
-                      employee={emp}
-                      onViewDetails={setSelectedEmployee}
-                      onEdit={handleOpenEdit}
-                    />
-                  ))}
+                <div className="emp-grid-container">
+                  <div className="emp-grid">
+                    {filteredEmployees.map((emp) => (
+                      <EmployeeCard
+                        key={emp._id}
+                        employee={emp}
+                        onViewDetails={setSelectedEmployee}
+                        onEdit={handleOpenEdit}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -304,11 +733,39 @@ export default function EmployeesPage() {
           )}
 
           {/* TAB 2: SCHEDULES */}
-          {activeTab === "schedules" && <SchedulePlanner />}
+          {activeTab === "schedules" && (
+            schedulesLoading ? (
+              <div className="flex h-[40vh] items-center justify-center bg-white/80 rounded-2xl border border-slate-100 p-8 shadow-sm">
+                <div className="text-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto" />
+                  <p className="mt-4 text-xs font-bold text-slate-500">Loading shift schedules...</p>
+                </div>
+              </div>
+            ) : schedulesError ? (
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold px-5 py-4 rounded-2xl text-center shadow-sm">
+                ⚠️ {schedulesError}
+              </div>
+            ) : (
+              <SchedulePlanner />
+            )
+          )}
 
           {/* TAB 3: ATTENDANCE */}
           {activeTab === "attendance" && (
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            attendanceLoading ? (
+              <div className="flex h-[40vh] items-center justify-center bg-white/80 rounded-2xl border border-slate-100 p-8 shadow-sm">
+                <div className="text-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto" />
+                  <p className="mt-4 text-xs font-bold text-slate-500">Loading attendance records...</p>
+                </div>
+              </div>
+            ) : attendanceError ? (
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold px-5 py-4 rounded-2xl text-center shadow-sm">
+                ⚠️ {attendanceError}
+              </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+
               
               {/* Left Column: Attendance Stats & Log list */}
               <div className="space-y-6">
@@ -318,22 +775,96 @@ export default function EmployeesPage() {
                   <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Present Ratio</span>
                     <span className="block text-2xl font-black text-slate-800 mt-1">
-                      {attendanceLogs.length > 0
-                        ? `${Math.round((attendanceLogs.filter(l => l.status === "Present").length / attendanceLogs.length) * 100)}%`
+                      {activeAttendanceLogs.length > 0
+                        ? `${Math.round((activeAttendanceLogs.filter(l => l.status === "Present").length / activeAttendanceLogs.length) * 100)}%`
                         : "100%"}
                     </span>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Late Records</span>
                     <span className="block text-2xl font-black text-amber-600 mt-1">
-                      {attendanceLogs.filter(l => l.status === "Late").length}
+                      {activeAttendanceLogs.filter(l => l.status === "Late").length}
                     </span>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Punchcards</span>
                     <span className="block text-2xl font-black text-blue-600 mt-1">
-                      {attendanceLogs.length}
+                      {activeAttendanceLogs.length}
                     </span>
+                  </div>
+                </div>
+
+                {/* Standalone Filters Card */}
+                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-end gap-4 w-full">
+                    
+                    {/* Search box */}
+                    <div className="flex flex-col relative flex-1">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Search Staff</label>
+                        {attSearchError && (
+                          <span className="text-[9px] font-bold text-rose-500">{attSearchError}</span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search by name or email..."
+                        value={attSearchQuery}
+                        onChange={handleSearchChange}
+                        className={`w-full rounded-xl border bg-slate-50 px-3.5 py-2.5 text-xs font-medium outline-none transition focus:ring-2 focus:ring-blue-100 ${attSearchError ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"}`}
+                      />
+                    </div>
+
+                    {/* Status dropdown */}
+                    <div className="flex flex-col w-full md:w-48">
+                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 block">Filter Verdict</label>
+                      <select
+                        value={attStatusFilter}
+                        onChange={(e) => setAttStatusFilter(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                      >
+                        <option value="All">All Verdicts</option>
+                        <option value="Present">Present</option>
+                        <option value="Late">Late</option>
+                        <option value="Absent">Absent</option>
+                        <option value="Leave">Leave</option>
+                      </select>
+                    </div>
+
+                    {/* Date filter */}
+                    <div className="flex flex-col relative w-full md:w-48">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Filter Date</label>
+                        {attDateError && (
+                          <span className="text-[9px] font-bold text-rose-500">{attDateError}</span>
+                        )}
+                      </div>
+                      <input
+                        type="date"
+                        value={attDateFilter}
+                        onChange={handleDateFilterChange}
+                        max={getTodayLocalDateStr()}
+                        className={`w-full rounded-xl border bg-slate-50 px-3.5 py-2.5 text-xs font-medium outline-none transition focus:ring-2 focus:ring-blue-100 ${attDateError ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"}`}
+                      />
+                    </div>
+
+                    {/* Clear button */}
+                    {(attSearchQuery || attStatusFilter !== "All" || attDateFilter) && (
+                      <button
+                        onClick={() => {
+                          setAttSearchQuery("");
+                          setAttStatusFilter("All");
+                          setAttDateFilter("");
+                          setAttDateError("");
+                          setAttSearchError("");
+                        }}
+                        className="w-full md:w-auto rounded-xl border border-blue-100 bg-blue-50 text-blue-600 px-5 py-2.5 text-xs font-bold hover:bg-blue-100 transition whitespace-nowrap"
+                        title="Clear all filters"
+                      >
+                        Clear
+                      </button>
+                    )}
+
                   </div>
                 </div>
 
@@ -342,7 +873,7 @@ export default function EmployeesPage() {
                   <div className="px-5 py-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                     <h3 className="text-sm font-extrabold text-slate-700">Attendance Log History</h3>
                   </div>
-                  <div className="overflow-x-auto max-h-[450px]">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-extrabold uppercase text-[10px]">
@@ -354,12 +885,12 @@ export default function EmployeesPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {attendanceLogs.length === 0 ? (
+                        {activeAttendanceLogs.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="p-8 text-center text-slate-400">No shift logs found.</td>
                           </tr>
                         ) : (
-                          attendanceLogs.map((log) => {
+                          activeAttendanceLogs.map((log) => {
                             const emp = employees.find(e => e._id === log.employeeId) || { firstName: "Deleted", lastName: "Staff", photo: "" };
                             return (
                               <tr key={log._id} className="hover:bg-slate-50/50">
@@ -392,11 +923,25 @@ export default function EmployeesPage() {
               </div>
 
             </div>
-          )}
+          )
+        )}
 
           {/* TAB 4: PERFORMANCE */}
           {activeTab === "performance" && (
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            performanceLoading ? (
+              <div className="flex h-[40vh] items-center justify-center bg-white/80 rounded-2xl border border-slate-100 p-8 shadow-sm">
+                <div className="text-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto" />
+                  <p className="mt-4 text-xs font-bold text-slate-500">Loading performance data...</p>
+                </div>
+              </div>
+            ) : performanceError ? (
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold px-5 py-4 rounded-2xl text-center shadow-sm">
+                ⚠️ {performanceError}
+              </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+
               
               {/* Leaderboard and statistics */}
               <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-5">
@@ -405,7 +950,7 @@ export default function EmployeesPage() {
                   <p className="text-[10px] text-slate-400 font-semibold">Rankings are evaluated dynamically based on customer reviews and operational reliability.</p>
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-3 overflow-y-auto max-h-[550px] pr-1">
                   {leaderboard.map((emp, index) => {
                     const rankMedal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}th`;
                     return (
@@ -441,7 +986,7 @@ export default function EmployeesPage() {
 
                 <form onSubmit={handlePerfSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Staff Member</label>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Employee</label>
                     <select
                       value={perfEmpId}
                       onChange={e => setPerfEmpId(e.target.value)}
@@ -489,27 +1034,37 @@ export default function EmployeesPage() {
 
                   <button
                     type="submit"
-                    disabled={!perfEmpId}
-                    className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    disabled={!perfEmpId || isPerfSubmitting}
+                    className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Save Review Metrics
+                    {isPerfSubmitting ? (
+                      <>
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <span>Saving Review...</span>
+                      </>
+                    ) : (
+                      "Save Review Metrics"
+                    )}
                   </button>
 
                 </form>
               </div>
 
             </div>
-          )}
+          )
+        )}
 
           {/* TAB 5: REPORTS */}
           {activeTab === "reports" && (
             <div className="grid gap-6 sm:grid-cols-2">
               
               <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl w-10 text-center font-bold text-lg">📄</div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-800">Corporate Staff Roster</h3>
-                  <p className="text-[10px] text-slate-400 font-semibold mt-1">Export a master file containing active roles, branches, email directories, and contact info.</p>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl w-10 text-center font-bold text-lg flex-shrink-0">📄</div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-800">Staff Master Directory</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-1">Export a master file containing active roles, branches, email directories, and contact info.</p>
+                  </div>
                 </div>
                 <button
                   onClick={triggerPrint}
@@ -520,13 +1075,15 @@ export default function EmployeesPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl w-10 text-center font-bold text-lg">📊</div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-800">Operational Shift Summary</h3>
-                  <p className="text-[10px] text-slate-400 font-semibold mt-1">Preview a list of monthly attendance rates, tardiness flags, and calculated payroll estimates.</p>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl w-10 text-center font-bold text-lg flex-shrink-0">📊</div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-800">Operational Shift Summary</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-1">Preview a list of monthly attendance rates, tardiness flags, and calculated payroll estimates.</p>
+                  </div>
                 </div>
                 <button
-                  onClick={() => alert("Detailed report generated successfully. Ready to export to Excel.")}
+                  onClick={triggerExcelExport}
                   className="rounded-xl border border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-4 py-2.5 text-xs font-bold w-full transition"
                 >
                   Export Metrics to Excel
@@ -559,7 +1116,7 @@ export default function EmployeesPage() {
           <div className="relative w-full max-w-md h-full bg-white/95 border-l border-white/20 shadow-2xl p-6 flex flex-col z-10 overflow-y-auto backdrop-blur-2xl">
             <div className="flex justify-between items-center mb-6 border-b border-black/5 pb-3">
               <h3 className="text-base font-bold text-slate-800">
-                {formEmployee ? "✏️ Edit Employee Info" : "👔 Register New Staff Member"}
+                {formEmployee ? "Edit Employee Info" : "Employee Registration"}
               </h3>
               <button onClick={() => setIsFormOpen(false)} className="text-slate-400 text-lg hover:text-slate-600">
                 ✕
@@ -573,20 +1130,34 @@ export default function EmployeesPage() {
                   <input
                     type="text"
                     required
+                    placeholder="e.g., Nimal"
                     value={formData.firstName}
                     onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                    onBlur={e => validateField("firstName", e.target.value)}
+                    className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                      formErrors.firstName ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
                   />
+                  {formErrors.firstName && (
+                    <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.firstName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Last Name</label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g., Perera"
                     value={formData.lastName}
                     onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                    onBlur={e => validateField("lastName", e.target.value)}
+                    className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                      formErrors.lastName ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
                   />
+                  {formErrors.lastName && (
+                    <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.lastName}</p>
+                  )}
                 </div>
               </div>
 
@@ -595,10 +1166,17 @@ export default function EmployeesPage() {
                 <input
                   type="email"
                   required
+                  placeholder="e.g., nimal.p@pos.com"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                  onBlur={e => validateField("email", e.target.value)}
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                    formErrors.email ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                  }`}
                 />
+                {formErrors.email && (
+                  <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -606,11 +1184,17 @@ export default function EmployeesPage() {
                 <input
                   type="tel"
                   required
-                  placeholder="+94 77 123 4567"
+                  placeholder="e.g., +94 77 123 4567"
                   value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                  onChange={e => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                  onBlur={e => validateField("phone", e.target.value)}
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                    formErrors.phone ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                  }`}
                 />
+                {formErrors.phone && (
+                  <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.phone}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -624,7 +1208,6 @@ export default function EmployeesPage() {
                     <option value="admin">Administrator</option>
                     <option value="manager">Manager</option>
                     <option value="cashier">Cashier</option>
-                    <option value="inventory">Inventory Staff</option>
                   </select>
                 </div>
                 <div>
@@ -634,9 +1217,15 @@ export default function EmployeesPage() {
                     onChange={e => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                   >
-                    {Object.entries(branchNames).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
+                    {branches.length > 0 ? (
+                      branches.map((b) => (
+                        <option key={b._id} value={b._id}>{b.name}</option>
+                      ))
+                    ) : (
+                      Object.entries(branchNames).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
@@ -647,47 +1236,116 @@ export default function EmployeesPage() {
                   <input
                     type="number"
                     required
+                    min="1"
+                    placeholder="e.g., 40000"
                     value={formData.salary}
-                    onChange={e => setFormData({ ...formData, salary: parseInt(e.target.value) })}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                    onKeyDown={e => {
+                      if (e.key === "-" || e.key === "e" || e.key === "E") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={e => {
+                      const rawVal = e.target.value;
+                      if (rawVal === "") {
+                        setFormData({ ...formData, salary: "" });
+                        return;
+                      }
+                      
+                      // Strip leading zeros
+                      const sanitizedVal = rawVal.replace(/^0+/, "");
+                      if (sanitizedVal === "") {
+                        setFormData({ ...formData, salary: "" });
+                        return;
+                      }
+                      
+                      const parsed = parseInt(sanitizedVal);
+                      if (isNaN(parsed) || parsed < 0) {
+                        return;
+                      }
+                      setFormData({ ...formData, salary: parsed });
+                    }}
+                    onBlur={e => validateField("salary", e.target.value)}
+                    className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                      formErrors.salary ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
                   />
+                  {formErrors.salary && (
+                    <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.salary}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Hire Date</label>
                   <input
                     type="date"
                     required
+                    max={new Date().toLocaleDateString('en-CA')}
+                    placeholder="e.g., Select hiring date"
                     value={formData.hireDate}
                     onChange={e => setFormData({ ...formData, hireDate: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                    onBlur={e => validateField("hireDate", e.target.value)}
+                    className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none ${
+                      formErrors.hireDate ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
                   />
+                  {formErrors.hireDate && (
+                    <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.hireDate}</p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Profile Photo URL (Optional)</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Profile Photo (Optional)</label>
+                {formData.photo && (
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <img 
+                      src={typeof formData.photo === "string" ? formData.photo : URL.createObjectURL(formData.photo)} 
+                      alt="Profile preview" 
+                      className="h-12 w-12 rounded-xl object-cover border border-slate-200" 
+                    />
+                    <span className="text-[10px] text-slate-500 font-semibold">Selected profile image preview</span>
+                  </div>
+                )}
                 <input
-                  type="text"
-                  placeholder="https://example.com/photo.jpg"
-                  value={formData.photo}
-                  onChange={e => setFormData({ ...formData, photo: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                  type="file"
+                  accept="image/*"
+                  onChange={e => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setFormData({ ...formData, photo: file });
+                      validateField("photo", file);
+                    }
+                  }}
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none bg-slate-50 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
+                    formErrors.photo ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                  }`}
                 />
+                {formErrors.photo && (
+                  <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.photo}</p>
+                )}
               </div>
 
               <div className="pt-6 border-t border-slate-100 flex gap-2">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsFormOpen(false)}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+                  className="flex-1 rounded-xl border border-rose-200 bg-rose-50 py-3 text-xs font-bold text-slate-800 hover:bg-rose-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 hover:bg-blue-700 transition"
+                  disabled={isSubmitting}
+                  className="flex-1 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 hover:bg-blue-700 transition disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {formEmployee ? "Save Changes" : "Register Employee"}
+                  {isSubmitting ? (
+                    <>
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    formEmployee ? "Save Changes" : "Register Employee"
+                  )}
                 </button>
               </div>
 
@@ -699,6 +1357,14 @@ export default function EmployeesPage() {
       <style>{`
         /* Scoped styles for Employee Management Module */
         .emp-module-panel {
+          /* Local override variables to enforce black/dark text contrast on light glass background */
+          --text-primary: #0f172a !important;
+          --text-secondary: #475569 !important;
+          --text-muted: #64748b !important;
+          --border-color: rgba(0, 0, 0, 0.12) !important;
+          --bg-secondary: rgba(255, 255, 255, 0.85) !important;
+          --bg-tertiary: rgba(0, 0, 0, 0.05) !important;
+
           animation: fadeIn 0.4s ease-out;
           font-family: var(--font-sans);
           color: var(--text-primary);
@@ -721,14 +1387,14 @@ export default function EmployeesPage() {
           width: 100%;
         }
 
-        /* Glassmorphism generic style */
+        /* Glassmorphism generic style - Brightened and refined */
         .emp-glass-card {
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
           border-radius: 20px;
           padding: 24px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
@@ -738,11 +1404,11 @@ export default function EmployeesPage() {
           justify-content: space-between;
           align-items: center;
           padding: 24px;
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.45);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
           border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
           flex-wrap: wrap;
           gap: 16px;
         }
@@ -795,10 +1461,10 @@ export default function EmployeesPage() {
           gap: 8px;
           overflow-x: auto;
           padding: 6px;
-          background: rgba(255, 255, 255, 0.4);
-          backdrop-filter: blur(10px);
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(16px);
           border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.5);
           scrollbar-width: none;
           width: fit-content;
           max-width: 100%;
@@ -822,7 +1488,7 @@ export default function EmployeesPage() {
           white-space: nowrap;
         }
         .emp-tab-button:hover {
-          background: rgba(255, 255, 255, 0.6);
+          background: rgba(255, 255, 255, 0.8);
           color: var(--text-primary);
         }
         .emp-tab-button.active {
@@ -836,12 +1502,12 @@ export default function EmployeesPage() {
           display: grid;
           grid-template-columns: 2fr 1fr 1fr;
           gap: 16px;
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.45);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
           border-radius: 20px;
           padding: 20px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
         }
         @media (max-width: 768px) {
           .emp-filters-card {
@@ -864,8 +1530,8 @@ export default function EmployeesPage() {
         .emp-module-panel input, .emp-module-panel select, .emp-module-panel textarea {
           padding: 10px 14px;
           border-radius: 10px;
-          border: 1.5px solid rgba(0, 0, 0, 0.08);
-          background: rgba(255, 255, 255, 0.7);
+          border: 1.5px solid #cbd5e1;
+          background: rgba(255, 255, 255, 0.85);
           font-size: 0.82rem;
           font-weight: 600;
           color: var(--text-primary);
@@ -879,6 +1545,27 @@ export default function EmployeesPage() {
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
+        .emp-grid-container {
+          max-height: 60vh;
+          overflow-y: auto;
+          padding-right: 6px;
+          padding-bottom: 12px;
+        }
+        .emp-grid-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .emp-grid-container::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.03);
+          border-radius: 99px;
+        }
+        .emp-grid-container::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.12);
+          border-radius: 99px;
+        }
+        .emp-grid-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.24);
+        }
+
         /* Employee Grid & Cards */
         .emp-grid {
           display: grid;
@@ -886,21 +1573,20 @@ export default function EmployeesPage() {
           gap: 20px;
         }
         .emp-card {
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.45);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
           border-radius: 20px;
           padding: 20px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           flex-direction: column;
           gap: 14px;
         }
         .emp-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-          border-color: rgba(59, 130, 246, 0.3);
+          box-shadow: 0 12px 40px rgba(59, 130, 246, 0.12);
+          border-color: rgba(59, 130, 246, 0.45);
         }
         .emp-card-header {
           display: flex;
@@ -951,10 +1637,10 @@ export default function EmployeesPage() {
           width: fit-content;
           letter-spacing: 0.05em;
         }
-        .emp-role-tag.admin { background: rgba(126, 34, 206, 0.1); color: #7e22ce; border: 1px solid rgba(126, 34, 206, 0.25); }
-        .emp-role-tag.manager { background: rgba(5, 150, 105, 0.1); color: #059669; border: 1px solid rgba(5, 150, 105, 0.25); }
-        .emp-role-tag.cashier { background: rgba(37, 99, 235, 0.1); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.25); }
-        .emp-role-tag.inventory { background: rgba(217, 119, 6, 0.1); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.25); }
+        .emp-role-tag.admin { background: rgba(126, 34, 206, 0.15); color: #7e22ce; border: 1px solid rgba(126, 34, 206, 0.3); }
+        .emp-role-tag.manager { background: rgba(5, 150, 105, 0.15); color: #059669; border: 1px solid rgba(5, 150, 105, 0.3); }
+        .emp-role-tag.cashier { background: rgba(37, 99, 235, 0.15); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.3); }
+        .emp-role-tag.inventory { background: rgba(217, 119, 6, 0.15); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.3); }
 
         .emp-card-name {
           font-size: 0.95rem;
@@ -1003,16 +1689,16 @@ export default function EmployeesPage() {
           font-size: 0.72rem;
           font-weight: 750;
           border-radius: 8px;
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          background: rgba(255, 255, 255, 0.6);
-          color: var(--text-secondary);
+          border: 1px solid #bfdbfe;
+          background: #eff6ff;
+          color: #1d4ed8;
           cursor: pointer;
           transition: all 0.2s ease;
         }
         .emp-card-btn:hover {
-          background: rgba(255, 255, 255, 0.9);
-          color: var(--text-primary);
-          border-color: rgba(0, 0, 0, 0.15);
+          background: #dbeafe;
+          color: #1e40af;
+          border-color: #3b82f6;
           transform: translateY(-1px);
         }
         .emp-card-btn.primary {
@@ -1028,35 +1714,35 @@ export default function EmployeesPage() {
 
         /* Scoped override for all white blocks (Scheduler, simulator, logs table etc.) to convert them to glassmorphic panels */
         .emp-module-panel .bg-white {
-          background: rgba(255, 255, 255, 0.65) !important;
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.45) !important;
+          background: rgba(255, 255, 255, 0.85) !important;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65) !important;
           border-radius: 20px !important;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04) !important;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
         }
         .emp-module-panel .border-slate-100 {
-          border-color: rgba(255, 255, 255, 0.25) !important;
+          border-color: rgba(0, 0, 0, 0.05) !important;
         }
         .emp-module-panel .divide-slate-100 > * + * {
-          border-color: rgba(255, 255, 255, 0.2) !important;
+          border-color: rgba(0, 0, 0, 0.04) !important;
         }
         .emp-module-panel .bg-slate-50 {
-          background: rgba(255, 255, 255, 0.45) !important;
+          background: rgba(255, 255, 255, 0.55) !important;
         }
         .emp-module-panel .bg-slate-50/50 {
-          background: rgba(255, 255, 255, 0.25) !important;
+          background: rgba(255, 255, 255, 0.35) !important;
         }
         .emp-module-panel table th {
-          background: rgba(255, 255, 255, 0.5) !important;
+          background: rgba(255, 255, 255, 0.6) !important;
           color: var(--text-primary) !important;
           font-weight: 750 !important;
-          border-color: rgba(255, 255, 255, 0.2) !important;
+          border-color: rgba(0, 0, 0, 0.05) !important;
         }
         .emp-module-panel table td {
-          border-color: rgba(255, 255, 255, 0.15) !important;
+          border-color: rgba(0, 0, 0, 0.04) !important;
         }
         .emp-module-panel table tr:hover {
-          background: rgba(255, 255, 255, 0.3) !important;
+          background: rgba(255, 255, 255, 0.4) !important;
         }
       `}</style>
 

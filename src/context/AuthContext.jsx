@@ -1,47 +1,66 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "../api/axiosInstance"; 
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
+const normalizeRole = (role) =>
+  String(role || '')
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/^super_admin$|^superadmin$|^administrator$/, 'admin');
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
 
-    if (storedUser && token) {
+    if (storedUser && storedToken) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        setUser({
+          ...parsed,
+          role: normalizeRole(parsed.role),
+        });
+        setToken(storedToken);
       } catch (error) {
-        console.error("Error parsing user data", error);
-        logout();
+        console.error('Error parsing user data', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
     setLoading(false);
   }, []);
 
-  const login = (userData, token) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
+  const login = (userData, authToken) => {
+    const normalizedUser = {
+      ...userData,
+      role: normalizeRole(userData?.role),
+    };
+    localStorage.setItem('token', authToken);
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
+    setToken(authToken);
+    setUser(normalizedUser);
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
     setUser(null);
   };
 
-  // Role check helper
   const hasRole = (...roles) => {
-    return user && roles.includes(user.role);
+    if (!user?.role) return false;
+    const allowed = roles.map((r) => normalizeRole(r));
+    return allowed.includes(user.role);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, hasRole, loading }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, token, login, logout, hasRole, loading }}>
+      {children}
     </AuthContext.Provider>
   );
 };
