@@ -6,13 +6,15 @@ const NAV_ITEMS = [
   { id: 'pos', label: 'Point of Sale', icon: '🛒', path: '/pos', roles: ['admin', 'manager', 'cashier'] },
   { id: 'inventory', label: 'Inventory', icon: '📦', path: '/inventory', roles: ['admin', 'manager'] },
   { id: 'products', label: 'Products', icon: '🏷️', path: '/products', roles: ['admin', 'manager'] },
+  { id: 'warehouse', label: 'Warehouse', icon: '🏭', path: '/warehouse', roles: ['admin', 'manager'] },
   { id: 'branches', label: 'Branches', icon: '🏢', path: '/branches', roles: ['admin'] },
   { id: 'employees', label: 'Employees', icon: '👥', path: '/employees', roles: ['admin', 'manager'] },
   { id: 'customers', label: 'Customers', icon: '👤', path: '/customers', roles: ['admin', 'manager', 'cashier'] },
   { id: 'suppliers', label: 'Suppliers', icon: '🚚', path: '/suppliers', roles: ['admin', 'manager'] },
-  { id: 'reports', label: 'Reports', icon: '📊', path: '/reports', roles: ['admin'] },
+  { id: 'reports', label: 'Reports', icon: '📊', path: '/reports', roles: ['admin', 'manager'] },
   { id: 'ai', label: 'AI Forecasting', icon: '🤖', path: '/ai', badge: 'NEW', roles: ['admin', 'manager'] },
   { id: 'settings', label: 'Settings', icon: '⚙️', path: '/settings', roles: ['admin'] },
+  { id: 'audit', label: 'Audit & Security', icon: '🛡️', path: '/audit', roles: ['admin'] },
 ];
 
 const Sidebar = ({ activeRoute, onNavigate }) => {
@@ -20,6 +22,15 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const filtered = NAV_ITEMS.filter(item => item.roles.includes(user?.role));
+
+  // 🔥 Force Navigation Function
+  const handleForceNavigation = (item) => {
+    if (onNavigate) {
+      onNavigate(item.id); 
+    }
+    // Kelinma URL eka change karanawa browser ekenma!
+    window.location.href = item.path; 
+  };
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -48,11 +59,11 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
       {!collapsed && (
         <div className="sidebar-user-info">
           <div className="user-avatar-sm">
-            {user?.name?.charAt(0)}
+            {user?.name?.charAt(0) || 'U'}
           </div>
           <div>
-            <div className="user-name-sm">{user?.name}</div>
-            <span className={`role-badge role-${user?.role}`}>{user?.role}</span>
+            <div className="user-name-sm">{user?.name || 'User'}</div>
+            <span className={`role-badge role-${user?.role || 'admin'}`}>{user?.role || 'Admin'}</span>
           </div>
         </div>
       )}
@@ -64,7 +75,7 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
           <button
             key={item.id}
             className={`nav-item ${activeRoute === item.id ? 'active' : ''}`}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => handleForceNavigation(item)} // 🔥 Use Force Navigation
             title={collapsed ? item.label : ''}
           >
             <span className="nav-icon">{item.icon}</span>
@@ -163,6 +174,8 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
           position: relative;
           margin-bottom: 2px;
           white-space: nowrap;
+          border: none;
+          cursor: pointer;
         }
         .nav-item:hover { background: rgba(255,255,255,.07); color: white; }
         .nav-item.active { background: var(--blue-600); color: white; box-shadow: 0 4px 12px rgba(37,99,235,.4); }
@@ -184,6 +197,8 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
           transition: all var(--transition);
           font-size: .875rem;
           white-space: nowrap;
+          border: none;
+          cursor: pointer;
         }
         .logout-btn:hover { background: rgba(239,68,68,.15); color: #fca5a5; }
       `}</style>

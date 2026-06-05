@@ -235,7 +235,7 @@ export default function CustomerAddModal({ onClose, onSuccess }) {
             </div>
           </div>
 
-          {/* ── Branch Assignment ── */}
+          {/*  Branch Assignment  */}
           <p className="cam-section-label" style={{ marginTop: "4px" }}>Branch Assignment</p>
 
           <div className="cam-field">
@@ -265,7 +265,7 @@ export default function CustomerAddModal({ onClose, onSuccess }) {
             )}
           </div>
 
-          {/* ── API error ── */}
+          {/*  API error  */}
           {submitErr && (
             <div className="cam-api-err">
               ⚠ {submitErr}

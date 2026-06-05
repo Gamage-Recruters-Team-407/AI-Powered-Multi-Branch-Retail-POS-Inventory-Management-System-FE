@@ -1,14 +1,111 @@
 import { useState } from 'react';
-import { FiChevronDown, FiChevronUp, FiRefreshCw } from 'react-icons/fi';
+import {
+  FiAlertTriangle,
+  FiChevronDown,
+  FiChevronUp,
+  FiInfo,
+  FiRefreshCw,
+  FiTruck,
+  FiUser,
+} from 'react-icons/fi';
+import {
+  cn,
+  stAlertBase,
+  stAlertOk,
+  stAlertWarn,
+  stBtnGhost,
+  stBtnPrimary,
+  stChip,
+  stConnection,
+  stConnectionDot,
+  stConnectionDotLive,
+  stEmpty,
+  stEmptyDesc,
+  stEmptyIcon,
+  stEmptyTitle,
+  stFieldInput,
+  stFieldLabel,
+  stFieldLabelText,
+  stFilters,
+  stHero,
+  stHeroIcon,
+  stHeroTitle,
+  stMetricCard,
+  stMetricIcon,
+  stMetricLabel,
+  stMetricValue,
+  stPanelHeader,
+  stPanelSubtitle,
+  stPanelTitle,
+  stRoleBadge,
+  stSearchClearBtn,
+  stSearchIcon,
+  stSearchInput,
+  stSearchInputWrap,
+  stSearchWrap,
+  stTable,
+  stTableRowHover,
+  stTableTh,
+  stTableTd,
+  stTableWrap,
+  stWorkflow,
+  stWorkflowBody,
+  stWorkflowHint,
+  stWorkflowToggle,
+  statusBadgeClass,
+} from './stockTransferClasses';
 
-export function PanelHeader({ title, subtitle, children }) {
+const KPI_ICONS = {
+  primary: 'blue',
+  warning: 'amber',
+  success: 'green',
+  info: 'violet',
+};
+
+export function PanelHeader({ title, subtitle, icon: Icon, children }) {
   return (
-    <div className="st-panel-head st-ui-panel-head">
-      <div>
-        <h2 className="st-ui-panel-title">{title}</h2>
-        {subtitle ? <p className="st-ui-panel-sub">{subtitle}</p> : null}
+    <div className={cn(stPanelHeader, 'flex flex-wrap items-start justify-between gap-4')}>
+      <div className="flex items-start gap-3.5">
+        {Icon ? (
+          <div className={cn(stMetricIcon.blue, 'size-11 text-lg')} aria-hidden="true">
+            <Icon />
+          </div>
+        ) : null}
+        <div>
+          <h2 className={stPanelTitle}>{title}</h2>
+          {subtitle ? <p className={stPanelSubtitle}>{subtitle}</p> : null}
+        </div>
       </div>
-      {children ? <div className="st-ui-panel-actions">{children}</div> : null}
+      {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
+    </div>
+  );
+}
+
+export function KpiCard({ variant = 'primary', icon: Icon, value, label }) {
+  const tone = KPI_ICONS[variant] ?? 'blue';
+  return (
+    <div className={stMetricCard}>
+      <div className={stMetricIcon[tone]}>
+        <Icon aria-hidden="true" className="size-[22px]" />
+      </div>
+      <div>
+        <div className={stMetricLabel}>{label}</div>
+        <div className={stMetricValue}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+export function AlertBanner({ variant = 'warn', children }) {
+  return (
+    <div
+      className={cn(stAlertBase, variant === 'warn' ? stAlertWarn : stAlertOk)}
+      role="status"
+    >
+      <span className="text-lg" aria-hidden="true">
+        {variant === 'warn' ? <FiAlertTriangle /> : <FiInfo />}
+      </span>
+      <div>{children}</div>
     </div>
   );
 }
@@ -24,18 +121,18 @@ export function EmptyState({
   primaryDisabled = false,
 }) {
   return (
-    <div className="st-empty">
-      <div className="st-empty-icon" aria-hidden="true">
+    <div className={stEmpty}>
+      <div className={stEmptyIcon} aria-hidden="true">
         {icon}
       </div>
-      <h3 className="st-empty-title">{title}</h3>
-      <p className="st-empty-desc">{description}</p>
+      <h3 className={stEmptyTitle}>{title}</h3>
+      <p className={stEmptyDesc}>{description}</p>
       {(primaryLabel || secondaryLabel) && (
-        <div className="st-empty-actions">
+        <div className="flex flex-wrap justify-center gap-2.5">
           {primaryLabel && onPrimary ? (
             <button
               type="button"
-              className="st-btn primary"
+              className={stBtnPrimary}
               onClick={onPrimary}
               disabled={primaryDisabled}
             >
@@ -43,7 +140,7 @@ export function EmptyState({
             </button>
           ) : null}
           {secondaryLabel && onSecondary ? (
-            <button type="button" className="st-btn ghost" onClick={onSecondary}>
+            <button type="button" className={stBtnGhost} onClick={onSecondary}>
               {secondaryLabel}
             </button>
           ) : null}
@@ -54,29 +151,33 @@ export function EmptyState({
 }
 
 export function StatusBadge({ status }) {
-  const key = String(status || '')
-    .toLowerCase()
-    .replace(/\s/g, '');
-  return <span className={`st-badge ${key}`}>{status}</span>;
+  return <span className={statusBadgeClass(status)}>{status}</span>;
 }
 
-export function ConnectionStatus({ connected, branches, products, transfers, syncing }) {
+export function ConnectionStatus({
+  connected,
+  branches,
+  products,
+  transfers,
+  syncing,
+}) {
   return (
-    <div
-      className={`st-connection ${connected ? 'is-live' : 'is-offline'}`}
-      role="status"
-    >
-      <span className="st-connection-dot" aria-hidden="true" />
-      <span className="st-connection-label">
+    <div className={stConnection} role="status">
+      <span
+        className={connected ? stConnectionDotLive : stConnectionDot}
+        aria-hidden="true"
+      />
+      <span
+        className={cn(
+          'font-semibold',
+          connected ? 'text-emerald-700' : 'text-amber-700',
+        )}
+      >
         {syncing ? 'Syncing…' : connected ? 'Connected' : 'Not connected'}
       </span>
-      <span className="st-connection-stats">
-        <span>{branches} branches</span>
-        <span className="st-connection-sep">·</span>
-        <span>{products} products</span>
-        <span className="st-connection-sep">·</span>
-        <span>{transfers} transfers</span>
-      </span>
+      <span className={stChip}>{branches} branches</span>
+      <span className={stChip}>{products} products</span>
+      <span className={stChip}>{transfers} transfers</span>
     </div>
   );
 }
@@ -84,51 +185,46 @@ export function ConnectionStatus({ connected, branches, products, transfers, syn
 export function WorkflowGuide({ perms }) {
   const [open, setOpen] = useState(false);
   const roleHint = perms.canApproveTransfer
-    ? 'You (Admin): approve or reject manager requests on Progress.'
+    ? 'You (Admin): approve or reject pending requests on Progress; view logs and full history. After approval, managers dispatch stock.'
     : perms.canCreateTransfer
-      ? 'You (Manager): submit on New Request — admin approves on Progress.'
-      : 'View-only: track transfer status for your branch.';
+      ? 'You (Manager): create and edit pending requests; cancel before admin approval; dispatch when Approved; confirm receipt at your branch when In Transit.'
+      : perms.isViewOnly
+        ? 'You (Cashier): view-only — Progress, History, Branch Stock, and Reports. No create, approve, or cancel.'
+        : 'Track transfers for your branch.';
 
   return (
-    <div className={`st-workflow ${open ? 'is-open' : ''}`}>
-      <p className="st-workflow-role-hint">{roleHint}</p>
+    <div className={stWorkflow}>
+      <div className={stWorkflowHint}>
+        <FiUser className="mt-0.5 shrink-0" aria-hidden="true" />
+        <p className="m-0">{roleHint}</p>
+      </div>
       <button
         type="button"
-        className="st-workflow-toggle"
+        className={stWorkflowToggle}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
         <span>How transfers work</span>
-        {open ? <FiChevronUp aria-hidden="true" /> : <FiChevronDown aria-hidden="true" />}
+        {open ? <FiChevronUp /> : <FiChevronDown />}
       </button>
       {open ? (
-        <div className="st-workflow-body">
-          <ol className="st-workflow-steps">
+        <div className={stWorkflowBody}>
+          <ol className="m-0 list-decimal pl-5 leading-loose">
             <li>
-              <strong>Manager</strong> submits a request → <StatusBadge status="Pending" />
+              <strong>Manager</strong> submits → <StatusBadge status="Pending" />
             </li>
             <li>
               <strong>Admin</strong> approves or rejects →{' '}
               <StatusBadge status="Approved" /> / <StatusBadge status="Rejected" />
             </li>
             <li>
-              Stock leaves source → <StatusBadge status="In Transit" />
+              <strong>Manager</strong> dispatches → <StatusBadge status="In Transit" />
             </li>
             <li>
-              <strong>Destination manager</strong> confirms receipt →{' '}
+              <strong>Destination manager</strong> confirms →{' '}
               <StatusBadge status="Completed" />
             </li>
           </ol>
-          {perms.canCancelTransfer ? (
-            <p className="st-workflow-note">
-              Admins can cancel a transfer before it is completed.
-            </p>
-          ) : null}
-          {perms.viewScope === 'branch' ? (
-            <p className="st-workflow-note">
-              You only see transfers linked to your branch.
-            </p>
-          ) : null}
         </div>
       ) : null}
     </div>
@@ -145,13 +241,13 @@ export function PageHero({
   onSync,
 }) {
   return (
-    <header className="st-header st-ui-hero">
-      <div className="st-icon" aria-hidden="true">
-        🚛
+    <header className={stHero}>
+      <div className={stHeroIcon} aria-hidden="true">
+        <FiTruck className="size-9" />
       </div>
-      <div className="st-ui-hero-main">
-        <h1 className="st-title">Stock Transfer</h1>
-        <span className="st-role-pill">{perms.label} access</span>
+      <div className="min-w-[200px] flex-1">
+        <h1 className={stHeroTitle}>Stock Transfer Management</h1>
+        <span className={stRoleBadge}>{perms.label} access</span>
         <ConnectionStatus
           connected={connected}
           branches={branchCount}
@@ -160,36 +256,98 @@ export function PageHero({
           syncing={loading}
         />
       </div>
-      <div className="st-ui-hero-actions">
-        <button
-          type="button"
-          className="st-btn primary st-sync-btn"
-          onClick={onSync}
-          disabled={loading}
-          title="Refresh branches, products, and transfers"
-        >
-          <FiRefreshCw aria-hidden="true" className={loading ? 'st-spin' : ''} />
-          {loading ? 'Syncing…' : 'Sync data'}
-        </button>
-      </div>
+      <button
+        type="button"
+        className={stBtnPrimary}
+        onClick={onSync}
+        disabled={loading}
+        title="Refresh branches, products, and transfers"
+      >
+        <FiRefreshCw className={loading ? 'animate-spin' : ''} />
+        {loading ? 'Syncing…' : 'Sync data'}
+      </button>
     </header>
   );
 }
 
 export function FilterBar({ children }) {
-  return <div className="st-filter-bar st-ui-filter">{children}</div>;
+  return <div className={stFilters}>{children}</div>;
 }
 
-export function SearchField({ label, value, onChange, placeholder }) {
+export function SearchField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  id,
+  name,
+}) {
+  const inputId =
+    id ?? `st-search-${String(label || 'field').replace(/\s+/g, '-').toLowerCase()}`;
+  const hasValue = String(value ?? '').length > 0;
+
   return (
-    <label className="st-search st-ui-search">
-      <span className="st-ui-search-label">{label}</span>
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-    </label>
+    <div className={cn(stSearchWrap, stFieldLabel)}>
+      <label htmlFor={inputId} className={stFieldLabelText}>
+        {label}
+      </label>
+      <div className={stSearchInputWrap}>
+        <span className={stSearchIcon} aria-hidden="true">
+          🔍
+        </span>
+        <input
+          id={inputId}
+          name={name ?? inputId}
+          type="search"
+          className={stSearchInput}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          aria-label={placeholder ? `${label}: ${placeholder}` : label}
+        />
+        {hasValue ? (
+          <button
+            type="button"
+            className={stSearchClearBtn}
+            onClick={() => onChange('')}
+            aria-label={`Clear ${label}`}
+          >
+            ✕
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
+
+export const transferFieldClass = stFieldInput;
+export const transferLabelClass = stFieldLabel;
+export const transferBtnClass = stBtnGhost;
+export const transferBtnPrimaryClass = stBtnPrimary;
+export const transferBtnGhostClass = stBtnGhost;
+
+export function TransferTable({ columns, children, caption }) {
+  return (
+    <div className={stTableWrap}>
+      <div className="overflow-x-auto">
+        <table className={stTable}>
+          {caption ? <caption className="sr-only">{caption}</caption> : null}
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col} scope="col" className={stTableTh}>
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export const transferTableRowClass = stTableRowHover;
+export const transferTableCellClass = stTableTd;

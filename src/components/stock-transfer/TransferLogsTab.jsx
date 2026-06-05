@@ -8,7 +8,26 @@ import {
   formatUserLabel,
   toDisplayString,
 } from '../../services/stockTransferApi';
-import './TransferLogsTab.css';
+import { matchesMovementLogSearch, normalizeSearchQuery } from './stockTransferSearch';
+import {
+  AlertBanner,
+  transferBtnClass,
+  transferBtnGhostClass,
+  transferBtnPrimaryClass,
+} from './StockTransferUI';
+
+const EVENT_BADGE_BASE =
+  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset';
+
+function logEventBadgeClass(tone) {
+  const map = {
+    in: `${EVENT_BADGE_BASE} bg-emerald-50 text-emerald-800 ring-emerald-600/20`,
+    out: `${EVENT_BADGE_BASE} bg-orange-50 text-orange-800 ring-orange-600/20`,
+    pending: `${EVENT_BADGE_BASE} bg-amber-50 text-amber-800 ring-amber-600/20`,
+    approved: `${EVENT_BADGE_BASE} bg-blue-50 text-blue-800 ring-blue-600/20`,
+  };
+  return map[tone] ?? `${EVENT_BADGE_BASE} bg-slate-50 text-slate-700 ring-slate-500/20`;
+}
 
 function TransferLogsTab({
   perms,
@@ -35,28 +54,13 @@ function TransferLogsTab({
     return apiRows.length > 0 ? apiRows : fromTransfers;
   }, [movementLogs, scopedTransfers]);
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allRows;
-    return allRows.filter((log) => {
-      const ref = formatTransferReference(
-        log.transferKey ?? log.transferId,
-        transferRefMap,
-      );
-      const haystack = [
-        ref,
-        log.transferId,
-        log.productName,
-        log.branchName,
-        log.type,
-        log.changedBy,
-        log.note,
-      ]
-        .map((v) => toDisplayString(v, '').toLowerCase())
-        .join(' ');
-      return haystack.includes(q);
-    });
-  }, [allRows, search, transferRefMap]);
+  const filteredRows = useMemo(
+    () =>
+      allRows.filter((log) => matchesMovementLogSearch(log, search, transferRefMap)),
+    [allRows, search, transferRefMap],
+  );
+
+  const hasSearch = normalizeSearchQuery(search).length > 0;
 
   const stats = useMemo(() => {
     let stockIn = 0;
@@ -75,104 +79,159 @@ function TransferLogsTab({
 
   return (
     <section
-      className="st-panel st-logs-panel st-logs-page"
+      className="relative flex min-h-[320px] flex-col gap-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm ring-1 ring-slate-900/[0.03] before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-gradient-to-r before:from-blue-500 before:via-indigo-500 before:to-violet-500 sm:p-8"
       aria-labelledby="transfer-logs-title"
       data-testid="transfer-logs-panel"
     >
-      <header className="st-logs-page__header">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 id="transfer-logs-title" className="st-logs-page__title">
+          <h2
+            id="transfer-logs-title"
+            className="text-xl font-semibold tracking-tight text-slate-900"
+          >
             Transfer Movement Logs
           </h2>
-          <p className="st-logs-page__subtitle">
+          <p className="mt-1 max-w-lg text-sm text-slate-500">
             Track stock movements between branches — when items leave, arrive, or
             transfer status changes.
           </p>
-          <span className="st-logs-scope">{scopeLabel}</span>
+          <span className="mt-2 inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">
+            {scopeLabel}
+          </span>
         </div>
-        <div className="st-logs-page__actions">
-          <label className="st-logs-search">
-            <FiSearch aria-hidden="true" />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative flex min-w-[200px] items-center gap-2 rounded-xl bg-white py-2 pl-3 pr-2 shadow-sm ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-blue-500/30 sm:min-w-[280px]">
+            <FiSearch aria-hidden="true" className="shrink-0 text-slate-400" />
             <input
+              id="transfer-logs-search"
               type="search"
-              placeholder="Search product, branch, user…"
+              className="w-full border-0 bg-transparent text-sm outline-none"
+              placeholder="Transfer ID, product, branch, user, event…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search transfer logs"
+              autoComplete="off"
             />
+            {hasSearch ? (
+              <button
+                type="button"
+                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+                onClick={() => setSearch('')}
+                aria-label="Clear log search"
+              >
+                ✕
+              </button>
+            ) : null}
           </label>
           <button
             type="button"
-            className="st-btn ghost"
+            className={`${transferBtnClass} ${transferBtnGhostClass}`}
             onClick={onRefresh}
             disabled={logsLoading}
             title="Reload movement history"
           >
             <FiRefreshCw
               aria-hidden="true"
-              className={logsLoading ? 'st-spin' : ''}
+              className={logsLoading ? 'animate-spin' : ''}
             />
             {logsLoading ? 'Updating…' : 'Refresh'}
           </button>
         </div>
       </header>
 
-      <div className="st-logs-stats" aria-label="Log summary">
-        <div className="st-logs-stat">
-          <strong>{stats.total}</strong>
-          <span>Total entries</span>
+      <div
+        className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"
+        aria-label="Log summary"
+      >
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+          <strong className="block text-2xl font-bold tabular-nums text-slate-900">
+            {stats.total}
+          </strong>
+          <span className="text-xs font-medium text-slate-500">Total entries</span>
         </div>
-        <div className="st-logs-stat st-logs-stat--in">
-          <strong>{stats.stockIn}</strong>
-          <span>Stock in</span>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md [&>strong]:text-emerald-600">
+          <strong className="block text-2xl font-bold tabular-nums text-slate-900">
+            {stats.stockIn}
+          </strong>
+          <span className="text-xs font-medium text-slate-500">Stock in</span>
         </div>
-        <div className="st-logs-stat st-logs-stat--out">
-          <strong>{stats.stockOut}</strong>
-          <span>Stock out</span>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md [&>strong]:text-orange-600">
+          <strong className="block text-2xl font-bold tabular-nums text-slate-900">
+            {stats.stockOut}
+          </strong>
+          <span className="text-xs font-medium text-slate-500">Stock out</span>
         </div>
       </div>
 
-      {logsError ? (
-        <div className="st-alert warn" role="status">
-          {logsError}
-        </div>
-      ) : null}
+      {logsError ? <AlertBanner variant="warn">{logsError}</AlertBanner> : null}
 
-      <div className="st-logs-table-card">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {filteredRows.length === 0 ? (
-          <div className="st-logs-empty">
-            <div className="st-logs-empty-icon" aria-hidden="true">
+          <div className="px-8 py-14 text-center">
+            <div className="mb-4 text-5xl" aria-hidden="true">
               📋
             </div>
-            <h3>No movement logs yet</h3>
-            <p>
-              When transfers are dispatched or received, stock in/out events will
-              appear here. Create a transfer and complete the workflow to generate
-              history.
+            <h3 className="mb-2 text-lg font-bold text-slate-900">
+              {hasSearch ? 'No logs match your search' : 'No movement logs yet'}
+            </h3>
+            <p className="mx-auto mb-5 max-w-[400px] text-sm leading-normal text-slate-500">
+              {hasSearch
+                ? `Nothing matches "${search.trim()}". Try transfer ID, product, branch, user, or event type.`
+                : 'When transfers are dispatched or received, stock in/out events will appear here. Create a transfer and complete the workflow to generate history.'}
             </p>
-            <button
-              type="button"
-              className="st-btn primary"
-              onClick={onRefresh}
-              disabled={logsLoading}
-            >
-              <FiRefreshCw aria-hidden="true" className={logsLoading ? 'st-spin' : ''} />
-              Refresh logs
-            </button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {hasSearch ? (
+                <button
+                  type="button"
+                  className={`${transferBtnClass} ${transferBtnGhostClass}`}
+                  onClick={() => setSearch('')}
+                >
+                  Clear search
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={`${transferBtnClass} ${transferBtnPrimaryClass}`}
+                onClick={onRefresh}
+                disabled={logsLoading}
+              >
+                <FiRefreshCw
+                  aria-hidden="true"
+                  className={logsLoading ? 'animate-spin' : ''}
+                />
+                Refresh logs
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="st-table-wrap">
-            <table>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Transfer</th>
-                  <th>Product</th>
-                  <th>Branch</th>
-                  <th>Qty</th>
-                  <th>Event</th>
-                  <th>User</th>
-                  <th>Details</th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Date
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Transfer
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Product
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Branch
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Qty
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Event
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    User
+                  </th>
+                  <th className="bg-slate-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Details
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -194,39 +253,42 @@ function TransferLogsTab({
                   const userRaw = toDisplayString(log.changedBy, '');
 
                   return (
-                    <tr key={log._id ?? `log-${idx}`}>
-                      <td>{formatLogDate(log.createdAt)}</td>
-                      <td>
-                        <span className="st-logs-ref">
+                    <tr
+                      key={log._id ?? `log-${idx}`}
+                      className="transition-colors hover:bg-blue-50/30"
+                    >
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-slate-700">
+                        {formatLogDate(log.createdAt)}
+                      </td>
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-slate-700">
+                        <span className="font-mono text-xs font-semibold text-blue-600 [&>span]:mt-0.5 [&>span]:block [&>span]:font-normal [&>span]:text-slate-400">
                           {ref}
                           {showRawHint ? (
                             <span title={rawId}>ID …{rawId.slice(-6)}</span>
                           ) : null}
                         </span>
                       </td>
-                      <td className="st-logs-product">
+                      <td className="border-t border-slate-100 px-4 py-3.5 font-medium text-slate-900">
                         {toDisplayString(log.productName)}
                       </td>
-                      <td className="st-logs-branch">
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-slate-600">
                         {toDisplayString(log.branchName)}
                       </td>
-                      <td className="st-logs-qty">
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-center font-semibold tabular-nums text-slate-900">
                         {toDisplayString(log.quantity)}
                       </td>
-                      <td>
-                        <span
-                          className={`st-logs-event st-logs-event--${event.tone}`}
-                        >
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-slate-700">
+                        <span className={logEventBadgeClass(event.tone)}>
                           {event.label}
                         </span>
                       </td>
-                      <td className="st-logs-user">
+                      <td className="border-t border-slate-100 px-4 py-3.5 text-slate-700 [&>small]:mt-0.5 [&>small]:block [&>small]:text-xs [&>small]:text-slate-400">
                         {userLabel}
                         {userRaw.includes('@') && userLabel !== userRaw ? (
                           <small>{userRaw}</small>
                         ) : null}
                       </td>
-                      <td className="st-logs-note">
+                      <td className="max-w-[220px] border-t border-slate-100 px-4 py-3.5 text-sm text-slate-500">
                         {toDisplayString(log.note, '') || '—'}
                       </td>
                     </tr>

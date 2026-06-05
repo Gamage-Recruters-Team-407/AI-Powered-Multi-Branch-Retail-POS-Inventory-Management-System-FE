@@ -6,10 +6,15 @@ import BranchPerformance from '../../components/dashboard/BranchPerformance';
 import InventoryStatus from '../../components/dashboard/InventoryStatus';
 import TopProducts from '../../components/dashboard/TopProducts';
 import LiveFeed from '../../components/dashboard/LiveFeed';
+import SmartRecommendations from '../../components/dashboard/SmartRecommendations';
+import PersonalizedRecommendations from '../../components/dashboard/PersonalizedRecommendations';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { socketService } from '../../services/socketService';
+const WarehouseList = lazy(() => import('../warehouse/WarehouseList'));
 import { useNavigate } from 'react-router-dom';
+import Chatbot from '../../components/ai/Chatbot/Chatbot';
+import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 
 
 const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
@@ -28,7 +33,9 @@ const POSPage = lazy(() => import('../pos/POSPage'));
 const CheckoutPage = lazy(() => import('../pos/CheckoutPage'));
 const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
-
+const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
+const UserListPage = lazy(() => import("../users/UserListPage")); 
+const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -100,7 +107,8 @@ const MODULE_NAV_ITEMS = [
   { id: 'reporting', label: 'Reporting Management', icon: '📄', page: 4 },
   { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔', page: 4 },
   { id: 'audit-logs', label: 'Audit Logs & Security', icon: '🛡️', page: 4 },
-  { id: 'ai-assistant', label: 'AI Retail Assistant & Recommendation', icon: '🧠', page: 4 },
+  // ── AI Intelligence ──
+  { id: 'ai-intelligence', label: 'AI Intelligence', icon: '🧠', page: 5, isAI: true },
 ];
 
 const _getDateRange = (preset) => {
@@ -141,12 +149,15 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [navExpanded, setNavExpanded] = useState(true);
-  const [activeModule, setActiveModule] = useState('dashboard');
-  const [visibleModule, setVisibleModule] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState(() => {
+    return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
+  });
+  const [visibleModule, setVisibleModule] = useState(() => {
+    return sessionStorage.getItem('dashboard_visibleModule') || 'dashboard';
+  });
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [posView, setPosView] = useState('pos');
   const [lastSale, setLastSale] = useState(null);
-
   // Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -273,6 +284,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
 
     setVisibleModule(moduleId);
+    sessionStorage.setItem('dashboard_activeModule', moduleId);
+    sessionStorage.setItem('dashboard_visibleModule', moduleId);
   };
 
   useEffect(() => {
@@ -518,12 +531,26 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
               </div>
             </div>
 
-            <div className="dash-section">
+            <section className="dash-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">🧠</span>
+                  <h2 className="section-title">AI ML Recommendations</h2>
+                  <span className="section-badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid rgba(16,185,129,0.3)' }}>Live Models</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <SmartRecommendations />
+                <PersonalizedRecommendations />
+              </div>
+            </section>
+
+            <section className="dash-section">
               <div className="tp-live-grid">
                 <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts data={dashboardData} /></div>
                 <div className="live-feed-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🔴</span><h2 className="section-title">Live Activity</h2>{wsConnected && <span className="live-badge">LIVE</span>}</div></div><LiveFeed wsConnected={wsConnected} liveTransaction={liveTransaction} /></div>
               </div>
-            </div>
+            </section>
           </>
         );
 
@@ -533,17 +560,24 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
         return <AIDemandForecastModule />;
-      case 'user-mgmt':
-        return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
+      // case 'user-mgmt':
+      //   return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
       //case 'branch-mgmt':
        // return <ModuleDetail title="Branch Management" icon="🏢" page={1} description="Manage branch records and configurations. Link branches with employees and inventory. Store branch-level settings. Generate branch performance statistics. Handle branch-related business logic." features={['Branch Information Display', 'Performance Metrics', 'Branch Creation & Updates', 'Branch-specific Inventory & Sales', 'Branch Search Functionality']} />;
+      
+      case 'user-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <UserListPage />
+          </Suspense>
+          );
       case 'branch-mgmt':
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <BranchListPage />
-    </Suspense>
-  );
-       case 'employee-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+        <BranchListPage />
+          </Suspense>
+      );
+      case 'employee-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
             <EmployeesPage />
@@ -664,7 +698,11 @@ case 'product-edit':
           </InventoryProvider>
         );
       case 'warehouse-mgmt':
-        return <ModuleDetail title="Warehouse Management" icon="🏭" page={2} description="Track warehouse inventory. Manage storage allocations. Record warehouse transactions. Handle warehouse transfers. Generate warehouse statistics." features={['Storage Location Visualization', 'Stock Allocations', 'Warehouse Transfers', 'Capacity Monitoring', 'Warehouse Reports']} />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <WarehouseList />
+          </Suspense>
+        );
       case 'purchase-order':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -718,7 +756,11 @@ case 'product-edit':
           </Suspense>
         );
       case 'promotion':
-        return <ModuleDetail title="Promotion & Discount Management" icon="🏷️" page={3} description="Apply pricing rules automatically. Manage promotional campaigns. Validate discount eligibility. Generate campaign reports. Maintain coupon records." features={['Promotion Campaigns', 'Discount Rule Configuration', 'Active Promotions Display', 'Coupon System Management', 'Campaign Performance Monitoring']} />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <PromotionsPage />
+          </Suspense>
+        );
       case 'ai-reorder':
         return <AISmartReorderingModule />;
       case 'analytics':
@@ -732,7 +774,13 @@ case 'product-edit':
       case 'notifications':
         return <NotificationsModule />;
       case 'audit-logs':
-        return <AuditLogsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AuditSecurityPage />
+          </Suspense>
+        );
+      case 'ai-intelligence':
+        return <AIIntelligenceHub />;
       default:
         return <ModuleDetail title="Module Coming Soon" icon="🚀" page={0} description="This module is under development." features={['Full implementation coming in next update']} />;
     }
@@ -761,11 +809,20 @@ case 'product-edit':
               {navExpanded && (
                 <>
                   <span className="nav-label">{item.label}</span>
-                  <span className="nav-page">p.{item.page}</span>
+                  {item.isAI 
+                    ? <span style={{ fontSize: '9px', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color:'white', padding:'2px 6px', borderRadius:'999px', fontWeight:700 }}>AI</span>
+                    : <span className="nav-page">p.{item.page}</span>
+                  }
                 </>
               )}
             </button>
           ))}
+          {/* AI Section Divider */}
+          {navExpanded && (
+            <div style={{ padding: '10px 16px 4px', marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <span style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>✨ AI Intelligence</span>
+            </div>
+          )}
         </div>
         <div className="nav-footer">
           {navExpanded && (
@@ -808,69 +865,8 @@ case 'product-edit':
         {renderModuleContent()}
       </div>
 
-      {/* AI Chatbot Icon - Bottom Right */}
-      <div className="chatbot-icon" onClick={() => setIsChatOpen(!isChatOpen)}>
-        <div className="chatbot-pulse"></div>
-        <span className="chatbot-emoji">🤖</span>
-        <span className="chatbot-label">AI Assistant</span>
-      </div>
-
-      {/* AI Chatbot Window */}
-      {isChatOpen && (
-        <div className="chatbot-window">
-          <div className="chatbot-header">
-            <div className="chatbot-header-info">
-              <span className="chatbot-header-icon">🧠</span>
-              <div>
-                <h3>AI Retail Assistant</h3>
-                <p>Online • Ready to help</p>
-              </div>
-            </div>
-            <button className="chatbot-close" onClick={() => setIsChatOpen(false)}>✕</button>
-          </div>
-          <div className="chatbot-messages">
-            {chatMessages.map(msg => (
-              <div key={msg.id} className={`chat-message ${msg.type}`}>
-                <div className="message-bubble">
-                  {msg.type === 'bot' && <span className="message-avatar">🤖</span>}
-                  <div className="message-text">{msg.text}</div>
-                  {msg.type === 'user' && <span className="message-avatar-user">👤</span>}
-                </div>
-              </div>
-            ))}
-            {isTyping && (
-              <div className="chat-message bot">
-                <div className="message-bubble typing">
-                  <span className="message-avatar">🤖</span>
-                  <div className="typing-indicator">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-          <div className="chatbot-input-area">
-            <input
-              type="text"
-              placeholder="Ask me about sales, inventory, forecasts..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="chatbot-input"
-            />
-            <button className="chatbot-send" onClick={sendMessage}>
-              <span>➤</span>
-            </button>
-          </div>
-          <div className="chatbot-suggestions">
-            <button onClick={() => setChatInput("What's our total revenue?")}>💰 Revenue</button>
-            <button onClick={() => setChatInput("Show me low stock alerts")}>⚠️ Low Stock</button>
-            <button onClick={() => setChatInput("Branch performance")}>🏢 Branches</button>
-            <button onClick={() => setChatInput("Demand forecast")}>🔮 Forecast</button>
-          </div>
-        </div>
-      )}
+      {/* Floating AI Chatbot — only on Dashboard & Business Overview */}
+      {visibleModule === 'dashboard' && <Chatbot />}
 
       <style>{`
         .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; }
@@ -1048,7 +1044,37 @@ case 'product-edit':
         .forecast-item, .recommendation-item, .insight-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #e2e8f0; }
         .trend-up { color: #10b981; }
         .trend-down { color: #ef4444; }
-        
+
+        .reorder-filters { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; align-items: flex-end; }
+        .reorder-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 24px; }
+        .recommendation-card, .alert-card, .history-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
+        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 100%; }
+        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; }
+        .recommendation-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .recommendation-table tbody tr:last-child td { border-bottom: none; }
+        .approved-row { background: rgba(16,185,129,0.08); }
+        .risk-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+        .risk-high { background: rgba(239,68,68,0.12); color: #dc2626; }
+        .risk-medium { background: rgba(245,158,11,0.14); color: #d97706; }
+        .risk-low { background: rgba(16,185,129,0.12); color: #15803d; }
+        .approve-btn { padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 700; transition: all 0.2s; background: #3b82f6; color: white; }
+        .approve-btn.approved { background: #10b981; }
+        .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+        .alert-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; margin-bottom: 14px; }
+        .alert-high { background: rgba(254,226,226,0.9); }
+        .alert-medium { background: rgba(255,247,205,0.9); }
+        .alert-title { font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .alert-description { margin: 0 0 8px; color: #475569; font-size: 0.9rem; }
+        .alert-time { font-size: 0.78rem; color: #64748b; }
+        .alert-dismiss { border: none; background: #eef2ff; color: #3730a3; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all 0.2s; }
+        .alert-dismiss:hover { background: #c7d2fe; }
+        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table th, .history-table td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
+        .history-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .history-table tbody tr:last-child td { border-bottom: none; }
+        .search-group { flex: 1; min-width: 220px; }
+        .reorder-filters .filter-input { min-width: 260px; }
+
         /* AI Chatbot Styles */
         .chatbot-icon { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200; box-shadow: 0 4px 20px rgba(59,130,246,0.4); transition: all 0.3s ease; animation: floatIcon 3s ease-in-out infinite; }
         .chatbot-icon:hover { transform: scale(1.1); }
@@ -1169,39 +1195,209 @@ const AIDemandForecastModule = () => (
 );
 
 // AI Smart Reordering Module
-const AISmartReorderingModule = () => (
-  <div className="ai-reorder-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">📈</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
-        <span className="module-page">📄 Page 3 of PDF Document</span>
+const AISmartReorderingModule = () => {
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [recommendations, setRecommendations] = useState([
+    { id: 1, name: 'Premium Basmati Rice', branch: 'All Branches', currentStock: 50, suggestedQty: 500, reorderPoint: 120, risk: 'High', confidence: 96, approved: false },
+    { id: 2, name: 'Organic Coconut Oil', branch: 'Kandy City Branch', currentStock: 23, suggestedQty: 200, reorderPoint: 80, risk: 'High', confidence: 92, approved: false },
+    { id: 3, name: 'Sugar (1kg)', branch: 'Colombo Head Office', currentStock: 35, suggestedQty: 300, reorderPoint: 90, risk: 'Medium', confidence: 89, approved: false },
+    { id: 4, name: 'Milk Powder', branch: 'Negombo Branch', currentStock: 42, suggestedQty: 150, reorderPoint: 70, risk: 'Medium', confidence: 94, approved: false },
+    { id: 5, name: 'Ceylon Tea Gift Pack', branch: 'Galle Fort Branch', currentStock: 80, suggestedQty: 180, reorderPoint: 100, risk: 'Low', confidence: 91, approved: false },
+  ]);
+
+  const [approvalHistory, setApprovalHistory] = useState([
+    { id: 101, item: 'Premium Basmati Rice', branch: 'Colombo Head Office', quantity: 250, approvedBy: 'Manager Kaushal', timestamp: '2026-06-02 16:30', status: 'Approved' },
+    { id: 102, item: 'Organic Coconut Oil', branch: 'Kandy City Branch', quantity: 120, approvedBy: 'Manager Kaushal', timestamp: '2026-06-01 11:45', status: 'Approved' },
+  ]);
+
+  const [procurementAlerts, setProcurementAlerts] = useState([
+    { id: 201, title: 'Low stock detected for Fresh Milk', description: 'Current stock is 42 units. Suggested reorder in 2 days.', severity: 'High', time: '5 mins ago', dismissed: false },
+    { id: 202, title: 'Rice inventory below threshold', description: 'Premium Basmati Rice requires supplier follow-up.', severity: 'High', time: '12 mins ago', dismissed: false },
+    { id: 203, title: 'Coconut Oil reorder window opening', description: 'Lead time is 4 days. Prepare PO.', severity: 'Medium', time: '22 mins ago', dismissed: false },
+  ]);
+
+  const handleApprove = (recommendation) => {
+    if (recommendation.approved) return;
+
+    setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
+    setApprovalHistory(prev => [
+      {
+        id: Date.now(),
+        item: recommendation.name,
+        branch: recommendation.branch,
+        quantity: recommendation.suggestedQty,
+        approvedBy: 'AI Manager',
+        timestamp: new Date().toLocaleString('en-US', { hour12: false }),
+        status: 'Approved',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleDismissAlert = (id) => {
+    setProcurementAlerts(prev => prev.map(alert => (alert.id === id ? { ...alert, dismissed: true } : alert)));
+  };
+
+  const filteredRecommendations = recommendations.filter(item => {
+    const query = searchTerm.trim().toLowerCase();
+    return (
+      (selectedBranch === 'all' || item.branch === BRANCHES.find(b => b.id === selectedBranch)?.name || selectedBranch === 'all') &&
+      (!query || item.name.toLowerCase().includes(query) || item.branch.toLowerCase().includes(query))
+    );
+  });
+
+  const visibleAlerts = procurementAlerts.filter(alert => !alert.dismissed);
+  const riskSummary = {
+    high: recommendations.filter(item => item.risk === 'High').length,
+    medium: recommendations.filter(item => item.risk === 'Medium').length,
+    low: recommendations.filter(item => item.risk === 'Low').length,
+  };
+
+  return (
+    <div className="ai-reorder-module">
+      <div className="module-header-custom">
+        <div className="module-icon-custom">📈</div>
+        <div>
+          <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
+          <span className="module-page">Page 3 · AI Inventory Intelligence</span>
+        </div>
+      </div>
+
+      <div className="module-description">
+        <strong>📋 Module Overview:</strong><br />
+        Display reorder recommendations with stock risk indicators, approval workflow, procurement alerts, and action history for managers.
+      </div>
+
+      <div className="reorder-filters">
+        <div className="filter-group">
+          <label className="filter-label">Branch</label>
+          <select className="filter-select" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
+            {BRANCHES.map(branch => (
+              <option key={branch.id} value={branch.id}>{branch.icon} {branch.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">Time Period</label>
+          <select className="filter-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">Last 3 Months</option>
+          </select>
+        </div>
+        <div className="filter-group search-group">
+          <label className="filter-label">Search</label>
+          <input className="filter-input" type="text" placeholder="Search products or branch" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
+        <div className="stat-card"><div className="value">{recommendations.length}</div><div className="label">Recommended Reorders</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.high}</div><div className="label">High Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.medium}</div><div className="label">Medium Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.low}</div><div className="label">Low Risk Items</div></div>
+      </div>
+
+      <div className="reorder-grid">
+        <div>
+          <div className="section-header" style={{ marginBottom: 16 }}>
+            <div className="section-title-wrapper">
+              <span className="section-icon">🛒</span>
+              <h2 className="section-title">Reorder Recommendations</h2>
+            </div>
+            <span className="section-badge">AI Suggested</span>
+          </div>
+
+          <div className="recommendation-card">
+            <table className="recommendation-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Branch</th>
+                  <th>Stock</th>
+                  <th>Reorder Qty</th>
+                  <th>Risk</th>
+                  <th>Confidence</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecommendations.map(item => (
+                  <tr key={item.id} className={item.approved ? 'approved-row' : ''}>
+                    <td>{item.name}</td>
+                    <td>{item.branch}</td>
+                    <td>{item.currentStock}</td>
+                    <td>{item.suggestedQty}</td>
+                    <td><span className={`risk-pill risk-${item.risk.toLowerCase()}`}>{item.risk}</span></td>
+                    <td>{item.confidence}%</td>
+                    <td>
+                      <button className={`approve-btn ${item.approved ? 'approved' : ''}`} onClick={() => handleApprove(item)}>
+                        {item.approved ? 'Approved' : 'Approve'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="sidebar-panel">
+          <div className="alert-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">⚠️</span>
+                <h2 className="section-title">Procurement Alerts</h2>
+              </div>
+            </div>
+            {visibleAlerts.length ? visibleAlerts.map(alert => (
+              <div key={alert.id} className={`alert-item alert-${alert.severity.toLowerCase()}`}>
+                <div>
+                  <p className="alert-title">{alert.title}</p>
+                  <p className="alert-description">{alert.description}</p>
+                  <p className="alert-time">{alert.time}</p>
+                </div>
+                <button className="alert-dismiss" onClick={() => handleDismissAlert(alert.id)}>Dismiss</button>
+              </div>
+            )) : <p style={{ color: '#64748b', fontSize: '0.95rem' }}>No active procurement alerts.</p>}
+          </div>
+
+          <div className="history-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">📜</span>
+                <h2 className="section-title">Reorder Action History</h2>
+              </div>
+            </div>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Branch</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approvalHistory.map(entry => (
+                  <tr key={entry.id}>
+                    <td>{entry.item}</td>
+                    <td>{entry.quantity}</td>
+                    <td>{entry.branch}</td>
+                    <td>{entry.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Calculate reorder points automatically. Analyze inventory consumption. Generate purchase recommendations. Trigger low-stock alerts. Improve recommendations using AI.
-    </div>
-    <div className="stats-grid">
-      <div className="stat-card"><div className="value">12</div><div className="label">Items Need Reorder</div></div>
-      <div className="stat-card"><div className="value">94%</div><div className="label">AI Recommendation Accuracy</div></div>
-      <div className="stat-card"><div className="value">$24,500</div><div className="label">Optimal Order Value</div></div>
-      <div className="stat-card"><div className="value">3 Days</div><div className="label">Avg Lead Time</div></div>
-    </div>
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>🛒 Smart Reorder Recommendations</h3>
-    <div className="recommendation-list">
-      <div className="forecast-item"><span className="product">Premium Basmati Rice</span><span className="trend-up">Reorder 500 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 50 | AI Confidence: 96%</span></div>
-      <div className="forecast-item"><span className="product">Organic Coconut Oil</span><span className="trend-up">Reorder 200 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 23 | AI Confidence: 92%</span></div>
-      <div className="forecast-item"><span className="product">Sugar (1kg)</span><span className="trend-up">Reorder 300 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 35 | AI Confidence: 89%</span></div>
-      <div className="forecast-item"><span className="product">Milk Powder</span><span className="trend-up">Reorder 150 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 42 | AI Confidence: 94%</span></div>
-    </div>
-    <div className="features-grid" style={{ marginTop: 24 }}>
-      {['Reorder Recommendations Dashboard', 'Stock Risk Indicators', 'AI Suggestion Approval Workflow', 'Reorder Action Tracking', 'Procurement Alerts Integration', 'Supplier Auto-notification'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // Business Analytics Module
 const BusinessAnalyticsModule = () => (

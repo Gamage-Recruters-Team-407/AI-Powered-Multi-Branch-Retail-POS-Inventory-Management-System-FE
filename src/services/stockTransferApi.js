@@ -236,6 +236,12 @@ export const normalizeTransfer = (transfer) => {
     items,
     status: mapStatusToUi(transfer.status ?? 'PENDING'),
     rawStatus: transfer.status,
+    createdById: String(
+      transfer.createdBy?._id ??
+        transfer.createdBy ??
+        transfer.requestedById ??
+        '',
+    ),
     requestedBy: toDisplayString(
       transfer.createdBy ?? transfer.requestedBy ?? transfer.createdByUser,
       '—',
@@ -250,6 +256,7 @@ export const normalizeTransfer = (transfer) => {
       '',
     ),
     activityLogs: transfer.activityLogs ?? transfer.movementHistory ?? [],
+    actions: transfer.actions ?? null,
   };
 };
 
@@ -379,10 +386,81 @@ export const getBranchInventory = async (branchId) => {
 // ——— Stock transfers ———
 
 export const listTransfers = (params = {}) =>
-  api.get('/stock-transfers', { params }).then((res) => ({
-    items: unwrapList(res).map(normalizeTransfer),
-    pagination: res.data?.pagination ?? unwrap(res)?.pagination,
-  }));
+  api.get('/stock-transfers', { params }).then((res) => {
+    const body = res.data ?? {};
+    const data = unwrap(res);
+    const items = Array.isArray(data)
+      ? data
+      : unwrapList(res);
+    return {
+      items: items.map(normalizeTransfer),
+      permissions: body.permissions ?? (data && !Array.isArray(data) ? data.permissions : null) ?? null,
+      summary: body.summary ?? null,
+      pagination: body.pagination ?? data?.pagination,
+    };
+  });
+
+/** Role permissions from backend (admin / manager / cashier) */
+export const getTransferPermissions = () =>
+  api.get('/stock-transfers/permissions').then((res) => {
+    const data = unwrap(res);
+    return data?.permissions ?? data;
+  });
+
+/** Branch stock for availability tab */
+export const getBranchStockAvailability = (branchId) =>
+  api
+    .get('/stock-transfers/availability', {
+      params: branchId ? { branchId } : {},
+    })
+    .then((res) => {
+      const rows = unwrapList(res);
+      const branchName =
+        rows[0]?.branchName ??
+        rows[0]?.branch?.name ??
+        '';
+      return rows.map((row) =>
+        normalizeStockRow(
+          {
+            product: row.productId
+              ? { _id: row.productId, name: row.name, sku: row.sku ?? row.barcode }
+              : row,
+            quantity: row.availableQuantity ?? row.quantity,
+            reorderPoint: row.lowStockAlert ? 1 : 0,
+          },
+          row.branchName ?? branchName,
+        ),
+      );
+    });
+
+/** Admin transfer activity logs */
+export const getTransferActivityLogs = (params = {}) =>
+  api.get('/stock-transfers/logs', { params }).then((res) => {
+    const rows = unwrapList(res);
+    return rows.map((row) =>
+      normalizeMovementLog(
+        {
+          status: row.logStatus ?? row.status,
+          note: row.note,
+          changedBy: row.changedBy,
+          changedAt: row.changedAt,
+          type: row.logStatus ?? 'Activity',
+        },
+        row.transferId
+          ? {
+              _id: row.transferId,
+              from: row.fromBranch?.name,
+              to: row.toBranch?.name,
+              status: mapStatusToUi(row.status),
+            }
+          : null,
+      ),
+    );
+  });
+
+/** Manager / admin branch transfer reports */
+export const getBranchTransferReports = (params = {}) =>
+  api.get('/stock-transfers/reports/by-branch', { params }).then((res) => unwrap(res));
 
 export const getTransferById = (id) =>
   api.get(`/stock-transfers/${id}`).then((res) => normalizeTransfer(unwrap(res)));
@@ -394,24 +472,30 @@ export const buildCreateTransferPayload = ({
   productId,
   quantity,
   notes,
-}) => ({
-  fromBranch: fromBranchId,
-  toBranch: toBranchId,
-  fromBranchId,
-  toBranchId,
-  items: [{ product: productId, quantity }],
-  notes: notes || undefined,
-  status: 'PENDING',
-});
+}) => {
+  const qty = Number(quantity);
+  const product = String(productId);
+  const fromBranch = String(fromBranchId);
+  const toBranch = String(toBranchId);
 
-export const createTransfer = (payload) =>
-  api
-    .post('/stock-transfers', payload)
-    .then((res) => {
-      const normalized = normalizeTransfer(unwrap(res));
-      if (normalized.status === 'Pending') return normalized;
-      return { ...normalized, status: 'Pending', rawStatus: 'PENDING' };
-    });
+  return {
+    fromBranch,
+    toBranch,
+    items: [{ product, quantity: qty }],
+    notes: notes || undefined,
+  };
+};
+
+export const createTransfer = async (input) => {
+  const body =
+    input?.fromBranch && input?.items?.length
+      ? input
+      : buildCreateTransferPayload(input);
+  const res = await api.post('/stock-transfers', body);
+  const normalized = normalizeTransfer(unwrap(res));
+  if (normalized.status === 'Pending') return normalized;
+  return { ...normalized, status: 'Pending', rawStatus: 'PENDING' };
+};
 
 const buildUpdateBody = (payload) => ({
   fromBranch: payload.fromBranch,
@@ -628,4 +712,19 @@ export const getMovementHistory = async (params = {}) => {
 };
 
 export const getTransferAnalytics = (params = {}) =>
-  api.get('/stock-transfers/analytics/summary', { params }).then((res) => unwrap(res));
+  api.get('/stock-transfers/analytics/summary', { params }).then((res) => {
+    const data = unwrap(res) ?? res.data ?? {};
+    const statusSummary = {};
+    const rawStatus = data.statusSummary ?? [];
+    if (Array.isArray(rawStatus)) {
+      rawStatus.forEach((row) => {
+        const key = mapStatusToUi(row._id ?? row.status);
+        statusSummary[key] = row.count ?? 0;
+      });
+    }
+    return {
+      ...data,
+      statusSummary,
+      volumeSummary: data.volumeSummary,
+    };
+  });

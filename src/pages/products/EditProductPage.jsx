@@ -33,6 +33,7 @@ function EditProductPage({ productId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({});
 
   const fetchProductAndDropdownData = async () => {
     if (!id) {
@@ -52,7 +53,7 @@ function EditProductPage({ productId, onBack }) {
       const product = productResponse.data.product;
 
       setCategories(categoryResponse.data.categories || []);
-      setSuppliers(supplierResponse.data.data || []);
+      setSuppliers(categoryResponse ? supplierResponse.data.data || [] : []);
 
       setFormData({
         name: product.name || "",
@@ -61,15 +62,16 @@ function EditProductPage({ productId, onBack }) {
         supplier: product.supplier?._id || product.supplier || "",
         brand: product.brand || "",
         description: product.description || "",
-        price: product.price || "",
-        costPrice: product.costPrice || "",
-        reorderLevel: product.reorderLevel || "",
+        price: product.price ?? "",
+        costPrice: product.costPrice ?? "",
+        reorderLevel: product.reorderLevel ?? "",
         unit: product.unit || "",
       });
 
       setCurrentImage(product.image || "");
     } catch (error) {
       setMessage("Failed to load product, categories, or suppliers");
+      toast.error("Failed to load product details");
     } finally {
       setLoading(false);
     }
@@ -77,6 +79,7 @@ function EditProductPage({ productId, onBack }) {
 
   useEffect(() => {
     fetchProductAndDropdownData();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -95,19 +98,147 @@ function EditProductPage({ productId, onBack }) {
       ...prev,
       [name]: value,
     }));
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+
+    setMessage("");
   };
 
   const handleImageChange = (e) => {
     const selectedImage = e.target.files[0];
 
-    if (selectedImage) {
-      if (previewImage) {
-        URL.revokeObjectURL(previewImage);
-      }
-
-      setNewImage(selectedImage);
-      setPreviewImage(URL.createObjectURL(selectedImage));
+    if (!selectedImage) {
+      return;
     }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    const maxSize = 2 * 1024 * 1024;
+
+    if (!allowedTypes.includes(selectedImage.type)) {
+      setNewImage(null);
+      setPreviewImage("");
+
+      setErrors((prev) => ({
+        ...prev,
+        image: "Only JPG, PNG, and WEBP images are allowed",
+      }));
+
+      toast.error("Only JPG, PNG, and WEBP images are allowed");
+      return;
+    }
+
+    if (selectedImage.size > maxSize) {
+      setNewImage(null);
+      setPreviewImage("");
+
+      setErrors((prev) => ({
+        ...prev,
+        image: "Image size must be less than 2MB",
+      }));
+
+      toast.error("Image size must be less than 2MB");
+      return;
+    }
+
+    if (previewImage) {
+      URL.revokeObjectURL(previewImage);
+    }
+
+    setNewImage(selectedImage);
+    setPreviewImage(URL.createObjectURL(selectedImage));
+
+    setErrors((prev) => ({
+      ...prev,
+      image: "",
+    }));
+
+    setMessage("");
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    const nameRegex = /^[a-zA-Z0-9\s\-&().]+$/;
+    const barcodeRegex = /^[0-9]{8,14}$/;
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Product name is required";
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = "Product name must be at least 2 characters";
+    } else if (formData.name.trim().length > 80) {
+      newErrors.name = "Product name cannot exceed 80 characters";
+    } else if (!nameRegex.test(formData.name.trim())) {
+      newErrors.name = "Product name contains invalid characters";
+    }
+
+    if (formData.barcode.trim() && !barcodeRegex.test(formData.barcode.trim())) {
+      newErrors.barcode = "Barcode must contain only 8 to 14 digits";
+    }
+
+    if (!formData.category) {
+      newErrors.category = "Category is required";
+    }
+
+    if (!formData.unit.trim()) {
+      newErrors.unit = "Unit is required";
+    } else if (formData.unit.trim().length > 20) {
+      newErrors.unit = "Unit cannot exceed 20 characters";
+    }
+
+    if (!formData.price && formData.price !== 0) {
+      newErrors.price = "Selling price is required";
+    } else if (Number(formData.price) <= 0) {
+      newErrors.price = "Selling price must be greater than 0";
+    }
+
+    if (formData.costPrice !== "" && Number(formData.costPrice) < 0) {
+      newErrors.costPrice = "Cost price cannot be negative";
+    }
+
+    if (
+      formData.costPrice !== "" &&
+      formData.price !== "" &&
+      Number(formData.costPrice) > Number(formData.price)
+    ) {
+      newErrors.costPrice = "Cost price cannot be greater than selling price";
+    }
+
+    if (formData.reorderLevel !== "" && Number(formData.reorderLevel) < 0) {
+      newErrors.reorderLevel = "Reorder level cannot be negative";
+    }
+
+    if (
+      formData.reorderLevel !== "" &&
+      !Number.isInteger(Number(formData.reorderLevel))
+    ) {
+      newErrors.reorderLevel = "Reorder level must be a whole number";
+    }
+
+    if (formData.brand.trim().length > 50) {
+      newErrors.brand = "Brand cannot exceed 50 characters";
+    }
+
+    if (formData.description.trim().length > 500) {
+      newErrors.description = "Description cannot exceed 500 characters";
+    }
+
+    if (newImage) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+      const maxSize = 2 * 1024 * 1024;
+
+      if (!allowedTypes.includes(newImage.type)) {
+        newErrors.image = "Only JPG, PNG, and WEBP images are allowed";
+      } else if (newImage.size > maxSize) {
+        newErrors.image = "Image size must be less than 2MB";
+      }
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
@@ -118,8 +249,11 @@ function EditProductPage({ productId, onBack }) {
       return;
     }
 
-    if (!formData.name.trim() || !formData.price) {
-      setMessage("Product name and price are required");
+    const isValid = validateForm();
+
+    if (!isValid) {
+      toast.error("Please fix the validation errors");
+      setMessage("Please fix the validation errors before updating");
       return;
     }
 
@@ -129,14 +263,14 @@ function EditProductPage({ productId, onBack }) {
 
       const productFormData = new FormData();
 
-      productFormData.append("name", formData.name);
-      productFormData.append("barcode", formData.barcode);
-      productFormData.append("brand", formData.brand);
-      productFormData.append("description", formData.description);
+      productFormData.append("name", formData.name.trim());
+      productFormData.append("barcode", formData.barcode.trim());
+      productFormData.append("brand", formData.brand.trim());
+      productFormData.append("description", formData.description.trim());
       productFormData.append("price", formData.price);
       productFormData.append("costPrice", formData.costPrice);
       productFormData.append("reorderLevel", formData.reorderLevel);
-      productFormData.append("unit", formData.unit);
+      productFormData.append("unit", formData.unit.trim());
 
       if (formData.category) {
         productFormData.append("category", formData.category);
@@ -159,7 +293,8 @@ function EditProductPage({ productId, onBack }) {
         onBack();
       }, 800);
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Failed to update product";
+      const errorMessage =
+        error.response?.data?.message || "Failed to update product";
       toast.error(errorMessage);
       setMessage(errorMessage);
     } finally {
@@ -212,7 +347,8 @@ function EditProductPage({ productId, onBack }) {
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            disabled={updating}
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Back to Products
           </button>
@@ -243,8 +379,19 @@ function EditProductPage({ productId, onBack }) {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  maxLength={80}
+                  placeholder="Example: Coca Cola"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.name
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.name && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -256,19 +403,38 @@ function EditProductPage({ productId, onBack }) {
                   name="barcode"
                   value={formData.barcode}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  maxLength={14}
+                  inputMode="numeric"
+                  placeholder="Example: 123456789111"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.barcode
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  Optional. Barcode should be 8 to 14 digits.
+                </p>
+                {errors.barcode && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.barcode}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Category
+                  Category *
                 </label>
                 <select
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.category
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 >
                   <option value="">Select category</option>
                   {categories.map((category) => (
@@ -277,6 +443,11 @@ function EditProductPage({ productId, onBack }) {
                     </option>
                   ))}
                 </select>
+                {errors.category && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.category}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -287,7 +458,11 @@ function EditProductPage({ productId, onBack }) {
                   name="supplier"
                   value={formData.supplier}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.supplier
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 >
                   <option value="">Select supplier</option>
                   {suppliers
@@ -298,6 +473,11 @@ function EditProductPage({ productId, onBack }) {
                       </option>
                     ))}
                 </select>
+                {errors.supplier && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.supplier}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -309,21 +489,43 @@ function EditProductPage({ productId, onBack }) {
                   name="brand"
                   value={formData.brand}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  maxLength={50}
+                  placeholder="Example: Coca Cola"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.brand
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.brand && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.brand}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Unit
+                  Unit *
                 </label>
                 <input
                   type="text"
                   name="unit"
                   value={formData.unit}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  maxLength={20}
+                  placeholder="Example: bottle, packet, kg, pcs"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.unit
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.unit && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.unit}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -335,8 +537,20 @@ function EditProductPage({ productId, onBack }) {
                   name="price"
                   value={formData.price}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  min="0"
+                  step="0.01"
+                  placeholder="Example: 250"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.price
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.price && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.price}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -348,8 +562,20 @@ function EditProductPage({ productId, onBack }) {
                   name="costPrice"
                   value={formData.costPrice}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  min="0"
+                  step="0.01"
+                  placeholder="Example: 180"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.costPrice
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.costPrice && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.costPrice}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -361,8 +587,20 @@ function EditProductPage({ productId, onBack }) {
                   name="reorderLevel"
                   value={formData.reorderLevel}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  min="0"
+                  step="1"
+                  placeholder="Example: 20"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.reorderLevel
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+                {errors.reorderLevel && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.reorderLevel}
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -374,8 +612,30 @@ function EditProductPage({ productId, onBack }) {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="4"
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  maxLength={500}
+                  placeholder="Enter product description"
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                    errors.description
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
+
+                <div className="mt-1 flex items-center justify-between">
+                  {errors.description ? (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.description}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Maximum 500 characters.
+                    </p>
+                  )}
+
+                  <p className="text-xs text-slate-400">
+                    {formData.description.length}/500
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -385,7 +645,13 @@ function EditProductPage({ productId, onBack }) {
               Product Image
             </h2>
 
-            <div className="rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-5">
+            <div
+              className={`rounded-xl border border-dashed p-5 ${
+                errors.image
+                  ? "border-red-300 bg-red-50/40"
+                  : "border-blue-300 bg-blue-50/40"
+              }`}
+            >
               {previewImage ? (
                 <img
                   src={previewImage}
@@ -406,15 +672,21 @@ function EditProductPage({ productId, onBack }) {
 
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageChange}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600"
               />
 
               <p className="mt-3 text-xs text-slate-500">
-                Select a new image only if you want to replace the current
-                image.
+                Select a new JPG, PNG, or WEBP image only if you want to replace
+                the current image. Maximum size: 2MB.
               </p>
+
+              {errors.image && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {errors.image}
+                </p>
+              )}
             </div>
 
             <div className="mt-6 flex flex-col gap-3">
@@ -429,7 +701,8 @@ function EditProductPage({ productId, onBack }) {
               <button
                 type="button"
                 onClick={onBack}
-                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                disabled={updating}
+                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Back to Products
               </button>

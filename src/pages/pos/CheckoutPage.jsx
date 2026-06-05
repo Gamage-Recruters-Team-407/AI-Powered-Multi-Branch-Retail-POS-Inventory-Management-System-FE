@@ -161,17 +161,71 @@ import { useCart } from "../../context/CartContext";
 import { useSales } from "../../context/SalesContext";
 import { createSale } from "../../services/salesApi";
 import PaymentMethod from "../../components/pos/PaymentMethod";
+import { useAuth } from "../../context/AuthContext";
+import { validateCoupon } from "../../services/promotionApi";
+import { toast } from "react-hot-toast";
+import { Tag, Check, Trash } from "lucide-react";
 
 const CheckoutPage = ({ onBack, onComplete }) => {
   const navigate = useNavigate();
-  const { cart, subtotal, discount, taxAmount, total, buildCheckoutPayload, clearCart } = useCart();
+  const { cart, subtotal, discount, setDiscount, taxAmount, total, buildCheckoutPayload, clearCart } = useCart();
   const { addSale } = useSales();
+  const { user } = useAuth();
+  const branchId = user?.branchId ?? user?.branch?._id ?? user?.branch;
 
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [cashReceived, setCashReceived]   = useState("");
   const [customerId, setCustomerId]       = useState("");
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState("");
+
+  const [couponCode, setCouponCode] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setIsValidating(true);
+    setCouponError("");
+    try {
+      const response = await validateCoupon({
+        couponCode: couponCode.trim(),
+        cartTotal: subtotal,
+        branchId,
+      });
+
+      if (response.data && response.data.valid) {
+        const { discountAmount, promotionTitle } = response.data;
+        setDiscount(discountAmount);
+        setAppliedCoupon({
+          code: couponCode.trim().toUpperCase(),
+          title: promotionTitle,
+          amount: discountAmount,
+        });
+        toast.success(`Coupon "${couponCode.trim().toUpperCase()}" applied successfully!`);
+      } else {
+        setCouponError(response.data?.message || "Invalid coupon code.");
+        setDiscount(0);
+        setAppliedCoupon(null);
+      }
+    } catch (err) {
+      console.error("Error validating coupon:", err);
+      setCouponError(err.response?.data?.message || "Failed to validate coupon.");
+      setDiscount(0);
+      setAppliedCoupon(null);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setDiscount(0);
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+    toast.success("Coupon removed.");
+  };
 
   if (cart.length === 0) { onBack ? onBack() : navigate("/pos"); return null; }
 
@@ -279,6 +333,55 @@ const CheckoutPage = ({ onBack, onComplete }) => {
               placeholder="Leave blank for walk-in customer"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
             />
+          </div>
+
+          {/* Coupon Code Section */}
+          <div className="mb-5">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+              <Tag size={13} className="text-slate-400" /> Promo / Coupon Code
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                disabled={appliedCoupon || isValidating}
+                placeholder="e.g. SUMMER25"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
+              />
+              {appliedCoupon ? (
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Trash size={14} /> Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={!couponCode.trim() || isValidating}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                >
+                  {isValidating ? "Applying..." : "Apply"}
+                </button>
+              )}
+            </div>
+            {couponError && (
+              <p className="mt-1.5 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                <span>⚠️</span> {couponError}
+              </p>
+            )}
+            {appliedCoupon && (
+              <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200/50 rounded-xl text-[10px] font-bold text-emerald-700 flex items-center justify-between animate-fade-in">
+                <span className="flex items-center gap-1">
+                  <Check size={13} strokeWidth={3} className="text-emerald-500" />
+                  <span>Promo applied: "{appliedCoupon.code}" ({appliedCoupon.title})</span>
+                </span>
+                <span className="text-xs font-black">- Rs.{appliedCoupon.amount.toLocaleString()}</span>
+              </div>
+            )}
           </div>
 
           {/* Payment Method Selector Grid */}
