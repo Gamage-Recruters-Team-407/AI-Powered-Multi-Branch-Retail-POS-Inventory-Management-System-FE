@@ -37,7 +37,9 @@ export default function CustomerEditModal({ customer, onClose, onSuccess }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await axios.get(`${API}/branches`);
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const r = await axios.get(`${API}/branches`, { headers });
         setBranches(r.data?.data || r.data || []);
       } catch { setBranches([]); }
       finally  { setBranchLoad(false); }
@@ -82,7 +84,9 @@ export default function CustomerEditModal({ customer, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      await axios.put(`${API}/customers/${customer._id}`, payload);
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.put(`${API}/customers/${customer._id}`, payload, { headers });
       await fetchCustomers();
       setVisible(false);
       setTimeout(() => { onSuccess?.("Customer updated successfully"); onClose(); }, 300);
