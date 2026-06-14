@@ -41,7 +41,9 @@ export default function CustomerAddModal({ onClose, onSuccess }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await axios.get(`${API}/branches`);
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const r = await axios.get(`${API}/branches`, { headers });
         setBranches(r.data?.data || r.data || []);
       } catch { setBranches([]); }
       finally  { setBranchLoad(false); }
@@ -87,7 +89,9 @@ export default function CustomerAddModal({ onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/customers`, payload);
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/customers`, payload, { headers });
       await fetchCustomers();
       setVisible(false);
       setTimeout(() => { onSuccess?.("Customer created successfully"); onClose(); }, 300);
