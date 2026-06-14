@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, Eye, FileText, ChevronUp, ChevronDown, Database, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Eye, FileText, ChevronUp, ChevronDown, Database, AlertCircle, Filter } from 'lucide-react';
 import { exportPDF } from '../../services/reportService';
 
 const STATUS_STYLES = {
@@ -16,10 +16,15 @@ const STATUS_DOT = {
   Pending: 'bg-slate-400',
 };
 
-function ReportPreviewTable({ reports, loading, source }) {
+function ReportPreviewTable({ reports, loading, source, isFiltered }) {
   const [sortField, setSortField] = useState('id');
   const [sortDir, setSortDir] = useState('asc');
   const [selectedReport, setSelectedReport] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [reports]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -141,9 +146,17 @@ function ReportPreviewTable({ reports, loading, source }) {
             </p>
           </div>
         </div>
-        <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-200">
-          {sortedReports.length} Reports
-        </span>
+        <div className="flex gap-2 items-center">
+          {isFiltered && (
+            <span className="flex items-center gap-1 w-fit rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-200">
+              <Filter size={12} />
+              Filtered Results
+            </span>
+          )}
+          <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-200">
+            {sortedReports.length} Reports
+          </span>
+        </div>
       </div>
 
       {/* Table */}
@@ -184,7 +197,7 @@ function ReportPreviewTable({ reports, loading, source }) {
                 </td>
               </tr>
             ) : (
-              sortedReports.map((report) => (
+              (showAll ? sortedReports : sortedReports.slice(0, 10)).map((report) => (
                 <tr
                   key={report.id}
                   className="group transition-colors hover:bg-slate-50/70"
@@ -256,9 +269,17 @@ function ReportPreviewTable({ reports, loading, source }) {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400 flex items-center justify-between">
-        <div>
-          Showing {sortedReports.length} of {sortedReports.length} reports
+      <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span>Showing {Math.min(sortedReports.length, showAll ? sortedReports.length : 10)} of {sortedReports.length} reports</span>
+          {sortedReports.length > 10 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="rounded-lg bg-blue-50 px-3 py-1 font-semibold text-blue-600 hover:bg-blue-100 transition"
+            >
+              {showAll ? 'Show Less' : 'View More'}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {source === 'api' ? (

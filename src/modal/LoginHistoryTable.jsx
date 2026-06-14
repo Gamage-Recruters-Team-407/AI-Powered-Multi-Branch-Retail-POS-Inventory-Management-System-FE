@@ -86,8 +86,12 @@ const LoginHistoryTable = ({ history, loading, onRevokeSession }) => {
                       <div className="lh-user">
                         <div className="lh-avatar">{(row.userName || 'U')[0]}</div>
                         <div>
-                          <div className="lh-name">{row.userName}</div>
-                          <div className="lh-email">{row.email}</div>
+                          <div className="lh-name">
+                            {row.userId?.name || row.user?.name || row.userName || "Unknown User"}
+                          </div>
+                          <div className="lh-email">
+                            {row.userId?.email || row.user?.email || row.email || row.userId?.username || "—"}
+                          </div>
                         </div>
                       </div>
                     </td>

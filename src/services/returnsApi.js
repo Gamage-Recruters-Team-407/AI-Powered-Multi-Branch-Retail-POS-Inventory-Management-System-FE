@@ -1,38 +1,37 @@
-import axios from "axios";
+import api from "../api/axiosInstance"; 
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const returnsApi = {
+  getInvoices: async () => {
+    // ✅ Correct: No /api prefix
+    const response = await api.get("/returns/invoices");
+    return response.data;
+  },
 
-const returnsApi = axios.create({
-  baseURL: `${API_URL}/api/returns`,
-});
+  getInvoiceById: async (invoiceId) => {
+    const response = await api.get(`/returns/invoices/${invoiceId}`);
+    return response.data;
+  },
 
-returnsApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+  getReturns: async () => {
+    const response = await api.get("/returns");
+    return response.data;
+  },
 
-export const getInvoices = async () => {
-  const response = await returnsApi.get("/invoices");
-  return response.data;
+  createReturn: async (returnData) => {
+    const response = await api.post("/returns", returnData);
+    return response.data;
+  },
+
+  updateReturnStatus: async (id, status) => {
+    const response = await api.patch(`/returns/${id}/status`, { status });
+    return response.data;
+  },
 };
 
-export const getInvoiceById = async (invoiceId) => {
-  const response = await returnsApi.get(`/invoices/${invoiceId}`);
-  return response.data;
-};
+export const getInvoices = returnsApi.getInvoices;
+export const getInvoiceById = returnsApi.getInvoiceById;
+export const getReturns = returnsApi.getReturns;
+export const createReturn = returnsApi.createReturn;
+export const updateReturnStatus = returnsApi.updateReturnStatus;
 
-export const getReturns = async () => {
-  const response = await returnsApi.get("/");
-  return response.data;
-};
-
-export const createReturn = async (returnData) => {
-  const response = await returnsApi.post("/", returnData);
-  return response.data;
-};
-
-export const updateReturnStatus = async (id, status) => {
-  const response = await returnsApi.patch(`/${id}/status`, { status });
-  return response.data;
-};
+export default returnsApi;

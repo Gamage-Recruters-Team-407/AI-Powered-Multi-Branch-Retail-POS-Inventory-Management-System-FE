@@ -16,76 +16,7 @@ import {
   FiUsers,
   FiXCircle,
 } from 'react-icons/fi'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
-const API_URL = `${API_BASE_URL}/api/purchase-orders`
-
-const initialPurchaseOrders = [
-  {
-    po: 'PO-2026-1048',
-    supplier: 'BlueLine Wholesale',
-    branch: 'Colombo Central',
-    date: '2026-06-02',
-    expectedDate: '2026-06-06',
-    amount: '$18,450.00',
-    status: 'Pending',
-    priority: 'High',
-    items: 24,
-    category: 'Grocery Essentials',
-    owner: 'Kasun Perera',
-  },
-  {
-    po: 'PO-2026-1047',
-    supplier: 'NorthStar Distributors',
-    branch: 'Kandy City',
-    date: '2026-06-01',
-    expectedDate: '2026-06-05',
-    amount: '$9,780.00',
-    status: 'Approved',
-    priority: 'Medium',
-    items: 13,
-    category: 'Electronics',
-    owner: 'Nimali Silva',
-  },
-  {
-    po: 'PO-2026-1046',
-    supplier: 'Metro Retail Supply',
-    branch: 'Galle Fort',
-    date: '2026-05-31',
-    expectedDate: '2026-06-03',
-    amount: '$24,120.00',
-    status: 'Received',
-    priority: 'Normal',
-    items: 31,
-    category: 'General Merchandise',
-    owner: 'Ravi Fernando',
-  },
-  {
-    po: 'PO-2026-1045',
-    supplier: 'Prime Foods Lanka',
-    branch: 'Negombo',
-    date: '2026-05-30',
-    expectedDate: '2026-06-04',
-    amount: '$7,360.00',
-    status: 'Rejected',
-    priority: 'Low',
-    items: 9,
-    category: 'Fresh Foods',
-    owner: 'Ayesha Noor',
-  },
-]
-
-const reorderRecommendations = [
-  { item: 'Premium Basmati Rice', branch: 'Colombo Central', stock: 50, reorder: 500, confidence: '96%', supplier: 'BlueLine Wholesale' },
-  { item: 'Organic Coconut Oil', branch: 'Kandy City', stock: 23, reorder: 200, confidence: '93%', supplier: 'Prime Foods Lanka' },
-  { item: 'Milk Powder 400g', branch: 'Negombo', stock: 42, reorder: 150, confidence: '91%', supplier: 'Metro Retail Supply' },
-]
-
-const supplierScorecards = [
-  { name: 'BlueLine Wholesale', score: 96, metric: 'On-time delivery', open: 12 },
-  { name: 'NorthStar Distributors', score: 91, metric: 'Best price match', open: 8 },
-  { name: 'Prime Foods Lanka', score: 86, metric: 'Fresh-stock reliability', open: 5 },
-]
+import api from '../../api/axiosInstance'
 
 const statuses = ['All', 'Pending', 'Approved', 'Received', 'Rejected']
 
@@ -126,32 +57,110 @@ const formatAmount = (amount) =>
     maximumFractionDigits: 2,
   })}`
 
+const formatPercent = (value, fallback = 0) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return `${fallback}%`
+  return `${Math.round(numeric)}%`
+}
+
+const normalizeStatus = (status) => {
+  const normalized = String(status || 'Pending').trim().toUpperCase()
+  if (normalized === 'APPROVED') return 'Approved'
+  if (normalized === 'REJECTED') return 'Rejected'
+  if (normalized === 'RECEIVED') return 'Received'
+  if (normalized === 'CANCELLED') return 'Rejected'
+  return 'Pending'
+}
+
 const normalizeOrder = (order) => ({
   id: order.id ?? order._id,
   po: order.po ?? order.poNumber ?? 'PO-PENDING',
   supplier: order.supplier ?? order.supplierName ?? '',
-  branch: order.branch ?? '',
+  branch:
+    typeof (order.branch ?? '') === 'object'
+      ? order.branch?.name ?? order.branch?.branchName ?? order.branch?.label ?? ''
+      : order.branch ?? '',
   date: order.date ?? order.orderDate ?? '',
   expectedDate: order.expectedDate ?? order.deliveryDate ?? 'Not scheduled',
   amount: formatAmount(order.amount ?? order.totalAmount ?? 0),
-  status: order.status ?? 'Pending',
+  status: normalizeStatus(order.status),
   priority: order.priority ?? 'Normal',
-  items: order.items ?? order.itemCount ?? 1,
+  items: Array.isArray(order.items) ? order.items.length : order.items ?? order.itemCount ?? 1,
   category: order.category ?? 'Mixed Stock',
   owner: order.owner ?? 'Procurement Team',
 })
 
+const normalizeSupplierOption = (supplier) => ({
+  id: supplier._id ?? supplier.id,
+  label: supplier.companyName ?? supplier.name ?? 'Unknown supplier',
+})
+
+const normalizeBranchOption = (branch) => ({
+  id: branch._id ?? branch.id,
+  label: branch.name ?? branch.branchName ?? branch.code ?? 'Unknown branch',
+})
+
+const normalizeRecommendation = (recommendation) => ({
+  id: recommendation.id,
+  item: recommendation.product?.name ?? 'Unknown product',
+  branch: recommendation.branch?.name ?? 'Unknown branch',
+  stock: Number(recommendation.currentStock ?? 0),
+  reorder: Number(recommendation.recommendedQuantity ?? 0),
+  confidence: formatPercent(
+    recommendation.avgDailySales > 0
+      ? Math.min(99, Math.max(55, (recommendation.stock <= recommendation.reorderPoint ? 90 : 72) + recommendation.avgDailySales))
+      : recommendation.lowStock
+        ? 88
+        : 70,
+    70,
+  ),
+  supplier: recommendation.product?.supplierName ?? recommendation.supplierName ?? 'Assigned supplier pending',
+  urgency: recommendation.urgency ?? 'MEDIUM',
+})
+
+const normalizeSupplierScorecard = (supplier) => ({
+  id: supplier.id,
+  name: supplier.companyName ?? 'Unknown supplier',
+  score: Number(supplier.performance?.onTimeDelivery ?? supplier.rating ?? 0),
+  metric:
+    Number(supplier.performance?.onTimeDelivery ?? 0) >= 90
+      ? 'On-time delivery'
+      : Number(supplier.performance?.qualityScore ?? 0) >= 90
+        ? 'Quality score'
+        : 'Supplier rating',
+  open: Number(supplier.totalSpend ?? 0),
+  purchaseOrders: Number(supplier.purchaseOrderCount ?? supplier.metrics?.purchaseOrderCount ?? 0),
+})
+
+const getWorkflowStage = (status) => {
+  switch (status) {
+    case 'Rejected':
+      return 2
+    case 'Approved':
+      return 3
+    case 'Received':
+      return 4
+    case 'Pending':
+    default:
+      return 2
+  }
+}
+
 function PurchaseOrdersPage() {
-  const [purchaseOrders, setPurchaseOrders] = useState(initialPurchaseOrders)
+  const [purchaseOrders, setPurchaseOrders] = useState([])
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState(initialPurchaseOrders[0])
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [reorderRecommendations, setReorderRecommendations] = useState([])
+  const [supplierScorecards, setSupplierScorecards] = useState([])
+  const [supplierOptions, setSupplierOptions] = useState([])
+  const [branchOptions, setBranchOptions] = useState([])
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [lastSync, setLastSync] = useState('Ready')
-  const [apiMessage, setApiMessage] = useState('Using sample data until MongoDB responds')
+  const [apiMessage, setApiMessage] = useState('Loading MongoDB purchase order data...')
   const [form, setForm] = useState({
-    supplier: '',
-    branch: '',
+    supplierId: '',
+    branchId: '',
     date: new Date().toISOString().slice(0, 10),
     expectedDate: '',
     amount: '',
@@ -162,25 +171,101 @@ function PurchaseOrdersPage() {
 
   const loadPurchaseOrders = useCallback(async () => {
     try {
-      const response = await fetch(API_URL)
-      if (!response.ok) throw new Error('Could not load purchase orders')
-
-      const orders = await response.json()
+      const response = await api.get('/purchase-orders')
+      const orders = Array.isArray(response.data) ? response.data : []
       if (orders.length > 0) {
         const normalized = orders.map(normalizeOrder)
         setPurchaseOrders(normalized)
-        setSelectedOrder(normalized[0])
+        setSelectedOrder((current) => normalized.find((item) => item.id === current?.id) ?? normalized[0])
+      } else {
+        setPurchaseOrders([])
+        setSelectedOrder(null)
       }
       setApiMessage('Connected to MongoDB purchase orders')
       setLastSync(`Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+    } catch (error) {
+      setPurchaseOrders([])
+      setSelectedOrder(null)
+      setApiMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Could not load purchase orders from MongoDB.',
+      )
+    }
+  }, [])
+
+  const loadReferenceData = useCallback(async () => {
+    try {
+      const [supplierResponse, branchResponse] = await Promise.all([
+        api.get('/suppliers'),
+        api.get('/branches'),
+      ])
+
+      const suppliers = Array.isArray(supplierResponse.data?.data) ? supplierResponse.data.data : []
+      const branches = Array.isArray(branchResponse.data) ? branchResponse.data : []
+
+      const normalizedSuppliers = suppliers
+        .map(normalizeSupplierOption)
+        .filter((item) => item.id && item.label)
+      const normalizedBranches = branches
+        .map(normalizeBranchOption)
+        .filter((item) => item.id && item.label)
+
+      setSupplierOptions(normalizedSuppliers)
+      setBranchOptions(normalizedBranches)
+      setForm((current) => ({
+        ...current,
+        supplierId: current.supplierId || normalizedSuppliers[0]?.id || '',
+        branchId: current.branchId || normalizedBranches[0]?.id || '',
+      }))
+    } catch (error) {
+      setSupplierOptions([])
+      setBranchOptions([])
+      setApiMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Could not load suppliers or branches from MongoDB.',
+      )
+    }
+  }, [])
+
+  const loadInsightCards = useCallback(async () => {
+    try {
+      const [reorderResult, supplierResult] = await Promise.all([
+        api.get('/reorders/suggestions?limit=3&includeAll=true'),
+        api.get('/suppliers/reports/performance'),
+      ])
+
+      const reorderData = Array.isArray(reorderResult.data?.data) ? reorderResult.data.data : []
+      const supplierData = Array.isArray(supplierResult.data?.data) ? supplierResult.data.data : []
+
+      setReorderRecommendations(reorderData.map(normalizeRecommendation))
+      setSupplierScorecards(
+        supplierData
+          .map(normalizeSupplierScorecard)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score
+            return b.purchaseOrders - a.purchaseOrders
+          })
+          .slice(0, 3),
+      )
     } catch {
-      setApiMessage('Database not connected. Showing polished demo data.')
+      setReorderRecommendations([])
+      setSupplierScorecards([])
     }
   }, [])
 
   useEffect(() => {
     loadPurchaseOrders()
   }, [loadPurchaseOrders])
+
+  useEffect(() => {
+    loadReferenceData()
+  }, [loadReferenceData])
+
+  useEffect(() => {
+    loadInsightCards()
+  }, [loadInsightCards])
 
   const filteredOrders = useMemo(() => {
     const search = query.trim().toLowerCase()
@@ -208,41 +293,71 @@ function PurchaseOrdersPage() {
       { label: 'AI Reorder Alerts', value: reorderRecommendations.length.toString(), trend: 'Low-stock suggestions', icon: FiAlertTriangle, tone: 'danger' },
       { label: 'High Priority', value: highPriority.toString(), trend: 'Expedite before stock-out', icon: FiTruck, tone: 'info' },
     ]
-  }, [purchaseOrders])
+  }, [purchaseOrders, reorderRecommendations.length])
+
+  const workflowSteps = useMemo(() => {
+    const currentStage = getWorkflowStage(selectedOrder?.status)
+    const baseSteps = [
+      {
+        title: 'Draft created',
+        detail: selectedOrder?.date ? `Order created on ${selectedOrder.date}` : 'Tracked in the order audit trail',
+      },
+      {
+        title: 'Manager review',
+        detail: selectedOrder?.owner ? `Current owner: ${selectedOrder.owner}` : 'Tracked in the order audit trail',
+      },
+      {
+        title: 'Approval decision',
+        detail: selectedOrder?.status ? `Current status: ${selectedOrder.status}` : 'Tracked in the order audit trail',
+      },
+      {
+        title: 'Goods receiving',
+        detail:
+          selectedOrder?.status === 'Received'
+            ? 'Inventory updates confirmed for this order'
+            : 'Inventory updates after receiving notes are confirmed',
+      },
+    ]
+
+    return baseSteps.map((step, index) => ({
+      ...step,
+      number: index + 1,
+      active: index + 1 <= currentStage,
+    }))
+  }, [selectedOrder])
 
   const updateOrderStatus = async (order, status) => {
     if (!order.id) {
-      const updated = { ...order, status }
-      setPurchaseOrders((orders) => orders.map((item) => (item.po === order.po ? updated : item)))
-      setSelectedOrder(updated)
-      setApiMessage(`${order.po} updated locally as ${status}`)
+      setApiMessage('Only MongoDB purchase orders can be updated.')
       return
     }
 
     try {
-      const response = await fetch(`${API_URL}/${order.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-
-      if (!response.ok) throw new Error('Could not update purchase order')
-
-      const updatedOrder = normalizeOrder(await response.json())
+      const response = await api.patch(`/purchase-orders/${order.id}/status`, { status })
+      const updatedOrder = normalizeOrder(response.data)
       setPurchaseOrders((orders) => orders.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)))
       setSelectedOrder(updatedOrder)
       setApiMessage(`${updatedOrder.po} saved as ${status}`)
-    } catch {
-      setApiMessage('Could not save status. Check backend and MongoDB connection.')
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Could not save status. Check backend and MongoDB connection.'
+      setApiMessage(message)
     }
   }
 
   const handleCreateOrder = async (event) => {
     event.preventDefault()
 
+    const selectedSupplier = supplierOptions.find((item) => item.id === form.supplierId)
+    const selectedBranch = branchOptions.find((item) => item.id === form.branchId)
+
     const orderPayload = {
-      supplier: form.supplier.trim(),
-      branch: form.branch.trim(),
+      supplier: selectedSupplier?.label ?? '',
+      supplierId: form.supplierId,
+      branch: form.branchId,
       date: form.date,
       expectedDate: form.expectedDate || form.date,
       amount: Number(form.amount),
@@ -251,49 +366,34 @@ function PurchaseOrdersPage() {
       items: Number(form.items) || 1,
     }
 
-    if (!orderPayload.supplier || !orderPayload.branch || !orderPayload.date || orderPayload.amount <= 0) {
-      setApiMessage('Supplier, branch, order date, and a positive amount are required.')
+    if (!orderPayload.supplier || !selectedBranch?.label || !orderPayload.date || orderPayload.amount <= 0) {
+      setApiMessage('Select a MongoDB supplier, a MongoDB branch, and enter a valid amount.')
       return
     }
 
-    const localOrder = normalizeOrder({
-      ...orderPayload,
-      id: `local-${Date.now()}`,
-      po: `PO-2026-${Math.floor(1100 + Math.random() * 800)}`,
-      status: 'Pending',
-      owner: 'Procurement Team',
-    })
-
-    setPurchaseOrders((orders) => [localOrder, ...orders])
-    setSelectedOrder(localOrder)
-    setApiMessage(`${localOrder.po} created locally. Saving to MongoDB...`)
-    setForm({
-      supplier: '',
-      branch: '',
-      date: new Date().toISOString().slice(0, 10),
-      expectedDate: '',
-      amount: '',
-      priority: 'Normal',
-      category: '',
-      items: 1,
-    })
-    setIsCreateOpen(false)
-
     try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload),
-      })
-
-      if (!response.ok) throw new Error('Could not create purchase order')
-
-      const createdOrder = normalizeOrder(await response.json())
-      setPurchaseOrders((orders) => orders.map((order) => (order.id === localOrder.id ? createdOrder : order)))
+      const response = await api.post('/purchase-orders', orderPayload)
+      const createdOrder = normalizeOrder(response.data)
+      setPurchaseOrders((orders) => [createdOrder, ...orders])
       setSelectedOrder(createdOrder)
       setApiMessage(`${createdOrder.po} saved to MongoDB`)
-    } catch {
-      setApiMessage(`${localOrder.po} created locally. MongoDB is not connected, so it is not saved permanently yet.`)
+      setForm({
+        supplierId: supplierOptions[0]?.id || '',
+        branchId: branchOptions[0]?.id || '',
+        date: new Date().toISOString().slice(0, 10),
+        expectedDate: '',
+        amount: '',
+        priority: 'Normal',
+        category: '',
+        items: 1,
+      })
+      setIsCreateOpen(false)
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Purchase order was not saved to MongoDB.'
+      setApiMessage(message)
     }
   }
 
@@ -442,6 +542,13 @@ function PurchaseOrdersPage() {
                     </td>
                   </tr>
                 ))}
+                {filteredOrders.length === 0 && (
+                  <tr>
+                    <td className="px-3.5 py-8 text-center text-sm font-bold text-[#637083]" colSpan={8}>
+                      No purchase orders found in MongoDB.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -486,13 +593,17 @@ function PurchaseOrdersPage() {
               <FiAlertTriangle className="size-[26px] text-[#0a62df]" aria-hidden="true" />
             </div>
             <div className="grid gap-3">
-              {reorderRecommendations.map((item) => (
+              {reorderRecommendations.length > 0 ? reorderRecommendations.map((item) => (
                 <div className="rounded-[14px] border border-[#e4edf7] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(245,249,255,0.98))] p-4" key={item.item}>
                   <strong className="block font-black text-[#101b31]">{item.item}</strong>
                   <span className="mt-1.5 block text-[13px] font-black text-[#b45309]">{item.branch} stock: {item.stock} units</span>
                   <small className="mt-1 block leading-snug text-[#637083]">Suggest {item.reorder} units from {item.supplier} - {item.confidence} confidence</small>
                 </div>
-              ))}
+              )) : (
+                <div className="rounded-[14px] border border-dashed border-[#d4e2f4] bg-[#f8fbff] p-4 text-sm font-bold text-[#637083]">
+                  No live reorder suggestions available from MongoDB right now.
+                </div>
+              )}
             </div>
           </article>
         </aside>
@@ -508,13 +619,17 @@ function PurchaseOrdersPage() {
             <FiUsers className="size-[26px] text-[#0a62df]" aria-hidden="true" />
           </div>
           <div className="grid gap-3">
-            {supplierScorecards.map((supplier) => (
+            {supplierScorecards.length > 0 ? supplierScorecards.map((supplier) => (
               <div className="rounded-[14px] border border-[#e3edf8] bg-[#f8fbff] p-4" key={supplier.name}>
                 <span className="block font-black text-[#101b31]">{supplier.name}</span>
                 <strong className="mt-1.5 block text-sm font-bold text-[#0a62df]">{supplier.score}% {supplier.metric}</strong>
-                <small className="mt-1 block leading-snug text-[#637083]">{supplier.open} active purchase orders</small>
+                <small className="mt-1 block leading-snug text-[#637083]">{supplier.purchaseOrders} active purchase orders</small>
               </div>
-            ))}
+            )) : (
+              <div className="rounded-[14px] border border-dashed border-[#d4e2f4] bg-[#f8fbff] p-4 text-sm font-bold text-[#637083]">
+                No live supplier scorecards available from MongoDB right now.
+              </div>
+            )}
           </div>
         </article>
 
@@ -527,12 +642,12 @@ function PurchaseOrdersPage() {
             <FiShield className="size-[26px] text-[#0a62df]" aria-hidden="true" />
           </div>
           <div className="grid gap-3.5">
-            {['Draft created', 'Manager review', 'Approval decision', 'Goods receiving'].map((step, index) => (
-              <div className="grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3" key={step}>
-                <span className={cn('grid size-[38px] place-items-center rounded-full font-black', index < 3 ? 'bg-[#0a62df] text-white' : 'bg-[#eef4fb] text-[#67768b]')}>{index + 1}</span>
+            {workflowSteps.map((step) => (
+              <div className="grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3" key={step.title}>
+                <span className={cn('grid size-[38px] place-items-center rounded-full font-black', step.active ? 'bg-[#0a62df] text-white' : 'bg-[#eef4fb] text-[#67768b]')}>{step.number}</span>
                 <div>
-                  <strong className="block text-[15px] font-bold text-[#101b31]">{step}</strong>
-                  <small className="mt-1 block leading-snug text-[#637083]">{index === 3 ? 'Inventory updates after receiving notes are confirmed' : 'Tracked in the order audit trail'}</small>
+                  <strong className="block text-[15px] font-bold text-[#101b31]">{step.title}</strong>
+                  <small className="mt-1 block leading-snug text-[#637083]">{step.detail}</small>
                 </div>
               </div>
             ))}
@@ -554,8 +669,22 @@ function PurchaseOrdersPage() {
             </div>
 
             <form className="grid gap-4" onSubmit={handleCreateOrder}>
-              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Supplier Name<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="BlueLine Wholesale" required /></label>
-              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Branch<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })} placeholder="Colombo Central" required /></label>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Supplier
+                <select className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.supplierId} onChange={(event) => setForm({ ...form, supplierId: event.target.value })} required>
+                  <option value="">Select MongoDB supplier</option>
+                  {supplierOptions.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Branch
+                <select className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })} required>
+                  <option value="">Select MongoDB branch</option>
+                  {branchOptions.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.label}</option>
+                  ))}
+                </select>
+              </label>
               <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Category<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Mixed Stock" /></label>
               <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
                 <label className="grid gap-2 text-[13px] font-black text-[#25344e]">Order Date<input className="min-h-[46px] w-full rounded-xl border border-[#d8e5f3] bg-[#f8fbff] px-3.5 text-[#172033] outline-none transition focus:border-[#0a62df] focus:bg-white focus:shadow-[0_0_0_4px_rgba(10,98,223,0.12)]" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label>

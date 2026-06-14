@@ -15,9 +15,7 @@ export const NotificationProvider = ({ children }) => {
 
     useEffect(() => {
         // Connect to the backend Socket.io server
-        const socket = io('http://localhost:5000', {
-            transports: ['websocket', 'polling']
-        });
+        const socket = io('http://localhost:5000');
         
         setSocketInstance(socket);
 

@@ -11,7 +11,8 @@ import PersonalizedRecommendations from '../../components/dashboard/Personalized
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { socketService } from '../../services/socketService';
-const WarehouseList = lazy(() => import('../warehouse/WarehouseList'));
+const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
+const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
 import { useNavigate } from 'react-router-dom';
 import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
@@ -36,7 +37,10 @@ const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
 const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
 const UserListPage = lazy(() => import("../users/UserListPage")); 
+const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
+
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
+const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -85,31 +89,51 @@ const DATE_PRESETS = [
   { label: 'Custom', value: 'custom', icon: '⚙️' },
 ];
 
-// 22 Modules exactly as per your image
 const MODULE_NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard & Business Overview', icon: '📊', page: 1, isMain: true },
-  { id: 'auth', label: 'Authentication & Authorization', icon: '🔐', page: 1 },
-  { id: 'user-mgmt', label: 'User Management', icon: '👥', page: 1 },
-  { id: 'branch-mgmt', label: 'Branch Management', icon: '🏢', page: 1 },
-  { id: 'employee-mgmt', label: 'Employee Management', icon: '👔', page: 1 },
-  { id: 'customer-mgmt', label: 'Customer Management', icon: '👤', page: 2 },
-  { id: 'supplier-mgmt', label: 'Supplier Management', icon: '🚚', page: 2 },
-  { id: 'product-mgmt', label: 'Product Management', icon: '📦', page: 2 },
-  { id: 'inventory-mgmt', label: 'Inventory Management', icon: '📊', page: 2 },
-  { id: 'warehouse-mgmt', label: 'Warehouse Management', icon: '🏭', page: 2 },
-  { id: 'purchase-order', label: 'Purchase Order Management', icon: '📋', page: 2 },
-  { id: 'pos-sales', label: 'POS Sales & Billing', icon: '🛒', page: 3 },
-  { id: 'returns-refund', label: 'Returns & Refund Management', icon: '🔄', page: 3 },
-  { id: 'stock-transfer', label: 'Stock Transfer Management', icon: '🚛', page: 3 },
-  { id: 'promotion', label: 'Promotion & Discount Management', icon: '🏷️', page: 3 },
-  { id: 'ai-forecast', label: 'AI Demand Forecasting', icon: '🤖', page: 3 },
-  { id: 'ai-reorder', label: 'AI Smart Reordering', icon: '📈', page: 3 },
-  { id: 'analytics', label: 'Business Analytics', icon: '📉', page: 3 },
-  { id: 'reporting', label: 'Reporting Management', icon: '📄', page: 4 },
-  { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔', page: 4 },
-  { id: 'audit-logs', label: 'Audit Logs & Security', icon: '🛡️', page: 4 },
-  // ── AI Intelligence ──
-  { id: 'ai-intelligence', label: 'AI Intelligence', icon: '🧠', page: 5, isAI: true },
+  { id: 'dashboard',     label: 'Dashboard & Business Overview',    icon: '📊', page: 1, isMain: true,
+    roles: ['admin','manager','cashier','user'] },
+  // { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
+  //   roles: ['admin'] },
+  { id: 'user-mgmt',     label: 'User Management',                  icon: '👥', page: 1,
+    roles: ['admin'] },
+  { id: 'branch-mgmt',   label: 'Branch Management',                icon: '🏢', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'employee-mgmt', label: 'Employee Management',              icon: '👔', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'customer-mgmt', label: 'Customer Management',              icon: '👤', page: 2,
+    roles: ['admin','manager','cashier'] },
+  { id: 'supplier-mgmt', label: 'Supplier Management',              icon: '🚚', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'product-mgmt',  label: 'Product Management',               icon: '📦', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'inventory-mgmt',label: 'Inventory Management',             icon: '📊', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'warehouse-mgmt',label: 'Warehouse Management',             icon: '🏭', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'purchase-order',label: 'Purchase Order Management',        icon: '📋', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'pos-sales',     label: 'POS Sales & Billing',              icon: '🛒', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'returns-refund',label: 'Returns & Refund Management',      icon: '🔄', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'stock-transfer',label: 'Stock Transfer Management',        icon: '🚛', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'promotion',     label: 'Promotion & Discount Management',  icon: '🏷️', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-forecast',   label: 'AI Demand Forecasting',            icon: '🤖', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-reorder',    label: 'AI Smart Reordering',              icon: '📈', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'analytics',     label: 'Business Analytics',               icon: '📉', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'reporting',     label: 'Reporting Management',             icon: '📄', page: 4,
+    roles: ['admin'] },
+  { id: 'notifications', label: 'Notifications & Alerts',           icon: '🔔', page: 4,
+    roles: ['admin','manager','cashier'] },
+  { id: 'audit-logs',    label: 'Audit Logs & Security',            icon: '🛡️', page: 4,
+    roles: ['admin'] },
+  { id: 'ai-intelligence',label: 'AI Intelligence',                 icon: '🧠', page: 5, isAI: true,
+    roles: ['admin','manager'] },
 ];
 
 const _getDateRange = (preset) => {
@@ -132,10 +156,10 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  const filteredNavItems = MODULE_NAV_ITEMS.filter(item => {
-    if (item.id === 'reporting' && role !== 'admin') return false;
-    return true;
-  });
+  // ✅ අලුත් — roles array check
+  const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
+    item.roles.includes(role)
+  );
 
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
@@ -150,6 +174,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [navExpanded, setNavExpanded] = useState(true);
+  const [warehouseDetailId, setWarehouseDetailId] = useState(null);
   const [activeModule, setActiveModule] = useState(() => {
     return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
   });
@@ -282,6 +307,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setActiveModule('product-mgmt');
     } else {
       setActiveModule(moduleId);
+    }
+
+    // Reset warehouse detail when navigating away or back to list
+    if (moduleId === 'warehouse-mgmt') {
+      setWarehouseDetailId(null);
     }
 
     setVisibleModule(moduleId);
@@ -557,8 +587,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
           </>
         );
 
-      case 'auth':
-        return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
+      // case 'auth':
+      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
@@ -598,7 +628,9 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       case 'supplier-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <SuppliersPage />
+            <InventoryProvider>
+              <SuppliersPage />
+            </InventoryProvider>
           </Suspense>
         );
       case 'product-mgmt':
@@ -701,9 +733,21 @@ case 'product-edit':
           </InventoryProvider>
         );
       case 'warehouse-mgmt':
+        if (warehouseDetailId) {
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <WarehouseDetail
+                warehouseId={warehouseDetailId}
+                onBack={() => setWarehouseDetailId(null)}
+              />
+            </Suspense>
+          );
+        }
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <WarehouseList />
+            <WarehouseList
+              onView={(id) => setWarehouseDetailId(id)}
+            />
           </Suspense>
         );
       case 'purchase-order':
@@ -740,9 +784,14 @@ case 'product-edit':
       />
     </Suspense>
   );
+  if (posView === 'history') return (
+  <Suspense fallback={<ModuleLoading />}>
+    <SalesHistoryPage onBack={() => setPosView('pos')} />
+  </Suspense>
+);
   return (
     <Suspense fallback={<ModuleLoading />}>
-      <POSPage onCheckout={() => setPosView('checkout')} />
+      <POSPage onCheckout={() => setPosView('checkout')} onViewHistory={() => setPosView('history')} />
     </Suspense>
   );
 
@@ -767,7 +816,11 @@ case 'product-edit':
       case 'ai-reorder':
         return <AISmartReorderingModule />;
       case 'analytics':
-        return <BusinessAnalyticsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AnalyticsPageLazy />
+          </Suspense>
+        );
       case 'reporting':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -1014,14 +1067,14 @@ case 'product-edit':
         @keyframes badgeBlink { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.8)} }
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); }
+        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
         .notification-wrapper { position: relative; }
-        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
+        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; color: #1e293b; }
         .notification-btn:hover { background: white; transform: scale(1.05); }
         .notification-dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
-        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; }
-        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; color: #1e293b; }
+        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; color: #334155; }
         .notification-item:hover { background: #f8fafc; }
         .branch-hero { background-size: cover; background-position: center; border-radius: 20px; margin-bottom: 24px; overflow: hidden; }
         .branch-hero-content { padding: 32px; display: flex; align-items: center; gap: 24px; color: white; flex-wrap: wrap; }

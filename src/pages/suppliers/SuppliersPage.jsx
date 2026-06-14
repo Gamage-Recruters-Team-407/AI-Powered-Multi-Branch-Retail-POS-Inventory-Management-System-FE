@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useInventory } from '../../context/InventoryContext';
+import StockAlertPanel from '../../components/inventory/StockAlertPanel';
 import {
   getAllSuppliers,
   addSupplier,
@@ -8,7 +10,8 @@ import {
   updateContract,
   addTransaction,
   getProcurementHistory,
-  getDetailedPerformance
+  getDetailedPerformance,
+  updateTransactionStatus
 } from '../../services/supplierApi';
 
 const CATEGORIES = [
@@ -74,6 +77,26 @@ const SuppliersPage = () => {
   const userRole = useMemo(() => normalizeRole(user?.role), [user]);
   const isAdminOrManager = useMemo(() => userRole === 'admin' || userRole === 'manager', [userRole]);
 
+  const { alerts = [], refreshAll } = useInventory();
+
+  const mapProductToCategory = (productName) => {
+    const name = String(productName || '').toLowerCase();
+    if (name.includes('rice') || name.includes('coconut oil') || name.includes('grains')) return 'Grains & Rice';
+    if (name.includes('tea') || name.includes('beverage') || name.includes('coffee')) return 'Beverages';
+    if (name.includes('milk') || name.includes('dairy') || name.includes('cheese') || name.includes('butter')) return 'Dairy Products';
+    if (name.includes('spice') || name.includes('condiment') || name.includes('curry') || name.includes('cardamom') || name.includes('cinnamon')) return 'Spices & Condiments';
+    if (name.includes('pack') || name.includes('carton') || name.includes('bag')) return 'Packaging Materials';
+    if (name.includes('vegetable') || name.includes('fruit') || name.includes('fresh')) return 'Fresh Produce';
+    if (name.includes('meat') || name.includes('fish') || name.includes('seafood') || name.includes('chicken')) return 'Meat & Seafood';
+    return 'Other';
+  };
+
+  useEffect(() => {
+    if (refreshAll) {
+      refreshAll("", false);
+    }
+  }, [refreshAll]);
+
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,6 +113,16 @@ const SuppliersPage = () => {
   const [selectedSupplierDetails, setSelectedSupplierDetails] = useState(null);
   const [procurementHistory, setProcurementHistory] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // Global Alert Restock Modal states
+  const [clickedAlert, setClickedAlert] = useState(null);
+  const [selectedRestockSupplierId, setSelectedRestockSupplierId] = useState('');
+  const [restockFormData, setRestockFormData] = useState({
+    id: '',
+    itemsCount: 50,
+    amount: 5000,
+    status: 'Pending'
+  });
 
   // Form modal state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -505,6 +538,86 @@ const SuppliersPage = () => {
     setIsTransactionModalOpen(true);
   };
 
+  // Quick Restock helper to prepopulate transaction modal
+  const handleQuickRestock = (alert, supplier) => {
+    const reorderLevel = alert.product?.reorderLevel || 50;
+    const currentQty = alert.quantity || 0;
+    const suggestedUnits = Math.max(reorderLevel * 2 - currentQty, 50);
+    const costPrice = alert.product?.costPrice || 100;
+    const computedCost = suggestedUnits * costPrice;
+
+    setTransactionFormData({
+      id: `TXN-${Math.floor(100 + Math.random() * 900)}`,
+      date: new Date().toISOString().substring(0, 10),
+      itemsCount: suggestedUnits,
+      amount: computedCost,
+      status: 'Pending'
+    });
+    setIsTransactionModalOpen(true);
+  };
+
+  // Handle click on global low stock alert item
+  const handleAlertClick = (alert) => {
+    const category = mapProductToCategory(alert.product?.name);
+    // Find active suppliers in this category
+    const matchingSuppliers = suppliers.filter(s => s.category === category && s.status === 'Active');
+    
+    // Auto-select first matching supplier if available
+    if (matchingSuppliers.length > 0) {
+      setSelectedRestockSupplierId(matchingSuppliers[0].id || matchingSuppliers[0]._id);
+    } else {
+      setSelectedRestockSupplierId('');
+    }
+
+    const reorderLevel = alert.product?.reorderLevel || 50;
+    const currentQty = alert.quantity || 0;
+    const suggestedUnits = Math.max(reorderLevel * 2 - currentQty, 50);
+    const costPrice = alert.product?.costPrice || 100;
+    const computedCost = suggestedUnits * costPrice;
+
+    setRestockFormData({
+      id: `TXN-${Math.floor(100 + Math.random() * 900)}`,
+      itemsCount: suggestedUnits,
+      amount: computedCost,
+      status: 'Pending'
+    });
+    setClickedAlert(alert);
+  };
+
+  // Submit global alert restock order
+  const handleRestockSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedRestockSupplierId) {
+      alert("Please select a supplier.");
+      return;
+    }
+    try {
+      const res = await addTransaction(selectedRestockSupplierId, {
+        id: restockFormData.id,
+        date: new Date().toISOString().substring(0, 10),
+        itemsCount: restockFormData.itemsCount,
+        amount: restockFormData.amount,
+        status: restockFormData.status
+      });
+
+      if (res.success) {
+        setClickedAlert(null);
+        if (viewingSupplier && (viewingSupplier.id === selectedRestockSupplierId || viewingSupplier._id === selectedRestockSupplierId)) {
+          loadSupplierDetails(selectedRestockSupplierId);
+        }
+        loadSuppliers();
+        if (refreshAll) {
+          refreshAll("", false);
+        }
+      } else {
+        alert("Error: " + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to place restock order.");
+    }
+  };
+
   // Submit Transaction Log
   const handleTransactionSubmit = async (e) => {
     e.preventDefault();
@@ -521,6 +634,23 @@ const SuppliersPage = () => {
     } catch (err) {
       console.error(err);
       alert("Failed to record manual transaction.");
+    }
+  };
+
+  // Change transaction status from Timeline
+  const handleStatusChange = async (transactionId, newStatus) => {
+    const supplierId = viewingSupplier.id || viewingSupplier._id;
+    try {
+      const res = await updateTransactionStatus(supplierId, transactionId, newStatus);
+      if (res.success) {
+        loadSupplierDetails(supplierId);
+        loadSuppliers();
+      } else {
+        alert("Error: " + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update transaction status.");
     }
   };
 
@@ -571,6 +701,9 @@ const SuppliersPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Stock Alerts Panel */}
+      <StockAlertPanel alerts={alerts} onAlertClick={handleAlertClick} />
 
       {/* Control Panel: Filters, Search, Registration */}
       <div className="controls-panel bg-glass">
@@ -649,79 +782,92 @@ const SuppliersPage = () => {
             </div>
           ) : (
             <div className="suppliers-grid">
-              {sortedSuppliers.map(supplier => (
-                <div
-                  key={supplier.id || supplier._id}
-                  className={`supplier-item-card bg-glass hover-scale ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
-                  onClick={() => {
-                    setViewingSupplier(supplier);
-                    setActiveDetailTab('performance');
-                  }}
-                >
-                  <div className="card-top">
-                    <div className="supplier-icon-placeholder">🏢</div>
-                    <div className="title-area">
-                      <span className="supplier-id">{supplier.id || supplier._id}</span>
-                      <h4 className="supplier-name">{supplier.companyName}</h4>
-                      <span className="category-badge">{supplier.category}</span>
-                    </div>
-                    <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
-                      {supplier.status}
-                    </span>
-                  </div>
-
-                  <div className="card-info">
-                    <div className="info-row">
-                      <span>👤 Contact:</span>
-                      <strong>{supplier.contactPerson}</strong>
-                    </div>
-                    <div className="info-row">
-                      <span>📞 Phone:</span>
-                      <span>{supplier.phone}</span>
-                    </div>
-                    <div className="info-row">
-                      <span>⭐ Rating:</span>
-                      <div className="star-rating">
-                        <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
+              {sortedSuppliers.map(supplier => {
+                const supplierAlerts = alerts.filter(
+                  alert => mapProductToCategory(alert.product?.name) === supplier.category
+                );
+                const hasAlerts = supplierAlerts.length > 0;
+                return (
+                  <div
+                    key={supplier.id || supplier._id}
+                    className={`supplier-item-card bg-glass hover-scale ${hasAlerts ? 'card-has-alerts' : ''} ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
+                    onClick={() => {
+                      setViewingSupplier(supplier);
+                      setActiveDetailTab(hasAlerts ? 'alerts' : 'performance');
+                    }}
+                  >
+                    <div className="card-top">
+                      <div className="supplier-icon-placeholder">🏢</div>
+                      <div className="title-area">
+                        <span className="supplier-id">{supplier.id || supplier._id}</span>
+                        <h4 className="supplier-name">{supplier.companyName}</h4>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span className="category-badge">{supplier.category}</span>
+                          {hasAlerts && (
+                            <span className="alert-badge pulsing-alert">
+                              ⚠️ {supplierAlerts.length} Shortage{supplierAlerts.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="card-mini-metrics">
-                    <div className="mini-stat">
-                      <span className="label">Delivery</span>
-                      <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
-                        {supplier.performance?.onTimeDelivery || 95}%
+                      <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
+                        {supplier.status}
                       </span>
                     </div>
-                    <div className="mini-stat">
-                      <span className="label">Spend</span>
-                      <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
 
-                  {isAdminOrManager && (
-                    <div className="card-actions">
-                      <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
-                        ✏️ Edit
-                      </button>
-                      <button
-                        className="edit-icon-btn delete-btn"
-                        onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
-                        title="Delete Supplier"
-                      >
-                        🗑️ Delete
-                      </button>
-                      <button
-                        className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
-                        onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
-                      >
-                        {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
-                      </button>
+                    <div className="card-info">
+                      <div className="info-row">
+                        <span>👤 Contact:</span>
+                        <strong>{supplier.contactPerson}</strong>
+                      </div>
+                      <div className="info-row">
+                        <span>📞 Phone:</span>
+                        <span>{supplier.phone}</span>
+                      </div>
+                      <div className="info-row">
+                        <span>⭐ Rating:</span>
+                        <div className="star-rating">
+                          <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    <div className="card-mini-metrics">
+                      <div className="mini-stat">
+                        <span className="label">Delivery</span>
+                        <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
+                          {supplier.performance?.onTimeDelivery || 95}%
+                        </span>
+                      </div>
+                      <div className="mini-stat">
+                        <span className="label">Spend</span>
+                        <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {isAdminOrManager && (
+                      <div className="card-actions">
+                        <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
+                          ✏️ Edit
+                        </button>
+                        <button
+                          className="edit-icon-btn delete-btn"
+                          onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
+                          title="Delete Supplier"
+                        >
+                          🗑️ Delete
+                        </button>
+                        <button
+                          className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
+                          onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
+                        >
+                          {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -763,6 +909,21 @@ const SuppliersPage = () => {
                   onClick={() => setActiveDetailTab('history')}
                 >
                   ⏳ Timeline ({procurementHistory?.history?.length || 0})
+                </button>
+                <button
+                  className={`tab-btn ${activeDetailTab === 'alerts' ? 'active' : ''}`}
+                  onClick={() => setActiveDetailTab('alerts')}
+                  style={{ position: 'relative' }}
+                >
+                  ⚠️ Restock Alerts
+                  {(() => {
+                    const count = alerts.filter(
+                      a => mapProductToCategory(a.product?.name) === viewingSupplier.category
+                    ).length;
+                    return count > 0 ? (
+                      <span className="tab-badge-count">{count}</span>
+                    ) : null;
+                  })()}
                 </button>
               </div>
 
@@ -930,9 +1091,34 @@ const SuppliersPage = () => {
                                     </span>
                                   </td>
                                   <td>
-                                    <span className={`status-pill ${tx.status.toLowerCase()}`}>
-                                      {tx.status}
-                                    </span>
+                                    {isAdminOrManager ? (
+                                      <select
+                                        value={tx.status}
+                                        onChange={(e) => handleStatusChange(tx.id, e.target.value)}
+                                        className={`status-pill ${tx.status.toLowerCase()}`}
+                                        style={{
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          outline: 'none',
+                                          padding: '3px 16px 3px 8px',
+                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")',
+                                          backgroundRepeat: 'no-repeat',
+                                          backgroundPosition: 'right 4px center',
+                                          backgroundSize: '8px',
+                                          appearance: 'none',
+                                          WebkitAppearance: 'none',
+                                          MozAppearance: 'none'
+                                        }}
+                                      >
+                                        <option value="Pending" style={{ background: '#ffffff', color: '#1e293b' }}>Pending</option>
+                                        <option value="Delivered" style={{ background: '#ffffff', color: '#1e293b' }}>Delivered</option>
+                                        <option value="Cancelled" style={{ background: '#ffffff', color: '#1e293b' }}>Cancelled</option>
+                                      </select>
+                                    ) : (
+                                      <span className={`status-pill ${tx.status.toLowerCase()}`}>
+                                        {tx.status}
+                                      </span>
+                                    )}
                                   </td>
                                 </tr>
                               ))
@@ -940,6 +1126,74 @@ const SuppliersPage = () => {
                           </tbody>
                         </table>
                       </div>
+                    </div>
+                  )}
+
+                  {activeDetailTab === 'alerts' && (
+                    <div className="alerts-tab-content">
+                      {(() => {
+                        const supplierAlerts = alerts.filter(
+                          alert => mapProductToCategory(alert.product?.name) === viewingSupplier.category
+                        );
+                        if (supplierAlerts.length === 0) {
+                          return (
+                            <div className="empty-state">
+                              <span className="empty-icon">✅</span>
+                              <p className="empty-title">Stock Levels Healthy</p>
+                              <p className="empty-subtitle">All products in the &ldquo;{viewingSupplier.category}&rdquo; category supplied by this vendor are currently above reorder levels.</p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="restock-alerts-container">
+                            <h4 className="section-subtitle" style={{ fontSize: '13px', fontWeight: '700', marginBottom: '16px', color: '#475569' }}>
+                              ⚠️ Stock shortages in &ldquo;{viewingSupplier.category}&rdquo; category:
+                            </h4>
+                            <div className="alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {supplierAlerts.map(alert => (
+                                <div
+                                  key={alert._id}
+                                  className="restock-alert-card bg-glass"
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    background: 'rgba(254, 242, 242, 0.5)'
+                                  }}
+                                >
+                                  <div className="alert-card-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div className="alert-product-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <strong style={{ fontSize: '13px', color: '#0f172a' }}>📦 {alert.product?.name || "Unknown Product"}</strong>
+                                      <span className="branch-label" style={{ fontSize: '10px', background: 'rgba(15, 23, 42, 0.05)', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>📍 {alert.branch?.name || "Global"}</span>
+                                    </div>
+                                    <div className="alert-stock-details" style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                                      <span className="current-stock-label">Current Stock: <strong style={{ color: '#dc2626', fontWeight: '800' }}>{alert.quantity}</strong></span>
+                                      <span className="reorder-label">Reorder Limit: <strong style={{ color: '#1e293b' }}>{alert.product?.reorderLevel || 0}</strong></span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    className="register-btn restock-action-btn"
+                                    onClick={() => handleQuickRestock(alert, viewingSupplier)}
+                                    style={{
+                                      height: '32px',
+                                      padding: '0 12px',
+                                      fontSize: '11px',
+                                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+                                    }}
+                                  >
+                                    ⚡ Quick Restock
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1350,6 +1604,117 @@ const SuppliersPage = () => {
                 </button>
                 <button type="submit" className="submit-btn">
                   Record Supply
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Alert Restock Modal */}
+      {clickedAlert && (
+        <div className="modal-backdrop">
+          <div className="modal-content bg-glass">
+            <div className="modal-header">
+              <h3>⚡ Quick Restock: {clickedAlert.product?.name}</h3>
+              <button className="close-btn" onClick={() => setClickedAlert(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleRestockSubmit}>
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Select Supplier for Category: &ldquo;{mapProductToCategory(clickedAlert.product?.name)}&rdquo;</label>
+                  <select
+                    value={selectedRestockSupplierId}
+                    onChange={e => setSelectedRestockSupplierId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Supplier --</option>
+                    {suppliers
+                      .filter(s => s.status === 'Active')
+                      .map(s => {
+                        const isMatch = s.category === mapProductToCategory(clickedAlert.product?.name);
+                        return (
+                          <option key={s.id || s._id} value={s.id || s._id}>
+                            {s.companyName} {isMatch ? '⭐ (Matches Category)' : `(${s.category})`} (Rating: {s.rating || '5.0'} ★)
+                          </option>
+                        );
+                      })
+                    }
+                  </select>
+                  {suppliers.filter(s => s.status === 'Active').length === 0 && (
+                    <span className="error-text">⚠️ No active suppliers registered in the system.</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Order Reference ID</label>
+                  <input
+                    type="text"
+                    value={restockFormData.id}
+                    onChange={e => setRestockFormData(prev => ({ ...prev, id: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Branch Location</label>
+                  <input
+                    type="text"
+                    value={clickedAlert.branch?.name || "Global"}
+                    disabled
+                    style={{ background: 'rgba(0, 0, 0, 0.05)', color: '#64748b' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Order Quantity (units)</label>
+                  <input
+                    type="number"
+                    value={restockFormData.itemsCount}
+                    onChange={e => setRestockFormData(prev => ({ ...prev, itemsCount: parseInt(e.target.value) || 0 }))}
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Estimated Cost (Rs.)</label>
+                  <input
+                    type="number"
+                    value={restockFormData.amount}
+                    onChange={e => setRestockFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Order Status</label>
+                  <select
+                    value={restockFormData.status}
+                    onChange={e => setRestockFormData(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="Pending">Pending (Not received yet)</option>
+                    <option value="Delivered">Delivered (Restock immediately)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="cancel-btn" onClick={() => setClickedAlert(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={!selectedRestockSupplierId}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                  }}
+                >
+                  ⚡ Record Restock Order
                 </button>
               </div>
             </form>
@@ -2170,6 +2535,52 @@ const SuppliersPage = () => {
         .empty-icon { font-size: 40px; margin-bottom: 12px; }
         .empty-title { font-size: 14px; font-weight: 700; color: #334155; }
         .empty-subtitle { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+
+        /* Custom alerts styling */
+        .alert-badge {
+          font-size: 10px;
+          background: rgba(239, 68, 68, 0.08);
+          color: #ef4444;
+          padding: 2px 6px;
+          border-radius: 6px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          border: 1px solid rgba(239, 68, 68, 0.15);
+        }
+        .pulsing-alert {
+          animation: pulse-border 2s infinite ease-in-out;
+        }
+        @keyframes pulse-border {
+          0%, 100% {
+            background-color: rgba(239, 68, 68, 0.08);
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2);
+          }
+          50% {
+            background-color: rgba(239, 68, 68, 0.18);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+          }
+        }
+        .card-has-alerts {
+          border-left: 4px solid #ef4444 !important;
+        }
+        .tab-badge-count {
+          position: absolute;
+          top: -6px;
+          right: -12px;
+          background: #ef4444;
+          color: white;
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          font-weight: 800;
+          box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+        }
       `}</style>
     </div>
   );
