@@ -151,6 +151,17 @@ export async function fetchInsights(params = {}) {
   return { data: data.data, error: null };
 }
 
+/**
+ * Fetch all branches from the Branch collection (regardless of sales activity).
+ * Used to populate the branch filter dropdown in AnalyticsPage.
+ */
+export async function fetchAllBranches() {
+  const { data, error } = await apiFetch(`/api/branches`);
+  if (error) return { data: [], error };
+  // /api/branches returns a plain array, not { success, data }
+  return { data: Array.isArray(data) ? data : [], error: null };
+}
+
 export async function fetchChartData(params = {}) {
   const qs = new URLSearchParams(
     Object.entries(params).filter(([, v]) => v),

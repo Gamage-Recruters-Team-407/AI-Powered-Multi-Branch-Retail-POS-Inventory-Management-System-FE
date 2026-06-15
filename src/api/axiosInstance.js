@@ -1,5 +1,4 @@
-const apiHost = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const isAuthPage = () => {
   const path = window.location.pathname;
@@ -18,7 +17,7 @@ const request = async (method, url, body) => {
   const options = { method, headers };
 
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   if (body !== undefined) {
@@ -26,7 +25,11 @@ const request = async (method, url, body) => {
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${baseURL}${url}`, options);
+  // Make sure url starts with / and doesn't have double /api
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  const fullUrl = `${API_BASE_URL}${cleanUrl}`;
+
+  const response = await fetch(fullUrl, options);
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json")
     ? await response.json()

@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useCallback } from "react";
-import { BarChart3, RefreshCw, AlertCircle, Filter } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { BarChart3, RefreshCw, AlertCircle, Filter, Clock } from "lucide-react";
 
 import AnalyticsKPICards from "../../components/analytics/AnalyticsKPICards";
 import SalesTrendsChart from "../../components/analytics/SalesTrendsChart";
@@ -25,6 +25,7 @@ import {
   fetchCategoryAnalysis,
   fetchCustomerInsights,
   fetchInsights,
+  fetchAllBranches,
 } from "../../services/analyticsService";
 
 function AnalyticsPage() {
@@ -48,18 +49,38 @@ function AnalyticsPage() {
     insights: null,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [errors, setErrors] = useState([]);
   const [lastRefreshed, setLastRefreshed] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [branchList, setBranchList] = useState([]);
+  // Debounce ref: filter changes wait 600ms before triggering a fetch
+  const debounceTimer = useRef(null);
+  const pendingFilters = useRef(filters);
 
   const hasActiveFilters =
     filters.fromDate || filters.toDate || filters.branchId;
 
+  // Keep pendingFilters in sync so the debounced callback always sees latest
+  pendingFilters.current = filters;
+
+  // getData: extract payload from a settled promise result
+  const getData = (res) =>
+    res.status === "fulfilled" ? res.value.data : null;
+
+  // getError: capture both network rejections AND HTTP-level errors returned
+  // as fulfilled { data: null, error: "..." } from the service layer
+  const getError = (res) => {
+    if (res.status === "rejected") return res.reason?.message;
+    // fulfilled but the service returned an error string
+    if (res.value?.error) return res.value.error;
+    return null;
+  };
+
   const loadAll = useCallback(
     async (filterObj) => {
       setLoading(true);
-      setError(null);
-      const f = filterObj || filters;
+      setErrors([]);
+      const f = filterObj || pendingFilters.current;
       try {
         const params = {};
         if (f.fromDate) params.fromDate = f.fromDate;
@@ -92,12 +113,7 @@ function AnalyticsPage() {
           fetchInsights(params),
         ]);
 
-        const getData = (res) =>
-          res.status === "fulfilled" ? res.value.data : null;
-        const getError = (res) =>
-          res.status === "rejected" ? res.reason?.message : res.value?.error;
-
-        const errors = [
+        const errs = [
           kpiRes,
           salesRes,
           profitRes,
@@ -113,9 +129,8 @@ function AnalyticsPage() {
           .map(getError)
           .filter(Boolean);
 
-        if (errors.length > 0) {
-          setError(errors[0]);
-        }
+        // Show partial errors as a warning banner but DO NOT hide the data
+        setErrors(errs);
 
         setData({
           kpi: getData(kpiRes),
@@ -138,58 +153,135 @@ function AnalyticsPage() {
           }),
         );
       } catch (err) {
-        setError(err.message || "Failed to load analytics data");
+        setErrors([err.message || "Failed to load analytics data"]);
       } finally {
         setLoading(false);
       }
     },
-    [filters],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
+  // Load ALL branches on mount for the branch filter dropdown
+  // (fetchBranchPerformance only returns branches that have sales data,
+  //  so we use fetchAllBranches to show every branch including ones with no revenue)
+  useEffect(() => {
+    fetchAllBranches().then((res) => {
+      if (res.data?.length) setBranchList(res.data);
+    });
+  }, []);
+
+  // Initial load on mount
   useEffect(() => {
     loadAll();
-  }, [loadAll]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced re-fetch whenever filters change (600 ms)
+  useEffect(() => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      loadAll(pendingFilters.current);
+    }, 600);
+    return () => clearTimeout(debounceTimer.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const handleResetFilters = () =>
     setFilters({ fromDate: "", toDate: "", branchId: "" });
 
+  // Dismiss individual error entries
+  const dismissError = (idx) =>
+    setErrors((prev) => prev.filter((_, i) => i !== idx));
+
   const TABS = [
     { key: "overview", label: "Overview" },
-    { key: "sales", label: "Sales & Profit" },
-    { key: "branches", label: "Branch Performance" },
     { key: "products", label: "Products & Categories" },
-    { key: "customers", label: "Customer Insights" },
     { key: "drilldown", label: "Drill-Down" },
   ];
 
+  const glassCard = {
+    background: "rgba(255,255,255,0.88)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    borderRadius: 20,
+    padding: 20,
+    boxShadow: "0 4px 24px rgba(15,23,42,0.07)",
+    border: "1px solid rgba(148,163,184,0.18)",
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 shadow-md shadow-violet-200">
-                <BarChart3 size={20} className="text-white" />
+    <div style={{ animation: "fadeIn 0.4s ease" }}>
+      {/* Header card – glassmorphism to match the dashboard sky background */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid rgba(148,163,184,0.25)",
+          borderRadius: "0 0 20px 20px",
+          boxShadow: "0 4px 24px rgba(15,23,42,0.08)",
+        }}
+      >
+        <div style={{ maxWidth: "1536px", margin: "0 auto", padding: "16px 28px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 6px 18px rgba(124,58,237,0.35)",
+                }}
+              >
+                <BarChart3 size={22} color="#fff" />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-slate-900">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>
                     Business Analytics
                   </h1>
-                  <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                  <span
+                    style={{
+                      background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                    }}
+                  >
                     Analytics Module
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
                   Advanced analytics, KPIs, and drill-down analysis
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {lastRefreshed && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#94a3b8" }}>
+                  <Clock size={11} />
+                  Updated {lastRefreshed}
+                </span>
+              )}
               {hasActiveFilters && (
                 <button
                   onClick={handleResetFilters}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "rgba(255,255,255,0.9)", border: "1.5px solid #e2e8f0",
+                    borderRadius: 12, padding: "7px 14px", fontSize: 12, fontWeight: 600,
+                    color: "#475569", cursor: "pointer", transition: "all 0.2s",
+                  }}
                 >
                   Reset Filters
                 </button>
@@ -197,27 +289,41 @@ function AnalyticsPage() {
               <button
                 onClick={() => loadAll()}
                 disabled={loading}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 active:scale-95 disabled:opacity-50"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                  border: "none", borderRadius: 12, padding: "8px 18px",
+                  fontSize: 13, fontWeight: 700, color: "#fff",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1,
+                  boxShadow: "0 4px 14px rgba(124,58,237,0.3)",
+                  transition: "all 0.2s",
+                }}
               >
-                <RefreshCw
-                  size={14}
-                  className={loading ? "animate-spin" : ""}
-                />{" "}
+                <RefreshCw size={13} style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }} />
                 Refresh
               </button>
             </div>
           </div>
 
-          <div className="mt-3 flex gap-1 border-b border-slate-100">
+          {/* Tab bar */}
+          <div style={{ display: "flex", gap: 4, marginTop: 14, borderBottom: "1px solid rgba(148,163,184,0.2)" }}>
             {TABS.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition ${
-                  activeTab === t.key
-                    ? "bg-violet-50 text-violet-700 border-b-2 border-violet-600"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                }`}
+                style={{
+                  padding: "9px 18px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: "10px 10px 0 0",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  background: activeTab === t.key ? "rgba(124,58,237,0.1)" : "transparent",
+                  color: activeTab === t.key ? "#7c3aed" : "#64748b",
+                  borderBottom: activeTab === t.key ? "2.5px solid #7c3aed" : "2.5px solid transparent",
+                }}
               >
                 {t.label}
               </button>
@@ -226,111 +332,125 @@ function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-screen-2xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Filter size={14} className="text-slate-400" />
+      {/* Body */}
+      <div style={{ maxWidth: "1536px", margin: "0 auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Filter bar */}
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+            background: "rgba(255,255,255,0.88)", backdropFilter: "blur(10px)",
+            borderRadius: 16, padding: "14px 20px",
+            boxShadow: "0 2px 12px rgba(15,23,42,0.06)",
+            border: "1px solid rgba(148,163,184,0.2)",
+          }}
+        >
+          <Filter size={14} color="#94a3b8" />
           <input
             type="date"
             value={filters.fromDate}
-            onChange={(e) =>
-              setFilters((p) => ({ ...p, fromDate: e.target.value }))
-            }
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500"
+            onChange={(e) => setFilters((p) => ({ ...p, fromDate: e.target.value }))}
+            style={{
+              border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
+              fontSize: 12, outline: "none", background: "white",
+            }}
           />
-          <span className="text-xs text-slate-400">to</span>
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>to</span>
           <input
             type="date"
             value={filters.toDate}
-            onChange={(e) =>
-              setFilters((p) => ({ ...p, toDate: e.target.value }))
-            }
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500"
+            onChange={(e) => setFilters((p) => ({ ...p, toDate: e.target.value }))}
+            style={{
+              border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
+              fontSize: 12, outline: "none", background: "white",
+            }}
           />
+          <select
+            value={filters.branchId}
+            onChange={(e) => setFilters((p) => ({ ...p, branchId: e.target.value }))}
+            style={{
+              border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
+              fontSize: 12, outline: "none", background: "white", cursor: "pointer",
+            }}
+          >
+            <option value="">All Branches</option>
+            {branchList.map((b) => (
+              <option key={String(b._id)} value={String(b._id)}>
+                {b.name || String(b._id)}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {error && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 flex gap-3 items-start">
-            <AlertCircle size={16} className="mt-0.5 text-rose-500 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-rose-800">
-                There is some error fetching data
-              </p>
-              <p className="text-xs text-rose-600 mt-0.5">{error}</p>
-            </div>
+        {/* Error banners */}
+        {errors.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {errors.map((errMsg, idx) => (
+              <div
+                key={idx}
+                style={{
+                  borderRadius: 16, border: "1px solid #fcd34d",
+                  background: "rgba(254,243,199,0.95)", padding: "12px 20px",
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                }}
+              >
+                <AlertCircle size={15} style={{ marginTop: 2, color: "#f59e0b", flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#92400e", margin: 0 }}>
+                    Partial data fetch warning
+                  </p>
+                  <p style={{ fontSize: 12, color: "#b45309", margin: "2px 0 0" }}>{errMsg}</p>
+                </div>
+                <button
+                  onClick={() => dismissError(idx)}
+                  style={{ background: "none", border: "none", color: "#d97706", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
-        {!error && activeTab === "overview" && (
+        {/* Tab content – wrapped in glassmorphic cards */}
+        {activeTab === "overview" && (
           <>
-            <AnalyticsKPICards data={data.kpi} loading={loading} />
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SalesTrendsChart data={data.sales} loading={loading} />
-              <ProfitTrendsChart data={data.profit} loading={loading} />
+            <div style={glassCard}>
+              <AnalyticsKPICards data={data.kpi} loading={loading} />
             </div>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <BranchPerformancePanel
-                  data={data.branchPerf}
-                  loading={loading}
-                />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 20 }}>
+              <div style={glassCard}><SalesTrendsChart params={filters} /></div>
+              <div style={glassCard}><ProfitTrendsChart params={filters} /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+              <div style={{ ...glassCard, gridColumn: "span 2" }}>
+                <BranchPerformancePanel data={data.branchPerf} loading={loading} />
               </div>
-              <AutomatedInsights data={data.insights} loading={loading} />
-            </div>
-          </>
-        )}
-
-        {!error && activeTab === "sales" && (
-          <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SalesTrendsChart data={data.sales} loading={loading} />
-              <ProfitTrendsChart data={data.profit} loading={loading} />
-            </div>
-            <RevenueBreakdownChart data={data.revenueBreak} loading={loading} />
-          </>
-        )}
-
-        {!error && activeTab === "branches" && (
-          <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <BranchPerformancePanel
-                  data={data.branchPerf}
-                  loading={loading}
-                />
+              <div style={glassCard}>
+                <AutomatedInsights data={data.insights} loading={loading} />
               </div>
-              <BranchRankingsTable data={data.branchRank} loading={loading} />
             </div>
           </>
         )}
 
-        {!error && activeTab === "products" && (
+        {activeTab === "products" && (
           <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <CategoryAnalysisChart data={data.categories} loading={loading} />
-              <RevenueBreakdownChart
-                data={data.revenueBreak}
-                loading={loading}
-              />
-            </div>
-            <ProductPerformanceTable data={data.products} loading={loading} />
+            <div style={glassCard}><CategoryAnalysisChart data={data.categories} loading={loading} /></div>
+            <div style={glassCard}><ProductPerformanceTable data={data.products} loading={loading} /></div>
           </>
         )}
 
-        {!error && activeTab === "customers" && (
-          <>
-            <CustomerInsightsPanel data={data.customers} loading={loading} />
-            <AutomatedInsights data={data.insights} loading={loading} />
-          </>
-        )}
-
-        {!error && activeTab === "drilldown" && (
-          <DrillDownAnalysis
-            data={data.drillDown}
-            loading={loading}
-            params={filters}
-          />
+        {activeTab === "drilldown" && (
+          <div style={glassCard}><DrillDownAnalysis params={filters} /></div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 900px) {
+          .analytics-three-col { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

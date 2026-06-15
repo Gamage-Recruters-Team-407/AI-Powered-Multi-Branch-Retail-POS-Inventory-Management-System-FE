@@ -20,6 +20,66 @@ import api from '../../api/axiosInstance'
 
 const statuses = ['All', 'Pending', 'Approved', 'Received', 'Rejected']
 
+const demoReorderRecommendations = [
+  {
+    id: 'demo-rec-001',
+    item: 'Parle-G Value Pack',
+    branch: 'Colombo Central',
+    stock: 4,
+    reorder: 36,
+    confidence: '93%',
+    supplier: 'BlueLine Wholesale',
+    urgency: 'CRITICAL',
+  },
+  {
+    id: 'demo-rec-002',
+    item: 'Anchor Full Cream Milk Powder 400g',
+    branch: 'Kandy City',
+    stock: 6,
+    reorder: 28,
+    confidence: '89%',
+    supplier: 'Prime Foods Lanka',
+    urgency: 'HIGH',
+  },
+  {
+    id: 'demo-rec-003',
+    item: 'Signal Herbal Toothpaste',
+    branch: 'Galle Fort',
+    stock: 8,
+    reorder: 24,
+    confidence: '84%',
+    supplier: 'Metro Retail Supply',
+    urgency: 'HIGH',
+  },
+]
+
+const demoSupplierScorecards = [
+  {
+    id: 'demo-supplier-001',
+    name: 'BlueLine Wholesale',
+    score: 96,
+    metric: 'On-time delivery',
+    open: 18450,
+    purchaseOrders: 8,
+  },
+  {
+    id: 'demo-supplier-002',
+    name: 'Prime Foods Lanka',
+    score: 92,
+    metric: 'Quality score',
+    open: 7360,
+    purchaseOrders: 5,
+  },
+  {
+    id: 'demo-supplier-003',
+    name: 'NorthStar Distributors',
+    score: 88,
+    metric: 'Supplier rating',
+    open: 9780,
+    purchaseOrders: 4,
+  },
+]
+
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
 const buttonBase = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border-0 px-4 font-extrabold transition hover:-translate-y-0.5'
@@ -249,9 +309,11 @@ function PurchaseOrdersPage() {
           })
           .slice(0, 3),
       )
+      setApiMessage('Connected to live reorder suggestions and supplier scorecards')
     } catch {
-      setReorderRecommendations([])
-      setSupplierScorecards([])
+      setReorderRecommendations(demoReorderRecommendations)
+      setSupplierScorecards(demoSupplierScorecards)
+      setApiMessage('Using polished demo insights until secured MongoDB endpoints are available')
     }
   }, [])
 

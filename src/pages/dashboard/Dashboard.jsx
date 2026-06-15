@@ -40,6 +40,7 @@ const UserListPage = lazy(() => import("../users/UserListPage"));
 const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
 
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
+const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -91,8 +92,8 @@ const DATE_PRESETS = [
 const MODULE_NAV_ITEMS = [
   { id: 'dashboard',     label: 'Dashboard & Business Overview',    icon: '📊', page: 1, isMain: true,
     roles: ['admin','manager','cashier','user'] },
-  { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
-    roles: ['admin'] },
+  // { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
+  //   roles: ['admin'] },
   { id: 'user-mgmt',     label: 'User Management',                  icon: '👥', page: 1,
     roles: ['admin'] },
   { id: 'branch-mgmt',   label: 'Branch Management',                icon: '🏢', page: 1,
@@ -586,8 +587,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
           </>
         );
 
-      case 'auth':
-        return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
+      // case 'auth':
+      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
@@ -815,7 +816,11 @@ case 'product-edit':
       case 'ai-reorder':
         return <AISmartReorderingModule />;
       case 'analytics':
-        return <BusinessAnalyticsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AnalyticsPageLazy />
+          </Suspense>
+        );
       case 'reporting':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -1062,14 +1067,14 @@ case 'product-edit':
         @keyframes badgeBlink { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.8)} }
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); }
+        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
         .notification-wrapper { position: relative; }
-        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
+        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; color: #1e293b; }
         .notification-btn:hover { background: white; transform: scale(1.05); }
         .notification-dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
-        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; }
-        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; color: #1e293b; }
+        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; color: #334155; }
         .notification-item:hover { background: #f8fafc; }
         .branch-hero { background-size: cover; background-position: center; border-radius: 20px; margin-bottom: 24px; overflow: hidden; }
         .branch-hero-content { padding: 32px; display: flex; align-items: center; gap: 24px; color: white; flex-wrap: wrap; }

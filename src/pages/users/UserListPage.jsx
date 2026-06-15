@@ -26,7 +26,7 @@ export default function UserListPage() {
   const handleSearch = async (e) => {
     const q = e.target.value; setSearch(q);
     if (!q.trim()) { fetchUsers(); return; }
-    try { const res = await searchUsers(q); setUsers(res.data.data || []); } catch { fetchUsers(); }
+   try { const res = await searchUsers(q); setUsers(res.data.data || res.data || []); } catch (err) { console.error("Search error:", err); fetchUsers(); }
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
@@ -138,9 +138,9 @@ export default function UserListPage() {
                     </span>
                   </td>
                   <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.status==="active"?"#f0fdf4":"#f8fafc", color:user.status==="active"?"#16a34a":"#94a3b8" }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.status==="active"?"#16a34a":"#cbd5e1" }}></span>
-                      {user.status || "active"}
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.isActive!==false?"#f0fdf4":"#f8fafc", color:user.isActive!==false?"#16a34a":"#94a3b8" }}>
+                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1" }}></span>
+                      {user.isActive!==false?"active":"inactive"}  
                     </span>
                   </td>
                   <td style={{ padding:"16px 20px" }}>

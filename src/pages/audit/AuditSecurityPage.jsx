@@ -14,6 +14,7 @@ import {
   generateAuditReport,
   getAuditReportHistory,
   revokeSession,
+  exportAuditLogs,
 } from '../../services/auditApi';
 import toast from 'react-hot-toast';
 
@@ -42,11 +43,12 @@ const AuditSecurityPage = () => {
   const [loginLoading, setLoginLoading]   = useState(false);
 
   // Security Events
-  const [secEvents, setSecEvents]         = useState(null); // 💡 Fix: මුලින්ම null තියන්න (loading සහ empty වෙන් කරගන්න)
+  const [secEvents, setSecEvents]         = useState([]);
   const [secLoading, setSecLoading]       = useState(false);
 
   // Reports
   const [reportHistory, setReportHistory] = useState([]);
+  const [reportLoading, setReportLoading] = useState(false);
 
   // ── Load Stats ─────────────────────────────────────────────────────────────
   const loadStats = useCallback(async () => {
@@ -55,17 +57,18 @@ const AuditSecurityPage = () => {
       const res = await getAuditStats();
       setStats(res.data);
     } catch (err) {
+      console.error('Stats load error:', err);
       setStats({
-        totalEvents: 12847,
-        loginAttempts: 3241,
-        failedLogins: 87,
-        securityAlerts: 6,
-        unresolvedAlerts: 4,
-        activeSessions: 14,
-        uniqueUsers: 9,
-        eventsTrend: 12,
-        loginTrend: -3,
-        alertsTrend: 8,
+        totalEvents: 0,
+        loginAttempts: 0,
+        failedLogins: 0,
+        securityAlerts: 0,
+        unresolvedAlerts: 0,
+        activeSessions: 0,
+        uniqueUsers: 0,
+        eventsTrend: 0,
+        loginTrend: 0,
+        alertsTrend: 0,
       });
     } finally {
       setStatsLoading(false);
@@ -77,9 +80,10 @@ const AuditSecurityPage = () => {
     setLogsLoading(true);
     try {
       const res = await getAuditLogs({ ...filters, page, limit: logsPagination.limit });
-      setLogs(res.data?.logs || res.data || []);
-      if (res.data?.pagination) setLogsPagination(res.data.pagination);
-    } catch {
+      setLogs(res.data || []);
+      if (res.pagination) setLogsPagination(res.pagination);
+    } catch (err) {
+      console.error('Logs load error:', err);
       setLogs([]);
     } finally {
       setLogsLoading(false);
@@ -91,8 +95,9 @@ const AuditSecurityPage = () => {
     setLoginLoading(true);
     try {
       const res = await getLoginHistory({ page: 1, limit: 30 });
-      setLoginHistory(res.data?.history || res.data || []);
-    } catch {
+      setLoginHistory(res.data || []);
+    } catch (err) {
+      console.error('Login history error:', err);
       setLoginHistory([]);
     } finally {
       setLoginLoading(false);
@@ -104,11 +109,9 @@ const AuditSecurityPage = () => {
     setSecLoading(true);
     try {
       const res = await getSecurityEvents({ page: 1, limit: 50 });
-      // 💡 Response එක ඇතුලේ .data හෝ .events තියෙනවා නම් ඒක Extract කරලා ගන්නවා
-      const rawData = res.data?.events || res.data || res.events || [];
-      setSecEvents(rawData);
+      setSecEvents(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Security events error:', err);
       setSecEvents([]);
     } finally {
       setSecLoading(false);
@@ -117,11 +120,15 @@ const AuditSecurityPage = () => {
 
   // ── Load Report History ────────────────────────────────────────────────────
   const loadReportHistory = useCallback(async () => {
+    setReportLoading(true);
     try {
       const res = await getAuditReportHistory();
-      setReportHistory(res.data?.reports || res.data || []);
-    } catch {
+      setReportHistory(res.data || []);
+    } catch (err) {
+      console.error('Report history error:', err);
       setReportHistory([]);
+    } finally {
+      setReportLoading(false);
     }
   }, []);
 
@@ -133,7 +140,7 @@ const AuditSecurityPage = () => {
     if (activeTab === 'login') loadLoginHistory();
     if (activeTab === 'security') loadSecEvents();
     if (activeTab === 'reports') loadReportHistory();
-  }, [activeTab]);
+  }, [activeTab, loadLogs, loadLoginHistory, loadSecEvents, loadReportHistory]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSearch = () => loadLogs(1);
@@ -149,7 +156,7 @@ const AuditSecurityPage = () => {
       toast.success('Security event resolved');
       loadSecEvents();
       loadStats();
-    } catch {
+    } catch (err) {
       toast.error('Failed to resolve event');
     }
   };
@@ -159,7 +166,7 @@ const AuditSecurityPage = () => {
       await revokeSession(sessionId);
       toast.success('Session revoked');
       loadLoginHistory();
-    } catch {
+    } catch (err) {
       toast.error('Failed to revoke session');
     }
   };
@@ -169,13 +176,26 @@ const AuditSecurityPage = () => {
       await generateAuditReport(payload);
       toast.success('Report generated successfully');
       loadReportHistory();
-    } catch {
+    } catch (err) {
       toast.error('Failed to generate report');
     }
   };
 
-  const handleExportLogs = () => {
-    toast.success('Preparing export…');
+  const handleExportLogs = async () => {
+    try {
+      const response = await exportAuditLogs({ format: 'csv' });
+      // Handle file download
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString()}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export started');
+    } catch (err) {
+      toast.error('Failed to export logs');
+    }
   };
 
   return (
@@ -264,7 +284,7 @@ const AuditSecurityPage = () => {
             <SecurityReportGenerator
               onGenerate={handleGenerateReport}
               reportHistory={reportHistory}
-              loading={false}
+              loading={reportLoading}
             />
           </div>
         )}
