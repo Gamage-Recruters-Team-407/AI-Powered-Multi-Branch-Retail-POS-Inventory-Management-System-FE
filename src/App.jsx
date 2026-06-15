@@ -15,7 +15,7 @@ import { CustomerProvider } from "./context/CustomerContext";
 // Components
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import DashboardLayout from "./layouts/DashboardLayout";
+// import DashboardLayout from "./layouts/DashboardLayout";
 
 // Auth Pages
 import Login from "./pages/auth/Login";
@@ -68,8 +68,8 @@ import "./App.css";
 
 // Placeholder pages
 const AdminPanel = () => <h1>🔐 Admin Panel</h1>;
-const WarehouseList = () => <h1>Warehouse List</h1>;
-const WarehouseDetail = () => <h1>Warehouse Detail</h1>;
+// const WarehouseList = () => <h1>Warehouse List</h1>;
+// const WarehouseDetail = () => <h1>Warehouse Detail</h1>;
 
 function App() {
   const [returnState, setReturnState] = useState({
