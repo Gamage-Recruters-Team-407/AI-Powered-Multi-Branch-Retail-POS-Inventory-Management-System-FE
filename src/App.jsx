@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-
+import DashboardLayout from "./layouts/DashboardLayout";
 // Contexts
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
@@ -65,6 +65,8 @@ import "./App.css";
 
 // Placeholder pages
 const AdminPanel = () => <h1>🔐 Admin Panel</h1>;
+const WarehouseList = () => <h1>Warehouse List</h1>;
+const WarehouseDetail = () => <h1>Warehouse Detail</h1>;
 
 function App() {
   const [returnState, setReturnState] = useState({
