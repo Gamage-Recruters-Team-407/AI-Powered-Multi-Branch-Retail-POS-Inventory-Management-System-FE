@@ -6,10 +6,17 @@ import BranchPerformance from '../../components/dashboard/BranchPerformance';
 import InventoryStatus from '../../components/dashboard/InventoryStatus';
 import TopProducts from '../../components/dashboard/TopProducts';
 import LiveFeed from '../../components/dashboard/LiveFeed';
+import SmartRecommendations from '../../components/dashboard/SmartRecommendations';
+import PersonalizedRecommendations from '../../components/dashboard/PersonalizedRecommendations';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { socketService } from '../../services/socketService';
+const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
+const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
 import { useNavigate } from 'react-router-dom';
+import Chatbot from '../../components/ai/Chatbot/Chatbot';
+import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
+import NotificationsModule from '../../components/dashboard/NotificationsModule';
 
 
 const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
@@ -20,7 +27,6 @@ const PurchaseOrdersPage = lazy(() => import('../purchase-orders/PurchaseOrdersP
 const CustomerListPage = lazy(() => import('../customers/CustomerListPage'));
 const ProductListPage = lazy(() => import('../products/ProductListPage'));
 const CategoryManagementPage = lazy(() => import('../products/CategoryManagementPage'));
-const UserListPage = lazy(() => import('../users/UserListPage'));
 const AddProductPage = lazy(() => import('../products/AddProductPage'));
 const EditProductPage = lazy(() => import('../products/EditProductPage'));
 const ProductDetailsPage = lazy(() => import('../products/ProductDetailsPage'));
@@ -29,7 +35,12 @@ const POSPage = lazy(() => import('../pos/POSPage'));
 const CheckoutPage = lazy(() => import('../pos/CheckoutPage'));
 const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
+const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
+const UserListPage = lazy(() => import("../users/UserListPage")); 
+const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
 
+const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
+const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -78,30 +89,51 @@ const DATE_PRESETS = [
   { label: 'Custom', value: 'custom', icon: '⚙️' },
 ];
 
-// 22 Modules exactly as per your image
 const MODULE_NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard & Business Overview', icon: '📊', page: 1, isMain: true },
-  { id: 'auth', label: 'Authentication & Authorization', icon: '🔐', page: 1 },
-  { id: 'user-mgmt', label: 'User Management', icon: '👥', page: 1 },
-  { id: 'branch-mgmt', label: 'Branch Management', icon: '🏢', page: 1 },
-  { id: 'employee-mgmt', label: 'Employee Management', icon: '👔', page: 1 },
-  { id: 'customer-mgmt', label: 'Customer Management', icon: '👤', page: 2 },
-  { id: 'supplier-mgmt', label: 'Supplier Management', icon: '🚚', page: 2 },
-  { id: 'product-mgmt', label: 'Product Management', icon: '📦', page: 2 },
-  { id: 'inventory-mgmt', label: 'Inventory Management', icon: '📊', page: 2 },
-  { id: 'warehouse-mgmt', label: 'Warehouse Management', icon: '🏭', page: 2 },
-  { id: 'purchase-order', label: 'Purchase Order Management', icon: '📋', page: 2 },
-  { id: 'pos-sales', label: 'POS Sales & Billing', icon: '🛒', page: 3 },
-  { id: 'returns-refund', label: 'Returns & Refund Management', icon: '🔄', page: 3 },
-  { id: 'stock-transfer', label: 'Stock Transfer Management', icon: '🚛', page: 3 },
-  { id: 'promotion', label: 'Promotion & Discount Management', icon: '🏷️', page: 3 },
-  { id: 'ai-forecast', label: 'AI Demand Forecasting', icon: '🤖', page: 3 },
-  { id: 'ai-reorder', label: 'AI Smart Reordering', icon: '📈', page: 3 },
-  { id: 'analytics', label: 'Business Analytics', icon: '📉', page: 3 },
-  { id: 'reporting', label: 'Reporting Management', icon: '📄', page: 4 },
-  { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔', page: 4 },
-  { id: 'audit-logs', label: 'Audit Logs & Security', icon: '🛡️', page: 4 },
-  { id: 'ai-assistant', label: 'AI Retail Assistant & Recommendation', icon: '🧠', page: 4 },
+  { id: 'dashboard',     label: 'Dashboard & Business Overview',    icon: '📊', page: 1, isMain: true,
+    roles: ['admin','manager','cashier','user'] },
+  // { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
+  //   roles: ['admin'] },
+  { id: 'user-mgmt',     label: 'User Management',                  icon: '👥', page: 1,
+    roles: ['admin'] },
+  { id: 'branch-mgmt',   label: 'Branch Management',                icon: '🏢', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'employee-mgmt', label: 'Employee Management',              icon: '👔', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'customer-mgmt', label: 'Customer Management',              icon: '👤', page: 2,
+    roles: ['admin','manager','cashier'] },
+  { id: 'supplier-mgmt', label: 'Supplier Management',              icon: '🚚', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'product-mgmt',  label: 'Product Management',               icon: '📦', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'inventory-mgmt',label: 'Inventory Management',             icon: '📊', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'warehouse-mgmt',label: 'Warehouse Management',             icon: '🏭', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'purchase-order',label: 'Purchase Order Management',        icon: '📋', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'pos-sales',     label: 'POS Sales & Billing',              icon: '🛒', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'returns-refund',label: 'Returns & Refund Management',      icon: '🔄', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'stock-transfer',label: 'Stock Transfer Management',        icon: '🚛', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'promotion',     label: 'Promotion & Discount Management',  icon: '🏷️', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-forecast',   label: 'AI Demand Forecasting',            icon: '🤖', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-reorder',    label: 'AI Smart Reordering',              icon: '📈', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'analytics',     label: 'Business Analytics',               icon: '📉', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'reporting',     label: 'Reporting Management',             icon: '📄', page: 4,
+    roles: ['admin'] },
+  { id: 'notifications', label: 'Notifications & Alerts',           icon: '🔔', page: 4,
+    roles: ['admin','manager','cashier'] },
+  { id: 'audit-logs',    label: 'Audit Logs & Security',            icon: '🛡️', page: 4,
+    roles: ['admin'] },
+  { id: 'ai-intelligence',label: 'AI Intelligence',                 icon: '🧠', page: 5, isAI: true,
+    roles: ['admin','manager'] },
 ];
 
 const _getDateRange = (preset) => {
@@ -124,10 +156,10 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  const filteredNavItems = MODULE_NAV_ITEMS.filter(item => {
-    if (item.id === 'reporting' && role !== 'admin') return false;
-    return true;
-  });
+  // ✅ අලුත් — roles array check
+  const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
+    item.roles.includes(role)
+  );
 
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
@@ -142,12 +174,16 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [navExpanded, setNavExpanded] = useState(true);
-  const [activeModule, setActiveModule] = useState('dashboard');
-  const [visibleModule, setVisibleModule] = useState('dashboard');
+  const [warehouseDetailId, setWarehouseDetailId] = useState(null);
+  const [activeModule, setActiveModule] = useState(() => {
+    return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
+  });
+  const [visibleModule, setVisibleModule] = useState(() => {
+    return sessionStorage.getItem('dashboard_visibleModule') || 'dashboard';
+  });
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [posView, setPosView] = useState('pos');
   const [lastSale, setLastSale] = useState(null);
-
   // Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -273,7 +309,14 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setActiveModule(moduleId);
     }
 
+    // Reset warehouse detail when navigating away or back to list
+    if (moduleId === 'warehouse-mgmt') {
+      setWarehouseDetailId(null);
+    }
+
     setVisibleModule(moduleId);
+    sessionStorage.setItem('dashboard_activeModule', moduleId);
+    sessionStorage.setItem('dashboard_visibleModule', moduleId);
   };
 
   useEffect(() => {
@@ -510,46 +553,64 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
             <div className="dash-section">
               <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">📦</span><h2 className="section-title">Inventory Status</h2></div>
-                <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
+                {role?.toUpperCase() !== 'CASHIER' && (
+                  <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
+                )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>
               </div>
             </div>
 
-            <div className="dash-section">
+            <section className="dash-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">🧠</span>
+                  <h2 className="section-title">AI ML Recommendations</h2>
+                  <span className="section-badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid rgba(16,185,129,0.3)' }}>Live Models</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <SmartRecommendations />
+                <PersonalizedRecommendations />
+              </div>
+            </section>
+
+            <section className="dash-section">
               <div className="tp-live-grid">
                 <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts data={dashboardData} /></div>
                 <div className="live-feed-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🔴</span><h2 className="section-title">Live Activity</h2>{wsConnected && <span className="live-badge">LIVE</span>}</div></div><LiveFeed wsConnected={wsConnected} liveTransaction={liveTransaction} /></div>
               </div>
-            </div>
+            </section>
           </>
         );
 
-      case 'auth':
-        return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
+      // case 'auth':
+      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
         return <AIDemandForecastModule />;
-      case 'user-mgmt':
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <UserListPage />
-    </Suspense>
-  );
-        return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
+      // case 'user-mgmt':
+      //   return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
       //case 'branch-mgmt':
-// return <ModuleDetail title="Branch Management"...
+       // return <ModuleDetail title="Branch Management" icon="🏢" page={1} description="Manage branch records and configurations. Link branches with employees and inventory. Store branch-level settings. Generate branch performance statistics. Handle branch-related business logic." features={['Branch Information Display', 'Performance Metrics', 'Branch Creation & Updates', 'Branch-specific Inventory & Sales', 'Branch Search Functionality']} />;
+      
+      case 'user-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <UserListPage />
+          </Suspense>
+          );
       case 'branch-mgmt':
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <BranchListPage />
-    </Suspense>
-  );
-       case 'employee-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+        <BranchListPage />
+          </Suspense>
+      );
+      case 'employee-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
             <EmployeesPage />
@@ -567,7 +628,9 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       case 'supplier-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <SuppliersPage />
+            <InventoryProvider>
+              <SuppliersPage />
+            </InventoryProvider>
           </Suspense>
         );
       case 'product-mgmt':
@@ -670,7 +733,23 @@ case 'product-edit':
           </InventoryProvider>
         );
       case 'warehouse-mgmt':
-        return <ModuleDetail title="Warehouse Management" icon="🏭" page={2} description="Track warehouse inventory. Manage storage allocations. Record warehouse transactions. Handle warehouse transfers. Generate warehouse statistics." features={['Storage Location Visualization', 'Stock Allocations', 'Warehouse Transfers', 'Capacity Monitoring', 'Warehouse Reports']} />;
+        if (warehouseDetailId) {
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <WarehouseDetail
+                warehouseId={warehouseDetailId}
+                onBack={() => setWarehouseDetailId(null)}
+              />
+            </Suspense>
+          );
+        }
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <WarehouseList
+              onView={(id) => setWarehouseDetailId(id)}
+            />
+          </Suspense>
+        );
       case 'purchase-order':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -705,9 +784,14 @@ case 'product-edit':
       />
     </Suspense>
   );
+  if (posView === 'history') return (
+  <Suspense fallback={<ModuleLoading />}>
+    <SalesHistoryPage onBack={() => setPosView('pos')} />
+  </Suspense>
+);
   return (
     <Suspense fallback={<ModuleLoading />}>
-      <POSPage onCheckout={() => setPosView('checkout')} />
+      <POSPage onCheckout={() => setPosView('checkout')} onViewHistory={() => setPosView('history')} />
     </Suspense>
   );
 
@@ -724,11 +808,19 @@ case 'product-edit':
           </Suspense>
         );
       case 'promotion':
-        return <ModuleDetail title="Promotion & Discount Management" icon="🏷️" page={3} description="Apply pricing rules automatically. Manage promotional campaigns. Validate discount eligibility. Generate campaign reports. Maintain coupon records." features={['Promotion Campaigns', 'Discount Rule Configuration', 'Active Promotions Display', 'Coupon System Management', 'Campaign Performance Monitoring']} />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <PromotionsPage />
+          </Suspense>
+        );
       case 'ai-reorder':
         return <AISmartReorderingModule />;
       case 'analytics':
-        return <BusinessAnalyticsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AnalyticsPageLazy />
+          </Suspense>
+        );
       case 'reporting':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -738,14 +830,20 @@ case 'product-edit':
       case 'notifications':
         return <NotificationsModule />;
       case 'audit-logs':
-        return <AuditLogsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AuditSecurityPage />
+          </Suspense>
+        );
+      case 'ai-intelligence':
+        return <AIIntelligenceHub />;
       default:
         return <ModuleDetail title="Module Coming Soon" icon="🚀" page={0} description="This module is under development." features={['Full implementation coming in next update']} />;
     }
   };
 
   return (
-    <div className="dashboard-page">
+    <div className={`dashboard-page theme-${sunPhase}`}>
       {/* Floating Navigation Menu */}
       <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
         <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
@@ -767,11 +865,20 @@ case 'product-edit':
               {navExpanded && (
                 <>
                   <span className="nav-label">{item.label}</span>
-                  <span className="nav-page">p.{item.page}</span>
+                  {item.isAI 
+                    ? <span style={{ fontSize: '9px', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color:'white', padding:'2px 6px', borderRadius:'999px', fontWeight:700 }}>AI</span>
+                    : <span className="nav-page">p.{item.page}</span>
+                  }
                 </>
               )}
             </button>
           ))}
+          {/* AI Section Divider */}
+          {navExpanded && (
+            <div style={{ padding: '10px 16px 4px', marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <span style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>✨ AI Intelligence</span>
+            </div>
+          )}
         </div>
         <div className="nav-footer">
           {navExpanded && (
@@ -814,72 +921,83 @@ case 'product-edit':
         {renderModuleContent()}
       </div>
 
-      {/* AI Chatbot Icon - Bottom Right */}
-      <div className="chatbot-icon" onClick={() => setIsChatOpen(!isChatOpen)}>
-        <div className="chatbot-pulse"></div>
-        <span className="chatbot-emoji">🤖</span>
-        <span className="chatbot-label">AI Assistant</span>
-      </div>
-
-      {/* AI Chatbot Window */}
-      {isChatOpen && (
-        <div className="chatbot-window">
-          <div className="chatbot-header">
-            <div className="chatbot-header-info">
-              <span className="chatbot-header-icon">🧠</span>
-              <div>
-                <h3>AI Retail Assistant</h3>
-                <p>Online • Ready to help</p>
-              </div>
-            </div>
-            <button className="chatbot-close" onClick={() => setIsChatOpen(false)}>✕</button>
-          </div>
-          <div className="chatbot-messages">
-            {chatMessages.map(msg => (
-              <div key={msg.id} className={`chat-message ${msg.type}`}>
-                <div className="message-bubble">
-                  {msg.type === 'bot' && <span className="message-avatar">🤖</span>}
-                  <div className="message-text">{msg.text}</div>
-                  {msg.type === 'user' && <span className="message-avatar-user">👤</span>}
-                </div>
-              </div>
-            ))}
-            {isTyping && (
-              <div className="chat-message bot">
-                <div className="message-bubble typing">
-                  <span className="message-avatar">🤖</span>
-                  <div className="typing-indicator">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-          <div className="chatbot-input-area">
-            <input
-              type="text"
-              placeholder="Ask me about sales, inventory, forecasts..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="chatbot-input"
-            />
-            <button className="chatbot-send" onClick={sendMessage}>
-              <span>➤</span>
-            </button>
-          </div>
-          <div className="chatbot-suggestions">
-            <button onClick={() => setChatInput("What's our total revenue?")}>💰 Revenue</button>
-            <button onClick={() => setChatInput("Show me low stock alerts")}>⚠️ Low Stock</button>
-            <button onClick={() => setChatInput("Branch performance")}>🏢 Branches</button>
-            <button onClick={() => setChatInput("Demand forecast")}>🔮 Forecast</button>
-          </div>
-        </div>
-      )}
+      {/* Floating AI Chatbot — only on Dashboard & Business Overview */}
+      {visibleModule === 'dashboard' && <Chatbot />}
 
       <style>{`
-        .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; }
+        :root {
+          /* Default Theme (Morning) */
+          --bg-primary: #f0f9ff;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #475569;
+          --text-muted: #94a3b8;
+          --border-color: #e2e8f0;
+          --accent-color: #3b82f6;
+          --accent-light: #eff6ff;
+          --success-color: #10b981;
+          --success-light: #ecfdf5;
+          --warning-color: #f59e0b;
+          --warning-light: #fffbeb;
+          --danger-color: #ef4444;
+          --danger-light: #fef2f2;
+          --info-color: #06b6d4;
+          --info-light: #ecfeff;
+        }
+
+        .dashboard-page.theme-sunrise {
+          --bg-primary: #fff8eb;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #fff1e6;
+          --text-primary: #451a03;
+          --text-secondary: #78350f;
+          --text-muted: #b45309;
+          --border-color: #ffedd5;
+        }
+
+        .dashboard-page.theme-morning {
+          --bg-primary: #f0f9ff;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #475569;
+          --text-muted: #94a3b8;
+          --border-color: #e2e8f0;
+        }
+
+        .dashboard-page.theme-afternoon {
+          --bg-primary: #f8fafc;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #334155;
+          --text-muted: #64748b;
+          --border-color: #e2e8f0;
+        }
+
+        .dashboard-page.theme-sunset {
+          --bg-primary: #fff1f2;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #fff1f2;
+          --text-primary: #4c0519;
+          --text-secondary: #881337;
+          --text-muted: #be123c;
+          --border-color: #fecdd3;
+        }
+
+        .dashboard-page.theme-night {
+          --bg-primary: #0f172a;
+          --bg-secondary: #1e293b;
+          --bg-tertiary: #334155;
+          --text-primary: #f8fafc;
+          --text-secondary: #cbd5e1;
+          --text-muted: #94a3b8;
+          --border-color: #334155;
+          --accent-light: rgba(59, 130, 246, 0.1);
+        }
+
+        .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; color: var(--text-primary); }
         .sky-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; transition: background 0.5s ease; }
         .sun { position: absolute; border-radius: 50%; transition: all 0.5s ease; }
         .sun.sunrise { bottom: 10%; right: 15%; width: 80px; height: 80px; animation: sunriseAnim 20s ease-in-out infinite; }
@@ -949,14 +1067,14 @@ case 'product-edit':
         @keyframes badgeBlink { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.8)} }
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); }
+        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
         .notification-wrapper { position: relative; }
-        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
+        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; color: #1e293b; }
         .notification-btn:hover { background: white; transform: scale(1.05); }
         .notification-dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
-        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; }
-        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; color: #1e293b; }
+        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; color: #334155; }
         .notification-item:hover { background: #f8fafc; }
         .branch-hero { background-size: cover; background-position: center; border-radius: 20px; margin-bottom: 24px; overflow: hidden; }
         .branch-hero-content { padding: 32px; display: flex; align-items: center; gap: 24px; color: white; flex-wrap: wrap; }
@@ -1054,7 +1172,37 @@ case 'product-edit':
         .forecast-item, .recommendation-item, .insight-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #e2e8f0; }
         .trend-up { color: #10b981; }
         .trend-down { color: #ef4444; }
-        
+
+        .reorder-filters { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; align-items: flex-end; }
+        .reorder-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 24px; }
+        .recommendation-card, .alert-card, .history-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
+        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 100%; }
+        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; }
+        .recommendation-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .recommendation-table tbody tr:last-child td { border-bottom: none; }
+        .approved-row { background: rgba(16,185,129,0.08); }
+        .risk-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+        .risk-high { background: rgba(239,68,68,0.12); color: #dc2626; }
+        .risk-medium { background: rgba(245,158,11,0.14); color: #d97706; }
+        .risk-low { background: rgba(16,185,129,0.12); color: #15803d; }
+        .approve-btn { padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 700; transition: all 0.2s; background: #3b82f6; color: white; }
+        .approve-btn.approved { background: #10b981; }
+        .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+        .alert-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; margin-bottom: 14px; }
+        .alert-high { background: rgba(254,226,226,0.9); }
+        .alert-medium { background: rgba(255,247,205,0.9); }
+        .alert-title { font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .alert-description { margin: 0 0 8px; color: #475569; font-size: 0.9rem; }
+        .alert-time { font-size: 0.78rem; color: #64748b; }
+        .alert-dismiss { border: none; background: #eef2ff; color: #3730a3; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all 0.2s; }
+        .alert-dismiss:hover { background: #c7d2fe; }
+        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table th, .history-table td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
+        .history-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .history-table tbody tr:last-child td { border-bottom: none; }
+        .search-group { flex: 1; min-width: 220px; }
+        .reorder-filters .filter-input { min-width: 260px; }
+
         /* AI Chatbot Styles */
         .chatbot-icon { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200; box-shadow: 0 4px 20px rgba(59,130,246,0.4); transition: all 0.3s ease; animation: floatIcon 3s ease-in-out infinite; }
         .chatbot-icon:hover { transform: scale(1.1); }
@@ -1175,39 +1323,209 @@ const AIDemandForecastModule = () => (
 );
 
 // AI Smart Reordering Module
-const AISmartReorderingModule = () => (
-  <div className="ai-reorder-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">📈</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
-        <span className="module-page">📄 Page 3 of PDF Document</span>
+const AISmartReorderingModule = () => {
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [recommendations, setRecommendations] = useState([
+    { id: 1, name: 'Premium Basmati Rice', branch: 'All Branches', currentStock: 50, suggestedQty: 500, reorderPoint: 120, risk: 'High', confidence: 96, approved: false },
+    { id: 2, name: 'Organic Coconut Oil', branch: 'Kandy City Branch', currentStock: 23, suggestedQty: 200, reorderPoint: 80, risk: 'High', confidence: 92, approved: false },
+    { id: 3, name: 'Sugar (1kg)', branch: 'Colombo Head Office', currentStock: 35, suggestedQty: 300, reorderPoint: 90, risk: 'Medium', confidence: 89, approved: false },
+    { id: 4, name: 'Milk Powder', branch: 'Negombo Branch', currentStock: 42, suggestedQty: 150, reorderPoint: 70, risk: 'Medium', confidence: 94, approved: false },
+    { id: 5, name: 'Ceylon Tea Gift Pack', branch: 'Galle Fort Branch', currentStock: 80, suggestedQty: 180, reorderPoint: 100, risk: 'Low', confidence: 91, approved: false },
+  ]);
+
+  const [approvalHistory, setApprovalHistory] = useState([
+    { id: 101, item: 'Premium Basmati Rice', branch: 'Colombo Head Office', quantity: 250, approvedBy: 'Manager Kaushal', timestamp: '2026-06-02 16:30', status: 'Approved' },
+    { id: 102, item: 'Organic Coconut Oil', branch: 'Kandy City Branch', quantity: 120, approvedBy: 'Manager Kaushal', timestamp: '2026-06-01 11:45', status: 'Approved' },
+  ]);
+
+  const [procurementAlerts, setProcurementAlerts] = useState([
+    { id: 201, title: 'Low stock detected for Fresh Milk', description: 'Current stock is 42 units. Suggested reorder in 2 days.', severity: 'High', time: '5 mins ago', dismissed: false },
+    { id: 202, title: 'Rice inventory below threshold', description: 'Premium Basmati Rice requires supplier follow-up.', severity: 'High', time: '12 mins ago', dismissed: false },
+    { id: 203, title: 'Coconut Oil reorder window opening', description: 'Lead time is 4 days. Prepare PO.', severity: 'Medium', time: '22 mins ago', dismissed: false },
+  ]);
+
+  const handleApprove = (recommendation) => {
+    if (recommendation.approved) return;
+
+    setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
+    setApprovalHistory(prev => [
+      {
+        id: Date.now(),
+        item: recommendation.name,
+        branch: recommendation.branch,
+        quantity: recommendation.suggestedQty,
+        approvedBy: 'AI Manager',
+        timestamp: new Date().toLocaleString('en-US', { hour12: false }),
+        status: 'Approved',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleDismissAlert = (id) => {
+    setProcurementAlerts(prev => prev.map(alert => (alert.id === id ? { ...alert, dismissed: true } : alert)));
+  };
+
+  const filteredRecommendations = recommendations.filter(item => {
+    const query = searchTerm.trim().toLowerCase();
+    return (
+      (selectedBranch === 'all' || item.branch === BRANCHES.find(b => b.id === selectedBranch)?.name || selectedBranch === 'all') &&
+      (!query || item.name.toLowerCase().includes(query) || item.branch.toLowerCase().includes(query))
+    );
+  });
+
+  const visibleAlerts = procurementAlerts.filter(alert => !alert.dismissed);
+  const riskSummary = {
+    high: recommendations.filter(item => item.risk === 'High').length,
+    medium: recommendations.filter(item => item.risk === 'Medium').length,
+    low: recommendations.filter(item => item.risk === 'Low').length,
+  };
+
+  return (
+    <div className="ai-reorder-module">
+      <div className="module-header-custom">
+        <div className="module-icon-custom">📈</div>
+        <div>
+          <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
+          <span className="module-page">Page 3 · AI Inventory Intelligence</span>
+        </div>
+      </div>
+
+      <div className="module-description">
+        <strong>📋 Module Overview:</strong><br />
+        Display reorder recommendations with stock risk indicators, approval workflow, procurement alerts, and action history for managers.
+      </div>
+
+      <div className="reorder-filters">
+        <div className="filter-group">
+          <label className="filter-label">Branch</label>
+          <select className="filter-select" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
+            {BRANCHES.map(branch => (
+              <option key={branch.id} value={branch.id}>{branch.icon} {branch.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">Time Period</label>
+          <select className="filter-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">Last 3 Months</option>
+          </select>
+        </div>
+        <div className="filter-group search-group">
+          <label className="filter-label">Search</label>
+          <input className="filter-input" type="text" placeholder="Search products or branch" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
+        <div className="stat-card"><div className="value">{recommendations.length}</div><div className="label">Recommended Reorders</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.high}</div><div className="label">High Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.medium}</div><div className="label">Medium Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.low}</div><div className="label">Low Risk Items</div></div>
+      </div>
+
+      <div className="reorder-grid">
+        <div>
+          <div className="section-header" style={{ marginBottom: 16 }}>
+            <div className="section-title-wrapper">
+              <span className="section-icon">🛒</span>
+              <h2 className="section-title">Reorder Recommendations</h2>
+            </div>
+            <span className="section-badge">AI Suggested</span>
+          </div>
+
+          <div className="recommendation-card">
+            <table className="recommendation-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Branch</th>
+                  <th>Stock</th>
+                  <th>Reorder Qty</th>
+                  <th>Risk</th>
+                  <th>Confidence</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecommendations.map(item => (
+                  <tr key={item.id} className={item.approved ? 'approved-row' : ''}>
+                    <td>{item.name}</td>
+                    <td>{item.branch}</td>
+                    <td>{item.currentStock}</td>
+                    <td>{item.suggestedQty}</td>
+                    <td><span className={`risk-pill risk-${item.risk.toLowerCase()}`}>{item.risk}</span></td>
+                    <td>{item.confidence}%</td>
+                    <td>
+                      <button className={`approve-btn ${item.approved ? 'approved' : ''}`} onClick={() => handleApprove(item)}>
+                        {item.approved ? 'Approved' : 'Approve'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="sidebar-panel">
+          <div className="alert-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">⚠️</span>
+                <h2 className="section-title">Procurement Alerts</h2>
+              </div>
+            </div>
+            {visibleAlerts.length ? visibleAlerts.map(alert => (
+              <div key={alert.id} className={`alert-item alert-${alert.severity.toLowerCase()}`}>
+                <div>
+                  <p className="alert-title">{alert.title}</p>
+                  <p className="alert-description">{alert.description}</p>
+                  <p className="alert-time">{alert.time}</p>
+                </div>
+                <button className="alert-dismiss" onClick={() => handleDismissAlert(alert.id)}>Dismiss</button>
+              </div>
+            )) : <p style={{ color: '#64748b', fontSize: '0.95rem' }}>No active procurement alerts.</p>}
+          </div>
+
+          <div className="history-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">📜</span>
+                <h2 className="section-title">Reorder Action History</h2>
+              </div>
+            </div>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Branch</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approvalHistory.map(entry => (
+                  <tr key={entry.id}>
+                    <td>{entry.item}</td>
+                    <td>{entry.quantity}</td>
+                    <td>{entry.branch}</td>
+                    <td>{entry.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Calculate reorder points automatically. Analyze inventory consumption. Generate purchase recommendations. Trigger low-stock alerts. Improve recommendations using AI.
-    </div>
-    <div className="stats-grid">
-      <div className="stat-card"><div className="value">12</div><div className="label">Items Need Reorder</div></div>
-      <div className="stat-card"><div className="value">94%</div><div className="label">AI Recommendation Accuracy</div></div>
-      <div className="stat-card"><div className="value">$24,500</div><div className="label">Optimal Order Value</div></div>
-      <div className="stat-card"><div className="value">3 Days</div><div className="label">Avg Lead Time</div></div>
-    </div>
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>🛒 Smart Reorder Recommendations</h3>
-    <div className="recommendation-list">
-      <div className="forecast-item"><span className="product">Premium Basmati Rice</span><span className="trend-up">Reorder 500 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 50 | AI Confidence: 96%</span></div>
-      <div className="forecast-item"><span className="product">Organic Coconut Oil</span><span className="trend-up">Reorder 200 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 23 | AI Confidence: 92%</span></div>
-      <div className="forecast-item"><span className="product">Sugar (1kg)</span><span className="trend-up">Reorder 300 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 35 | AI Confidence: 89%</span></div>
-      <div className="forecast-item"><span className="product">Milk Powder</span><span className="trend-up">Reorder 150 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 42 | AI Confidence: 94%</span></div>
-    </div>
-    <div className="features-grid" style={{ marginTop: 24 }}>
-      {['Reorder Recommendations Dashboard', 'Stock Risk Indicators', 'AI Suggestion Approval Workflow', 'Reorder Action Tracking', 'Procurement Alerts Integration', 'Supplier Auto-notification'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // Business Analytics Module
 const BusinessAnalyticsModule = () => (
@@ -1259,27 +1577,7 @@ const ReportingModule = () => (
   </div>
 );
 
-// Notifications Module
-const NotificationsModule = () => (
-  <div className="notifications-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">🔔</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Notifications & Alerts</h1>
-        <span className="module-page">📄 Page 4 of PDF Document</span>
-      </div>
-    </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Send email, SMS, and push notifications. Trigger inventory and sales alerts. Manage notification queues. Store notification history. Monitor delivery status.
-    </div>
-    <div className="features-grid">
-      {['Central Notification Center', 'Real-time Alerts & Reminders', 'Email & SMS Integration', 'Push Notifications', 'Custom Alert Rules', 'Notification Templates', 'Delivery Status Tracking', 'Notification History Logs'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+
 
 // Audit Logs Module
 const AuditLogsModule = () => (

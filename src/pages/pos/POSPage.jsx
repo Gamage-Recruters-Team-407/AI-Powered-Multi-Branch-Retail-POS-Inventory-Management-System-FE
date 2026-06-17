@@ -73,7 +73,7 @@ import BarcodeScanner from "../../components/pos/BarcodeScanner";
 import ProductList    from "../../components/pos/ProductList";
 import Cart           from "../../components/pos/Cart";
 
-const POSPage = ({ onCheckout }) => {
+const POSPage = ({ onCheckout, onViewHistory }) => {
   const navigate = useNavigate();
   const {
     cart, addToCart, increaseQty, decreaseQty, removeItem, clearCart,
@@ -104,7 +104,7 @@ const POSPage = ({ onCheckout }) => {
           </div>
           
           <button
-            onClick={() => navigate("/history")}
+            onClick={() => onViewHistory ? onViewHistory() : navigate("/history")}
             className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-2xl hover:bg-blue-700 hover:shadow-lg transition-all text-xs uppercase tracking-wider shadow-md shadow-blue-700/20"
           >
             <History size={14} /> Sales History

@@ -8,6 +8,7 @@ import {
 
 function CategoryManagementPage({ onBack }) {
   const [categories, setCategories] = useState([]);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -17,6 +18,7 @@ function CategoryManagementPage({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({});
 
   const fetchCategories = async () => {
     try {
@@ -41,6 +43,13 @@ function CategoryManagementPage({ onBack }) {
       ...formData,
       [name]: value,
     });
+
+    setErrors({
+      ...errors,
+      [name]: "",
+    });
+
+    setMessage("");
   };
 
   const resetForm = () => {
@@ -48,14 +57,56 @@ function CategoryManagementPage({ onBack }) {
       name: "",
       description: "",
     });
+
     setEditingCategoryId(null);
+    setErrors({});
+    setMessage("");
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    const categoryNameRegex = /^[a-zA-Z0-9\s\-&()]+$/;
+
+    const trimmedName = formData.name.trim();
+    const trimmedDescription = formData.description.trim();
+
+    if (!trimmedName) {
+      newErrors.name = "Category name is required";
+    } else if (trimmedName.length < 2) {
+      newErrors.name = "Category name must be at least 2 characters";
+    } else if (trimmedName.length > 50) {
+      newErrors.name = "Category name cannot exceed 50 characters";
+    } else if (!categoryNameRegex.test(trimmedName)) {
+      newErrors.name =
+        "Category name can only contain letters, numbers, spaces, -, &, and ()";
+    }
+
+    const duplicateCategory = categories.find(
+      (category) =>
+        category.name.toLowerCase().trim() === trimmedName.toLowerCase() &&
+        category._id !== editingCategoryId
+    );
+
+    if (duplicateCategory) {
+      newErrors.name = "Category name already exists";
+    }
+
+    if (trimmedDescription.length > 300) {
+      newErrors.description = "Description cannot exceed 300 characters";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      setMessage("Category name is required");
+    const isValid = validateForm();
+
+    if (!isValid) {
+      setMessage("Please fix the validation errors before saving");
       return;
     }
 
@@ -63,11 +114,16 @@ function CategoryManagementPage({ onBack }) {
       setSaving(true);
       setMessage("");
 
+      const categoryPayload = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+      };
+
       if (editingCategoryId) {
-        await updateCategory(editingCategoryId, formData);
+        await updateCategory(editingCategoryId, categoryPayload);
         setMessage("Category updated successfully");
       } else {
-        await addCategory(formData);
+        await addCategory(categoryPayload);
         setMessage("Category added successfully");
       }
 
@@ -82,10 +138,13 @@ function CategoryManagementPage({ onBack }) {
 
   const handleEdit = (category) => {
     setEditingCategoryId(category._id);
+
     setFormData({
       name: category.name || "",
       description: category.description || "",
     });
+
+    setErrors({});
     setMessage("");
   };
 
@@ -97,11 +156,19 @@ function CategoryManagementPage({ onBack }) {
     if (!confirmDelete) return;
 
     try {
+      setSaving(true);
       await deleteCategory(id);
       setMessage("Category deleted successfully");
+
+      if (editingCategoryId === id) {
+        resetForm();
+      }
+
       fetchCategories();
     } catch (error) {
       setMessage(error.response?.data?.message || "Failed to delete category");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -121,7 +188,8 @@ function CategoryManagementPage({ onBack }) {
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            disabled={saving}
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Back to Products
           </button>
@@ -146,35 +214,73 @@ function CategoryManagementPage({ onBack }) {
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Category Name *
               </label>
+
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Example: Beverages"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                maxLength={50}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                  errors.name
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                }`}
               />
+
+              {errors.name ? (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {errors.name}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">
+                  Use a clear category name. Example: Beverages, Dairy Products.
+                </p>
+              )}
             </div>
 
             <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Description
               </label>
+
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows="4"
                 placeholder="Example: Soft drinks, juices, and water"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                maxLength={300}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
+                  errors.description
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+                }`}
               />
+
+              <div className="mt-1 flex items-center justify-between">
+                {errors.description ? (
+                  <p className="text-xs font-medium text-red-600">
+                    {errors.description}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Optional. Maximum 300 characters.
+                  </p>
+                )}
+
+                <p className="text-xs text-slate-400">
+                  {formData.description.length}/300
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:bg-blue-300"
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 {saving
                   ? "Saving..."
@@ -187,7 +293,8 @@ function CategoryManagementPage({ onBack }) {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  disabled={saving}
+                  className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancel Edit
                 </button>
@@ -248,7 +355,8 @@ function CategoryManagementPage({ onBack }) {
                             <button
                               type="button"
                               onClick={() => handleEdit(category)}
-                              className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                              disabled={saving}
+                              className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Edit
                             </button>
@@ -256,7 +364,8 @@ function CategoryManagementPage({ onBack }) {
                             <button
                               type="button"
                               onClick={() => handleDelete(category._id)}
-                              className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                              disabled={saving}
+                              className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Delete
                             </button>

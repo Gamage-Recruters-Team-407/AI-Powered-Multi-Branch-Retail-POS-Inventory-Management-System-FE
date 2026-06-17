@@ -57,11 +57,19 @@ export const CartProvider = ({ children }) => {
 
   // Build payload for API
   const buildCheckoutPayload = (paymentMethod, cashReceived, customerId) => ({
+    // items: cart.map((i) => ({
+    //   productId: i._id,
+    //   quantity: i.qty,
+    //   discount: i.itemDiscount || 0,
+    // })),
     items: cart.map((i) => ({
-      productId: i._id,
-      quantity: i.qty,
-      discount: i.itemDiscount || 0,
-    })),
+  productId: i._id,
+  name: i.name,
+  price: i.price,
+  barcode: i.barcode,
+  quantity: i.qty,
+  discount: i.itemDiscount || 0,
+})),
     paymentMethod,
     cashReceived: paymentMethod === "CASH" ? cashReceived : undefined,
     customerId: customerId || undefined,

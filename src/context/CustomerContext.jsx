@@ -6,6 +6,7 @@ import {
   deleteCustomer,
   searchCustomers,
   getCustomersByBranch,
+  addLoyaltyPoints as apiAddLoyaltyPoints,
 } from "../services/customerApi";
 
 const CustomerContext = createContext();
@@ -59,6 +60,14 @@ export const CustomerProvider = ({ children }) => {
     return res.data;
   };
 
+  // ADD LOYALTY POINTS
+   // ADD LOYALTY POINTS
+  const addLoyaltyPoints = async (customerId, amount) => {
+    const res = await apiAddLoyaltyPoints(customerId, amount);
+    await fetchCustomers();
+    return res.data;
+  };
+
   // SEARCH — supports optional branchId
   // If branchId is provided → GET /branch/:branchId?search=
   // Otherwise              → GET /?search=
@@ -103,6 +112,7 @@ export const CustomerProvider = ({ children }) => {
       editCustomer,
       removeCustomer,
       searchCustomer,
+      addLoyaltyPoints,
     }),
     [customers, loading, selectedCustomer]
   );

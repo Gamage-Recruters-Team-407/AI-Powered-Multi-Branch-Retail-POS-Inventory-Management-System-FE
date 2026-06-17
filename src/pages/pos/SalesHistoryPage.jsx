@@ -145,7 +145,7 @@ import { getSales, voidSale, getSalesSummary } from "../../services/salesApi";
 import { useSales } from "../../context/SalesContext";
 import SalesTable from "../../components/pos/SalesTable";
 
-const SalesHistoryPage = () => {
+const SalesHistoryPage = ({ onBack }) => {
   const navigate = useNavigate();
   const { sales: localSales } = useSales();
 
@@ -186,7 +186,9 @@ const SalesHistoryPage = () => {
     }
   };
 
-  const handleView = (sale) => navigate("/receipt", { state: { sale } });
+  const handleView = (sale) => onBack 
+  ? navigate("/receipt", { state: { sale } }) 
+  : navigate("/receipt", { state: { sale } });
 
   
   const getIcon = (label) => {
@@ -203,7 +205,8 @@ const SalesHistoryPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/pos")} className="w-9 h-9 rounded-xl bg-white border flex items-center justify-center text-slate-500 hover:text-slate-800 transition shadow-sm">
+          <button onClick={() => onBack ? onBack() : navigate("/pos")}
+           className="w-9 h-9 rounded-xl bg-white border flex items-center justify-center text-slate-500 hover:text-slate-800 transition shadow-sm">
             <ArrowLeft size={18} />
           </button>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sales History</h1>

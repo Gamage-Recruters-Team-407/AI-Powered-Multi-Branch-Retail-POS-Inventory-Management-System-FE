@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useBranches } from "../../context/BranchContext";
 import { getBranchById } from "../../services/branchApi";
+import axiosInstance from "../../api/axiosInstance";
 
 export default function EditBranchPage() {
   const navigate = useNavigate();
@@ -19,19 +20,35 @@ export default function EditBranchPage() {
   });
   const [error, setError] = useState("");
   const [pageLoading, setPageLoading] = useState(true);
+  const [managers, setManagers] = useState([]);
 
   useEffect(() => {
-    const fetchBranch = async () => {
-      try {
-        const res = await getBranchById(id);
-        setFormData(res.data);
-      } catch (err) {
-        setError("Failed to load branch");
-      } finally {
-        setPageLoading(false);
-      }
+  const fetchData = async () => {
+    try {
+      const [branchRes, managerRes] = await Promise.all([
+        getBranchById(id),
+        axiosInstance.get("/users/managers"),
+      ]);
+
+      setManagers(managerRes.data.data);
+
+      const branch = branchRes.data;
+
+      setFormData({
+        ...branch,
+        manager:
+          typeof branch.manager === "object"
+            ? branch.manager._id
+            : branch.manager || "",
+      });
+    } catch (err) {
+      setError("Failed to load branch");
+    } finally {
+      setPageLoading(false);
+    }
     };
-    fetchBranch();
+
+    fetchData();
   }, [id]);
 
   const handleChange = (e) => {
@@ -145,13 +162,21 @@ export default function EditBranchPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Manager Name
               </label>
-              <input
-                type="text"
-                name="manager"
-                value={formData.manager}
-                onChange={handleChange}
+              <select
+                 name="manager"
+                 value={formData.manager}
+                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+               >
+               <option value="">Select Manager</option>
+
+                {managers.map((manager) => (
+               <option key={manager._id} value={manager._id}>
+                 {manager.name ||
+                `${manager.firstName || ""} ${manager.lastName || ""}`.trim()}
+                </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center">

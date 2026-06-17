@@ -296,45 +296,47 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Role selector */}
-          <div style={{ display:"flex", alignItems:"center",
-                        gap:10, margin:"22px 0" }}>
-            <hr style={{ flex:1, border:"none",
-                         borderTop:"1px solid #0f2040" }} />
-            <span style={{ fontSize:10, color:"#1e3a6e",
-                           textTransform:"uppercase", letterSpacing:.8 }}>
-              quick role select
-            </span>
-            <hr style={{ flex:1, border:"none",
-                         borderTop:"1px solid #0f2040" }} />
-          </div>
+         {/* ── Feature highlights divider ── */}
+<div style={{ display:"flex", alignItems:"center",
+              gap:10, margin:"22px 0" }}>
+  <hr style={{ flex:1, border:"none",
+              borderTop:"1px solid #3b82f6" }} />
+  <span style={{ fontSize:10, color:"#3b82f6",
+                textTransform:"uppercase", letterSpacing:.8 }}>
+    what you get
+  </span>
+  <hr style={{ flex:1, border:"none",
+              borderTop:"1px solid #3b82f6" }} />
+</div>
 
-          <div style={{ display:"grid",
-                        gridTemplateColumns:"repeat(3,1fr)",
-                        gap:8, marginBottom:18 }}>
-            {ROLES.map(({ label, value, icon }) => (
-              <button key={value} type="button"
-                onClick={() => setRole(value)}
-                style={{
-                  border: selectedRole === value
-                    ? "1px solid #3b82f6"
-                    : "1px solid #0f2040",
-                  borderRadius:9,
-                  background: selectedRole === value
-                    ? "rgba(59,130,246,.1)" : "#0a1628",
-                  color: selectedRole === value
-                    ? "#3b82f6" : "#4a6090",
-                  fontSize:12, cursor:"pointer",
-                  padding:"12px 4px",
-                  display:"flex", flexDirection:"column",
-                  alignItems:"center", gap:5,
-                  transition:"all .15s",
-                }}>
-                <i className={`ti ${icon}`} style={{ fontSize:18 }} />
-                {label}
-              </button>
-            ))}
-          </div>
+{/* Feature highlight cards */}
+<div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
+              gap:8, marginBottom:18 }}>
+  {[
+    { icon:"ti-rocket",       label:"Fast Setup",     sub:"Live in minutes"      },
+    { icon:"ti-chart-line",   label:"Analytics",      sub:"Real-time insights"   },
+    { icon:"ti-bell-ringing", label:"Smart Alerts",   sub:"Never miss a beat"    },
+  ].map(({ icon, label, sub }) => (
+    <div key={label} style={{
+      border:"1px solid #1e3a6e",
+      borderRadius:9, background:"#0a1628",
+      padding:"12px 4px",
+      display:"flex", flexDirection:"column",
+      alignItems:"center", gap:5,
+      transition:"border-color .2s",
+    }}
+      onMouseEnter={e => e.currentTarget.style.borderColor="#3b82f6"}
+      onMouseLeave={e => e.currentTarget.style.borderColor="#1e3a6e"}
+    >
+      <i className={`ti ${icon}`}
+        style={{ fontSize:18, color:"#3b82f6" }} />
+      <span style={{ fontSize:11, color:"#cbd5e1",
+                    fontWeight:500 }}>{label}</span>
+      <span style={{ fontSize:9, color:"#4a6090",
+                    letterSpacing:.3 }}>{sub}</span>
+    </div>
+  ))}
+</div>
 
           {/* Status */}
           <div style={{
