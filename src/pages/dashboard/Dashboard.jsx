@@ -148,6 +148,62 @@ const _getDateRange = (preset) => {
   return { startDate: start, endDate: end };
 };
 
+const formatLKR = (amount, decimals = 0) => {
+  const value = Number(amount) || 0;
+  return `Rs. ${value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+};
+
+const mapStatsToDashboardData = (stats) => {
+  if (!stats) return generateDemoData();
+
+  const kpis = stats.kpis || {};
+  const inventory = stats.inventory || {};
+  const sales = stats.sales || {};
+  const system = stats.system || {};
+
+  return {
+    kpi: {
+      revenue: {
+        total: formatLKR(kpis.revenue ?? 0),
+        growth_percentage: kpis.salesGrowth ?? 0,
+        trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
+      },
+      sales: {
+        count: kpis.transactionCount ?? 0,
+        growth_percentage: kpis.salesGrowth ?? 0,
+        avg_transaction_value: formatLKR(sales.averageTransactionValue ?? 0, 2),
+        unique_customers: system.totalCustomers ?? 0,
+      },
+      profit: {
+        total: formatLKR(kpis.profit ?? 0),
+        margin_percentage: kpis.profitMargin ?? 0,
+      },
+      stock_turnover: {
+        avg_rate: `${Number(kpis.stockTurnover ?? 0).toFixed(1)}x`,
+        efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
+      },
+    },
+    inventory: {
+      total_products: system.totalProducts ?? 0,
+      total_stock: inventory.totalItems ?? 0,
+      inventory_value: formatLKR(inventory.totalValue ?? 0),
+      avg_stock_level: inventory.branchStockStatus?.length
+        ? (
+            inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
+            inventory.branchStockStatus.length
+          ).toFixed(1)
+        : 0,
+    },
+    low_stock_alerts: { count: inventory.lowStockAlert?.count ?? 0 },
+    branches: stats.branches ?? null,
+    top_products: sales.topProducts ?? null,
+    sales: sales.dailySales ?? null,
+  };
+};
+
 const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
 
@@ -373,18 +429,44 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   }, [token]);
 
   // Fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise(r => setTimeout(r, 800));
-      setDashboardData(generateDemoData());
-      setLastUpdated(new Date());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // const fetchData = useCallback(async () => {
+  //   setLoading(true);
+  //   try {
+  //     await new Promise(r => setTimeout(r, 800));
+  //     setDashboardData(generateDemoData());
+  //     setLastUpdated(new Date());
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, []);
 
-  useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
+const fetchData = useCallback(async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    });
+    if (selectedBranch !== 'all') params.append('branchId', selectedBranch);
+
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dashboard/stats?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
+
+    const json = await res.json();
+    setDashboardData(mapStatsToDashboardData(json.data));
+    setLastUpdated(new Date());
+  } catch (err) {
+    console.error('Failed to load dashboard data:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [selectedBranch, dateRange, token]);
+  // useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
+
+ useEffect(() => { fetchData(); }, [selectedBranch, dateRange, fetchData]);
 
   const handlePreset = (preset) => {
     setDatePreset(preset);
