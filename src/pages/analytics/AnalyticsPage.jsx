@@ -268,7 +268,7 @@ function AnalyticsPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               {lastRefreshed && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#94a3b8" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
                   <Clock size={11} />
                   Updated {lastRefreshed}
                 </span>
@@ -321,7 +321,7 @@ function AnalyticsPage() {
                   cursor: "pointer",
                   transition: "all 0.2s",
                   background: activeTab === t.key ? "rgba(124,58,237,0.1)" : "transparent",
-                  color: activeTab === t.key ? "#7c3aed" : "#64748b",
+                  color: activeTab === t.key ? "#7c3aed" : "#475569",
                   borderBottom: activeTab === t.key ? "2.5px solid #7c3aed" : "2.5px solid transparent",
                 }}
               >
@@ -351,7 +351,7 @@ function AnalyticsPage() {
             onChange={(e) => setFilters((p) => ({ ...p, fromDate: e.target.value }))}
             style={{
               border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
-              fontSize: 12, outline: "none", background: "white",
+              fontSize: 12, outline: "none", background: "white", color: "#0f172a",
             }}
           />
           <span style={{ fontSize: 12, color: "#94a3b8" }}>to</span>
@@ -361,7 +361,7 @@ function AnalyticsPage() {
             onChange={(e) => setFilters((p) => ({ ...p, toDate: e.target.value }))}
             style={{
               border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
-              fontSize: 12, outline: "none", background: "white",
+              fontSize: 12, outline: "none", background: "white", color: "#0f172a",
             }}
           />
           <select
@@ -369,7 +369,7 @@ function AnalyticsPage() {
             onChange={(e) => setFilters((p) => ({ ...p, branchId: e.target.value }))}
             style={{
               border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "7px 12px",
-              fontSize: 12, outline: "none", background: "white", cursor: "pointer",
+              fontSize: 12, outline: "none", background: "white", color: "#0f172a", cursor: "pointer",
             }}
           >
             <option value="">All Branches</option>
@@ -422,7 +422,7 @@ function AnalyticsPage() {
               <div style={glassCard}><ProfitTrendsChart params={filters} /></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-              <div style={{ ...glassCard, gridColumn: "span 2" }}>
+              <div style={{ ...glassCard, gridColumn: "span 2", alignSelf: "start" }}>
                 <BranchPerformancePanel data={data.branchPerf} loading={loading} />
               </div>
               <div style={glassCard}>
