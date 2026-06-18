@@ -95,6 +95,11 @@ const TopProducts = ({ data }) => {
         .section-sub { font-size: .78rem; color: var(--gray-400); margin-top: 2px; }
         .view-all-btn { font-size: .82rem; font-weight: 600; color: var(--blue-600); background: var(--blue-50); padding: 7px 14px; border-radius: 8px; transition: all var(--transition); border: 1px solid var(--blue-200); }
         .view-all-btn:hover { background: var(--blue-100); }
+
+        @media (max-width: 768px) {
+          .tp-table { overflow-x: auto; padding-bottom: 8px; }
+          .tp-head, .tp-row { min-width: 550px; }
+        }
       `}</style>
     </div>
   );

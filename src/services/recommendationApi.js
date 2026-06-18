@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+<<<<<<< Updated upstream
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_RECOMMENDATION_API_URL ||
@@ -7,10 +8,25 @@ const API_BASE_URL =
 
 const recommendationApi = axios.create({
   baseURL: `${API_BASE_URL}/api/recommendations`,
+=======
+// Use the specific URL if provided, otherwise fallback to base API URL + '/recommendations'
+const baseURL = import.meta.env.VITE_RECOMMENDATION_API_URL 
+  ? import.meta.env.VITE_RECOMMENDATION_API_URL
+  : (import.meta.env.VITE_API_URL 
+      ? `${import.meta.env.VITE_API_URL}/recommendations` 
+      : 'http://localhost:5000/api/recommendations');
+
+const recommendationApi = axios.create({
+  baseURL: baseURL,
+>>>>>>> Stashed changes
   timeout: 8000,
 });
 
-const unwrapRecommendationData = (response) => response.data?.data || [];
+// When hitting Flask directly, it returns an array instead of { success: true, data: [...] }
+const unwrapRecommendationData = (response) => {
+  if (Array.isArray(response.data)) return response.data;
+  return response.data?.data || [];
+};
 
 export const getTopProducts = async (limit = 10) => {
   const response = await recommendationApi.get('/sales/top-products', {
@@ -21,7 +37,7 @@ export const getTopProducts = async (limit = 10) => {
 };
 
 export const getTrendingProducts = async (limit = 10) => {
-  const response = await recommendationApi.get('/trending/products', {
+  const response = await recommendationApi.get('/trending', {
     params: { limit },
   });
 

@@ -45,7 +45,7 @@ const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loadi
           background: white;
           border-radius: var(--radius);
           padding: 20px;
-          border: 1.5px solid var(--card-border, var(--gray-200));
+          border: 1.5px solid var(--border-color, var(--gray-200));
           transition: all var(--transition);
           animation: fadeIn .4s ease both;
           position: relative;
@@ -66,17 +66,17 @@ const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loadi
           border-radius: 6px;
         }
         .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .kpi-title { font-size: .8rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; }
-        .kpi-sub { font-size: .72rem; color: var(--gray-400); margin-top: 2px; }
+        .kpi-title { font-size: .8rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+        .kpi-sub { font-size: .72rem; color: #94a3b8; margin-top: 2px; }
         .kpi-icon-wrap { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
         .kpi-icon { font-size: 1.3rem; }
-        .kpi-value { font-size: 1.7rem; font-weight: 800; color: var(--gray-900); font-family: 'Syne', sans-serif; line-height: 1; }
+        .kpi-value { font-size: 1.7rem; font-weight: 800; color: #1e293b; font-family: 'Syne', sans-serif; line-height: 1; }
         .kpi-change { display: flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 600; margin-top: 10px; }
         .kpi-change.up { color: var(--success); }
         .kpi-change.down { color: var(--danger); }
-        .kpi-change.neutral { color: var(--gray-500); }
+        .kpi-change.neutral { color: #64748b; }
         .change-arrow { font-size: .9rem; }
-        .change-label { font-weight: 400; color: var(--gray-400); margin-left: 2px; }
+        .change-label { font-weight: 400; color: #94a3b8; margin-left: 2px; }
       `}</style>
     </div>
   );

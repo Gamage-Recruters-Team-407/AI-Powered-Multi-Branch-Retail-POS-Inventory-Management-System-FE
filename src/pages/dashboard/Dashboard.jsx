@@ -146,7 +146,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+<<<<<<< Updated upstream
   const [navExpanded, setNavExpanded] = useState(true);
+=======
+  const [navExpanded, setNavExpanded] = useState(() => window.innerWidth > 768);
+  const [warehouseDetailId, setWarehouseDetailId] = useState(null);
+>>>>>>> Stashed changes
   const [activeModule, setActiveModule] = useState(() => {
     return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
   });
@@ -281,6 +286,19 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setActiveModule(moduleId);
     }
 
+<<<<<<< Updated upstream
+=======
+    // Auto-close sidebar on mobile after clicking a link
+    if (window.innerWidth <= 768) {
+      setNavExpanded(false);
+    }
+
+    // Reset warehouse detail when navigating away or back to list
+    if (moduleId === 'warehouse-mgmt') {
+      setWarehouseDetailId(null);
+    }
+
+>>>>>>> Stashed changes
     setVisibleModule(moduleId);
     sessionStorage.setItem('dashboard_activeModule', moduleId);
     sessionStorage.setItem('dashboard_visibleModule', moduleId);
@@ -442,13 +460,19 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                     </div>
                   )}
                 </div>
-                <div className="last-update"><span className="update-icon">🕐</span>Updated {lastUpdated.toLocaleTimeString()}</div>
+                <div className="last-update"><span className="update-icon">🕐</span><span className="update-text">Updated {lastUpdated.toLocaleTimeString()}</span></div>
                 <button className="refresh-btn" onClick={fetchData} disabled={loading}>
-                  <span className={loading ? 'spinning' : ''}>↻</span><span>Refresh</span>
+                  <span className={loading ? 'spinning' : ''}>↻</span><span className="refresh-text">Refresh</span>
                 </button>
                 <div className="logout-wrapper">
-                  <button className="logout-btn" onClick={() => setShowLogoutConfirm(true)}>
-                    <span className="logout-icon">🚪</span><span>Logout</span>
+                  <button className="logout-btn" onClick={(e) => {
+                    if (window.innerWidth <= 768) {
+                      handleLogout();
+                    } else {
+                      setShowLogoutConfirm(true);
+                    }
+                  }}>
+                    <span className="logout-icon">🚪</span><span className="logout-text">Logout</span>
                   </button>
                   {showLogoutConfirm && (
                     <div className="logout-confirm-modal">
@@ -770,15 +794,50 @@ case 'product-edit':
   };
 
   return (
+<<<<<<< Updated upstream
     <div className="dashboard-page">
+=======
+    <div className={`dashboard-page theme-${sunPhase}`}>
+      {/* Mobile Hamburger */}
+      {!navExpanded && (
+        <button className="mobile-hamburger" onClick={() => setNavExpanded(true)}>
+          ☰
+        </button>
+      )}
+
+      {/* Mobile Overlay */}
+      {navExpanded && (
+        <div className="mobile-nav-overlay" onClick={() => setNavExpanded(false)}></div>
+      )}
+
+>>>>>>> Stashed changes
       {/* Floating Navigation Menu */}
       <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
         <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
           {navExpanded ? '◀' : '▶'}
         </button>
-        <div className="nav-header">
-          <span className="nav-logo">📋</span>
-          {navExpanded && <span className="nav-title">POS Modules</span>}
+        <div className="nav-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span className="nav-logo">📋</span>
+            {navExpanded && <span className="nav-title">POS Modules</span>}
+          </div>
+          {navExpanded && (
+            <button 
+              className="mobile-close-btn" 
+              onClick={() => setNavExpanded(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: '20px',
+                cursor: 'pointer',
+                display: 'none', // Hidden by default, shown on mobile via CSS
+                padding: '0 8px'
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div className="nav-items">
           {filteredNavItems.map(item => (
@@ -892,6 +951,7 @@ case 'product-edit':
         .floating-nav.collapsed { width: 70px; }
         .nav-toggle { position: absolute; right: -12px; top: 20px; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; cursor: pointer; border: 2px solid white; z-index: 101; transition: transform 0.2s; }
         .nav-toggle:hover { transform: scale(1.1); }
+        .mobile-hamburger { display: none; position: fixed; top: 16px; left: 16px; z-index: 200; background: rgba(15, 23, 42, 0.95); color: white; border: 1px solid rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 10px; font-size: 24px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); backdrop-filter: blur(10px); }
         .nav-header { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
         .nav-logo { font-size: 28px; }
         .nav-title { font-size: 18px; font-weight: 700; color: white; }
@@ -922,7 +982,12 @@ case 'product-edit':
         @keyframes badgeBlink { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.8)} }
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+<<<<<<< Updated upstream
         .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); }
+=======
+        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
+        .last-update { display: flex; align-items: center; gap: 8px; background: var(--glass-bg); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); font-size: 0.85rem; font-weight: 500; }
+>>>>>>> Stashed changes
         .notification-wrapper { position: relative; }
         .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
         .notification-btn:hover { background: white; transform: scale(1.05); }
@@ -940,15 +1005,15 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
-        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; }
+        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; color: #1e293b; }
         .date-presets { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 12px; flex-wrap: wrap; }
-        .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; }
+        .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; color: #64748b; }
         .preset-btn.active { background: white; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .connection-status { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f1f5f9; border-radius: 20px; }
+        .connection-status { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f1f5f9; border-radius: 20px; color: #1e293b; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
         .status-dot.connected { background: #10b981; }
         .status-dot.disconnected { background: #ef4444; }
@@ -972,9 +1037,9 @@ case 'product-edit':
         .stat-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; }
         .stat-label { font-size: 0.75rem; color: #64748b; }
         .tp-live-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
-        .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); color: #1e293b; }
         .live-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; animation: blink 1s ease-in-out infinite; }
-        .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; }
+        .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; color: #1e293b; }
         .view-all-btn:hover { background: #3b82f6; color: white; }
         .refresh-btn { display: flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 30px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
         .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
@@ -984,7 +1049,7 @@ case 'product-edit':
         .logout-btn { display: flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 30px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
         .logout-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239,68,68,0.3); background: linear-gradient(135deg, #dc2626, #b91c1c); }
         .logout-icon { font-size: 16px; }
-        .logout-confirm-modal { position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 1000; min-width: 260px; animation: fadeInScale 0.2s ease; }
+        .logout-confirm-modal { position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 1000; min-width: 260px; animation: fadeInScale 0.2s ease; color: #1e293b; }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .logout-confirm-content { padding: 20px; text-align: center; }
         .logout-confirm-icon { font-size: 40px; display: block; margin-bottom: 12px; }
@@ -1001,7 +1066,7 @@ case 'product-edit':
         @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(1.2)} }
         
         /* Module Detail View Styles */
-        .module-detail { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; margin-bottom: 24px; animation: fadeIn 0.4s ease; }
+        .module-detail { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; margin-bottom: 24px; animation: fadeIn 0.4s ease; color: #1e293b; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .module-header { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid rgba(59,130,246,0.2); flex-wrap: wrap; }
         .module-icon { font-size: 64px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(59,130,246,0.3); }
@@ -1016,7 +1081,7 @@ case 'product-edit':
         .feature-text { font-size: 0.9rem; font-weight: 500; color: #334155; }
         
         /* AI Modules Styles */
-        .ai-forecast-module, .ai-reorder-module, .ai-assistant-module, .analytics-module, .reporting-module, .notifications-module, .audit-module { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; animation: fadeIn 0.4s ease; }
+        .ai-forecast-module, .ai-reorder-module, .ai-assistant-module, .analytics-module, .reporting-module, .notifications-module, .audit-module { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; animation: fadeIn 0.4s ease; color: #1e293b; }
         .forecast-header, .module-header-custom { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
         .forecast-icon, .module-icon-custom { font-size: 60px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 30px; }
         .forecast-stats, .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 30px 0; }
@@ -1090,6 +1155,43 @@ case 'product-edit':
           .module-title { font-size: 1.3rem; }
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
+        }
+        
+        @media (max-width: 768px) {
+          .floating-nav { transition: transform 0.3s ease; }
+          .floating-nav.collapsed { transform: translateX(-100%); width: 280px; }
+          .floating-nav.expanded { transform: translateX(0); width: 280px; }
+          .content-wrapper { margin-left: 0 !important; padding: 12px; }
+          .mobile-hamburger { display: flex; }
+          .nav-toggle { display: none; }
+          .dash-header { padding-left: 64px; padding-top: 16px; }
+          .ai-hub-header { padding-left: 64px !important; padding-top: 20px !important; padding-bottom: 16px !important; }
+          .greeting-badge { flex-wrap: wrap; padding: 10px 16px; border-radius: 20px; gap: 8px; font-size: 0.8rem; line-height: 1.4; width: 100%; max-width: calc(100vw - 90px); }
+          .dash-header-right { gap: 12px; flex-wrap: wrap; overflow: visible; margin-top: 12px; padding-bottom: 8px; justify-content: flex-start; }
+          .weather-location, .weather-temp, .update-text, .refresh-text, .logout-text, .time-indicator { display: none !important; }
+          .weather-widget, .last-update, .refresh-btn, .logout-btn, .notification-btn { padding: 0 !important; border-radius: 50% !important; width: 44px !important; height: 44px !important; display: flex; align-items: center; justify-content: center; }
+          .last-update { border-radius: 50% !important; }
+          /* Reset collapsed internal styles for mobile expanded view */
+          .floating-nav.collapsed .nav-label, .floating-nav.collapsed .nav-page, .floating-nav.collapsed .nav-title, .floating-nav.collapsed .nav-badge, .floating-nav.collapsed .nav-module-count { display: inline-block; }
+          .floating-nav.collapsed .nav-item { justify-content: flex-start; padding: 12px 16px; }
+          .floating-nav.collapsed .nav-icon { min-width: 32px; font-size: 16px; }
+          .mobile-nav-overlay { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 99; backdrop-filter: blur(2px); }
+          .mobile-close-btn { display: block !important; }
+          /* AI Smart Reordering Mobile specific fixes */
+          .ai-reorder-module { padding: 68px 16px 24px 16px !important; border-radius: 20px !important; margin: 0 !important; }
+          .ai-reorder-module .module-header-custom { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+          .ai-reorder-module .module-header-custom h1 { font-size: 24px !important; line-height: 1.2; }
+          .ai-reorder-module .module-icon-custom { width: 68px; height: 68px; font-size: 32px; border-radius: 20px; }
+          .ai-reorder-module .reorder-grid { grid-template-columns: 1fr !important; }
+          .ai-reorder-module .reorder-filters { flex-direction: column; align-items: stretch !important; gap: 12px; }
+          .ai-reorder-module .filter-group, .ai-reorder-module .search-group { width: 100%; }
+          .ai-reorder-module .filter-select, .ai-reorder-module .filter-input { width: 100% !important; min-width: 100% !important; box-sizing: border-box; }
+          .ai-reorder-module .recommendation-card { overflow-x: auto; padding: 16px; border-radius: 16px; }
+          .ai-reorder-module .recommendation-table { min-width: 650px; }
+          .ai-reorder-module .stats-grid { grid-template-columns: 1fr !important; }
+
+          /* Fix Grid Blowout on Mobile */
+          .tp-live-grid > *, .inventory-grid > *, .dash-section { min-width: 0; max-width: 100vw; }
         }
       `}</style>
     </div>
