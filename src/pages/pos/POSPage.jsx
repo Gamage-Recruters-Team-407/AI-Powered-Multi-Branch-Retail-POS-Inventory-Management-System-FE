@@ -88,14 +88,14 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
 
       <div className="flex-1 flex flex-col rounded-3xl backdrop-blur-xl bg-white/20 border border-white/30 shadow-2xl overflow-hidden">
         
-        <div className="px-6 py-4 flex justify-between items-center shrink-0 border-b border-white/20 bg-white/10">
+        <div className="px-4 md:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 border-b border-white/20 bg-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/30 shadow-inner">
               <ShoppingBag size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white tracking-tight">Cashier Desk</h1>
-              <p className="text-xs font-semibold text-sky-100/80 mt-0.5">
+              <h1 className="text-lg md:text-xl font-extrabold text-white tracking-tight">Cashier Desk</h1>
+              <p className="text-[10px] md:text-xs font-semibold text-sky-100/80 mt-0.5">
                 {new Date().toLocaleDateString("en-LK", {
                   weekday: "long", year: "numeric", month: "long", day: "numeric",
                 })}
@@ -105,16 +105,16 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
           
           <button
             onClick={() => onViewHistory ? onViewHistory() : navigate("/history")}
-            className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-2xl hover:bg-blue-700 hover:shadow-lg transition-all text-xs uppercase tracking-wider shadow-md shadow-blue-700/20"
+            className="flex items-center justify-center w-full sm:w-auto gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-2xl hover:bg-blue-700 hover:shadow-lg transition-all text-xs uppercase tracking-wider shadow-md shadow-blue-700/20"
           >
             <History size={14} /> Sales History
           </button>
         </div>
 
       
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden p-5 gap-4">
-            <div className="backdrop-blur-md bg-white/40 p-2 rounded-2xl border border-white/20 shadow-sm">
+        <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-[500px] lg:min-h-0 p-3 sm:p-5 gap-3 sm:gap-4 shrink-0">
+            <div className="backdrop-blur-md bg-white/40 p-2 rounded-2xl border border-white/20 shadow-sm shrink-0">
               <BarcodeScanner products={products} onFound={addToCart} />
             </div>
             <div className="flex-1 overflow-hidden backdrop-blur-md bg-white/30 rounded-2xl border border-white/20 p-4 shadow-sm">
@@ -122,7 +122,7 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
             </div>
           </div>
 
-          <div className="w-[380px] md:w-[420px] backdrop-blur-md bg-white/60 border-l border-white/30 flex flex-col shadow-2xl">
+          <div className="w-full lg:w-[420px] backdrop-blur-md bg-white/60 border-t lg:border-t-0 lg:border-l border-white/30 flex flex-col shadow-2xl min-h-[500px] lg:min-h-0 shrink-0">
             <Cart
               cart={cart}
               subtotal={subtotal}

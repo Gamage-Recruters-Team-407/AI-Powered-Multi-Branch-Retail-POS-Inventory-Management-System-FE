@@ -50,11 +50,11 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#050d1f" }}>
+    <div className="login-wrapper" style={{ display:"flex", minHeight:"100vh", background:"#050d1f" }}>
 
       {/* ── Left Panel ── */}
-      <div style={{
-        width: "82%", padding: "56px 52px",
+      <div className="login-left-panel" style={{
+        padding: "56px 52px",
         display: "flex", flexDirection: "column",
         justifyContent: "space-between",
         position: "relative", overflow: "hidden",
@@ -115,7 +115,7 @@ const Login = () => {
           </p>
 
           {/* Stats bar */}
-          <div style={{ display:"flex", marginTop:36,
+          <div className="login-stats-bar" style={{ display:"flex", marginTop:36,
                         border:"1px solid rgba(255,255,255,.07)",
                         borderRadius:12, overflow:"hidden",
                         background:"rgba(255,255,255,.03)" }}>
@@ -169,8 +169,8 @@ const Login = () => {
       </div>
 
       {/* ── Right Panel ── */}
-      <div style={{
-        width: "58%", background:"#070f21",
+      <div className="login-right-panel" style={{
+        background:"#070f21",
         display:"flex", alignItems:"center", justifyContent:"center",
         padding:"40px 60px",
         borderLeft:"1px solid rgba(255,255,255,.05)",
@@ -310,8 +310,7 @@ const Login = () => {
 </div>
 
 {/* Feature highlight cards */}
-<div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
-              gap:8, marginBottom:18 }}>
+<div className="login-features-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:18 }}>
   {[
     { icon:"ti-rocket",       label:"Fast Setup",     sub:"Live in minutes"      },
     { icon:"ti-chart-line",   label:"Analytics",      sub:"Real-time insights"   },
@@ -363,7 +362,20 @@ const Login = () => {
         </div>
       </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        .login-left-panel { width: 55%; }
+        .login-right-panel { width: 45%; }
+        
+        @media (max-width: 900px) {
+          .login-wrapper { flex-direction: column !important; }
+          .login-left-panel { width: 100% !important; padding: 40px 24px !important; order: 2; border-top: 1px solid rgba(255,255,255,0.05); }
+          .login-right-panel { width: 100% !important; padding: 40px 24px !important; order: 1; border-left: none !important; }
+          .login-stats-bar { flex-wrap: wrap; }
+          .login-stats-bar > div { flex: 1 1 40% !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,.07); }
+          .login-features-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 };

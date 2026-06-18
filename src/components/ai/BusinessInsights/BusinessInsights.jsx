@@ -40,7 +40,7 @@ const BusinessInsights = ({ darkMode }) => {
 
       {!loading && data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div className="bi-kpi-grid">
             <KpiCard title="Total Revenue" value={`$${data.kpis.totalRevenue.toLocaleString()}`} change="+16.8%" isPositive={true} darkMode={darkMode} />
             <KpiCard title="Orders" value={data.kpis.totalOrders} change="+3.2%" isPositive={true} darkMode={darkMode} />
             <KpiCard title="Avg Order Value" value={`$${data.kpis.averageOrderValue}`} change="-0.5%" isPositive={true} darkMode={darkMode} />
@@ -60,6 +60,20 @@ const BusinessInsights = ({ darkMode }) => {
       )}
 
       <ChartWidget darkMode={darkMode} />
+      
+      <style>{`
+        .bi-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        @media (max-width: 640px) {
+          .bi-kpi-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   );
 };

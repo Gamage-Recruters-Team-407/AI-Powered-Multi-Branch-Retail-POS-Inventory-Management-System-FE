@@ -239,7 +239,7 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <XCircle size={14} /> Dismiss All
+            <XCircle size={16} /> <span className="da-btn-text">Dismiss All</span>
           </button>
           <button
             onClick={handleScheduleAll}
@@ -251,7 +251,7 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <Clock size={14} /> Schedule
+            <Clock size={16} /> <span className="da-btn-text">Schedule</span>
           </button>
           <button
             onClick={handleApproveAll}
@@ -264,10 +264,16 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <CheckCircle2 size={14} /> Approve All
+            <CheckCircle2 size={16} /> <span className="da-btn-text">Approve All</span>
           </button>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 640px) {
+          .da-btn-text { display: none; }
+        }
+      `}</style>
     </div>
   );
 };

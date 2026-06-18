@@ -1,21 +1,18 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useBranches } from "../../context/BranchContext";
-import { useAuth } from "../../context/AuthContext";
-import AddBranchModal from "./AddBranchModal";
-import EditBranchModal from "./EditBranchModal";
 
 function BranchListPage() {
-  const { branches, loading, fetchBranches, removeBranch, searchBranch } =
-    useBranches();
+  const {
+    branches,
+    loading,
+    fetchBranches,
+    removeBranch,
+    searchBranch,
+  } = useBranches();
 
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const isAdmin = user?.role === "admin";
   const [message, setMessage] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
 
   useEffect(() => {
     fetchBranches();
@@ -52,7 +49,7 @@ function BranchListPage() {
   return (
     <>
       <div
-        className="rounded-[28px] p-6 min-h-[calc(100vh-100px)] shadow-lg text-slate-800"
+        className="rounded-2xl md:rounded-[28px] p-4 md:p-6 min-h-[calc(100vh-100px)] shadow-lg text-slate-800"
         style={{
           background: "rgba(255,255,255,0.15)",
           backdropFilter: "blur(10px)",
@@ -62,7 +59,7 @@ function BranchListPage() {
         <div className="mx-auto max-w-7xl">
           {/* Header */}
           <div
-            className="mb-6 flex justify-between rounded-2xl p-6 shadow-sm"
+            className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 rounded-2xl p-6 shadow-sm"
             style={{
               background: "rgba(255,255,255,0.6)",
               backdropFilter: "blur(10px)",
@@ -78,22 +75,15 @@ function BranchListPage() {
             {isAdmin && (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-blue-700 transition"
+                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-blue-700 transition w-full sm:w-auto"
               >
                 + Add Branch
               </button>
             )}
           </div>
 
-          {/* Search */}
-          <div
-            className="mb-6 rounded-2xl p-6 shadow-sm"
-            style={{
-              background: "rgba(255,255,255,0.6)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <form onSubmit={handleSearch} className="flex gap-3">
+          <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -101,17 +91,19 @@ function BranchListPage() {
                 className="border px-4 py-2 rounded-lg w-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
 
-              <button className="bg-blue-600 text-white px-4 rounded-lg">
-                Search
-              </button>
+              <div className="flex gap-2">
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex-1 sm:flex-none">
+                  Search
+                </button>
 
-              <button
-                type="button"
-                onClick={handleClear}
-                className="border px-4 rounded-lg"
-              >
-                Clear
-              </button>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="border px-4 py-2 rounded-lg flex-1 sm:flex-none"
+                >
+                  Clear
+                </button>
+              </div>
             </form>
           </div>
 
@@ -124,7 +116,7 @@ function BranchListPage() {
 
           {/* Table */}
           <div
-            className="rounded-2xl shadow-sm overflow-hidden"
+            className="rounded-2xl shadow-sm overflow-hidden overflow-x-auto"
             style={{
               background: "rgba(255,255,255,0.6)",
               backdropFilter: "blur(10px)",
@@ -141,7 +133,7 @@ function BranchListPage() {
             ) : branches.length === 0 ? (
               <div className="p-6 text-center">No branches found</div>
             ) : (
-              <table className="w-full text-left">
+              <table className="w-full text-left min-w-[700px]">
                 <thead className="bg-slate-100">
                   <tr>
                     <th className="p-3 text-gray-800">Name</th>
@@ -212,28 +204,109 @@ function BranchListPage() {
             )}
           </div>
         </div>
+
+        {/* Search */}
+        <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="Search branch..."
+              className="border px-4 py-2 rounded-lg w-full"
+            />
+
+            <button className="bg-blue-600 text-white px-4 rounded-lg">
+              Search
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClear}
+              className="border px-4 rounded-lg"
+            >
+              Clear
+            </button>
+          </form>
+        </div>
+
+        {/* Message */}
+        {message && (
+          <div className="mb-4 bg-blue-50 text-blue-700 p-3 rounded-lg">
+            {message}
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold">
+              Branch List ({branches.length})
+            </h2>
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-center">Loading...</div>
+          ) : branches.length === 0 ? (
+            <div className="p-6 text-center">No branches found</div>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-slate-100">
+                <tr>
+                  <th className="p-3">Name</th>
+                  <th className="p-3">Code</th>
+                  <th className="p-3">City</th>
+                  <th className="p-3">Contact</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {branches.map((b) => (
+                  <tr key={b._id} className="border-t">
+                    <td className="p-3">{b.name}</td>
+                    <td className="p-3">{b.code || "N/A"}</td>
+                    <td className="p-3">{b.city || "N/A"}</td>
+                    <td className="p-3">{b.contactNumber || "N/A"}</td>
+
+                    <td className="p-3">
+                      {b.isActive ? (
+                        <span className="text-green-600">Active</span>
+                      ) : (
+                        <span className="text-red-600">Inactive</span>
+                      )}
+                    </td>
+
+                    <td className="p-3 flex gap-2">
+                      <Link
+                        to={`/branches/${b._id}`}
+                        className="text-blue-600"
+                      >
+                        View
+                      </Link>
+
+                      <Link
+                        to={`/branches/edit/${b._id}`}
+                        className="text-slate-600"
+                      >
+                        Edit
+                      </Link>
+
+                      <button
+                        onClick={() => handleDelete(b._id)}
+                        className="text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
       </div>
-
-      {isAdmin && showAddModal && (
-        <AddBranchModal
-          onClose={() => setShowAddModal(false)}
-          onSuccess={(msg) => {
-            setMessage(msg);
-            fetchBranches();
-          }}
-        />
-      )}
-
-      {isAdmin && editTarget && (
-        <EditBranchModal
-          branchId={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSuccess={(msg) => {
-            setMessage(msg);
-            fetchBranches();
-          }}
-        />
-      )}
     </>
   );
 }

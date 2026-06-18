@@ -226,7 +226,7 @@ function AnalyticsPage() {
           boxShadow: "0 4px 24px rgba(15,23,42,0.08)",
         }}
       >
-        <div style={{ maxWidth: "1536px", margin: "0 auto", padding: "16px 28px 0" }}>
+        <div className="analytics-header-container" style={{ maxWidth: "1536px", margin: "0 auto", padding: "16px 28px 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div
@@ -333,9 +333,10 @@ function AnalyticsPage() {
       </div>
 
       {/* Body */}
-      <div style={{ maxWidth: "1536px", margin: "0 auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="analytics-body-container" style={{ maxWidth: "1536px", margin: "0 auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Filter bar */}
         <div
+          className="analytics-filters"
           style={{
             display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
             background: "rgba(255,255,255,0.88)", backdropFilter: "blur(10px)",
@@ -417,12 +418,12 @@ function AnalyticsPage() {
             <div style={glassCard}>
               <AnalyticsKPICards data={data.kpi} loading={loading} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 20 }}>
+            <div className="analytics-two-col" style={{ display: "grid", gap: 20 }}>
               <div style={glassCard}><SalesTrendsChart params={filters} /></div>
               <div style={glassCard}><ProfitTrendsChart params={filters} /></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-              <div style={{ ...glassCard, gridColumn: "span 2" }}>
+            <div className="analytics-three-col" style={{ display: "grid", gap: 20 }}>
+              <div className="analytics-span-2" style={glassCard}>
                 <BranchPerformancePanel data={data.branchPerf} loading={loading} />
               </div>
               <div style={glassCard}>
@@ -447,8 +448,22 @@ function AnalyticsPage() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .analytics-two-col { grid-template-columns: repeat(auto-fit,minmax(340px,1fr)); }
+        .analytics-three-col { grid-template-columns: 1fr 1fr 1fr; }
+        .analytics-span-2 { grid-column: span 2; }
+
         @media (max-width: 900px) {
+          .analytics-header-container { padding: 16px 16px 0 !important; }
+          .analytics-body-container { padding: 16px 12px !important; }
+          .analytics-two-col { grid-template-columns: 1fr !important; }
           .analytics-three-col { grid-template-columns: 1fr !important; }
+          .analytics-span-2 { grid-column: span 1 !important; }
+          .analytics-filters { flex-direction: column; align-items: stretch !important; gap: 10px; }
+          .analytics-filters input, .analytics-filters select { width: 100%; box-sizing: border-box; }
+          /* Filter icon disappears to save space */
+          .analytics-filters > svg:first-child { display: none; }
+          /* Ensure charts can scale down */
+          .analytics-two-col > div, .analytics-three-col > div { min-width: 0; max-width: 100vw; overflow: hidden; }
         }
       `}</style>
     </div>

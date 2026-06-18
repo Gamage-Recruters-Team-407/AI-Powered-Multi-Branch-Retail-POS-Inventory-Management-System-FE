@@ -215,7 +215,7 @@ const AuditSecurityPage = () => {
 
       <AuditStatsCards stats={stats} loading={statsLoading} />
 
-      <div className="audit-tabs">
+      <div className="audit-tabs hide-scrollbar">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -299,14 +299,22 @@ const AuditSecurityPage = () => {
         .audit-subtitle { font-size: .84rem; color: #64748b; margin: 4px 0 0; }
         .export-all-btn { padding: 10px 20px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: .875rem; font-weight: 600; color: #475569; background: white; display: flex; align-items: center; gap: 7px; transition: all .15s; white-space: nowrap; cursor: pointer; }
         .export-all-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
-        .audit-tabs { display: flex; gap: 4px; background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 5px; width: fit-content; }
-        .audit-tab { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: .875rem; font-weight: 500; color: #64748b; transition: all .15s; white-space: nowrap; background: transparent; border: none; cursor: pointer; }
+        .audit-tabs { display: flex; gap: 4px; background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 5px; width: fit-content; max-width: 100%; overflow-x: auto; }
+        .audit-tab { display: flex; flex-shrink: 0; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: .875rem; font-weight: 500; color: #64748b; transition: all .15s; white-space: nowrap; background: transparent; border: none; cursor: pointer; }
         .audit-tab:hover { background: #f8fafc; color: #374151; }
         .audit-tab.active { background: #1e3a5f; color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(30,58,95,.3); }
         .tab-pane { display: flex; flex-direction: column; gap: 16px; }
         .tab-section-header { display: flex; flex-direction: column; gap: 3px; }
         .tab-section-title { font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; }
         .tab-section-sub { font-size: .83rem; color: #64748b; margin: 0; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @media (max-width: 768px) {
+          .audit-page { padding: 16px 12px 48px; }
+          .audit-page-header { flex-direction: column; align-items: flex-start; }
+          .export-all-btn { width: 100%; justify-content: center; }
+        }
       `}</style>
     </div>
   );
