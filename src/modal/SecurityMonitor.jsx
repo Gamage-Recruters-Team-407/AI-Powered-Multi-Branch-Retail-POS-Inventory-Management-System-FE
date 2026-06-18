@@ -243,20 +243,19 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
       <style>{`
         .sec-monitor { display: flex; flex-direction: column; gap: 20px; }
         .sec-monitor-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; background: white; padding: 16px 20px; border: 1px solid #e2e8f0; border-radius: 12px; }
-        .sec-monitor-tabs { display: flex; gap: 8px; background: #f8fafc; padding: 4px; border-radius: 10px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-        .sec-monitor-tabs::-webkit-scrollbar { display: none; }
-        .sec-tab { padding: 8px 16px; border-radius: 8px; font-size: .875rem; font-weight: 500; color: #64748b; background: transparent; display: flex; align-items: center; gap: 8px; transition: all .2s; border: none; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .sec-monitor-tabs { display: flex; gap: 8px; background: #f8fafc; padding: 4px; border-radius: 10px; }
+        .sec-tab { padding: 8px 16px; border-radius: 8px; font-size: .875rem; font-weight: 500; color: #64748b; background: transparent; display: flex; align-items: center; gap: 8px; transition: all .2s; border: none; cursor: pointer; }
         .sec-tab.active { background: white; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
         .tab-count { font-size: .7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
         .tab-count.active { background: #fee2e2; color: #dc2626; }
         .tab-count.resolved { background: #dcfce7; color: #16a34a; }
         .tab-count.all { background: #e2e8f0; color: #475569; }
         
-        .sec-search-wrap { min-width: 260px; flex: 1; }
+        .sec-search-wrap { min-width: 260px; }
         .sec-search-input { width: 100%; padding: 8px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: .875rem; transition: all .2s; }
         .sec-search-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
 
-        .sec-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 20px; }
+        .sec-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
         
         .sec-event-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; border-top: 4px solid var(--type-color); display: flex; flex-direction: column; gap: 12px; transition: all .2s; }
         .sec-event-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateY(-2px); }
@@ -278,13 +277,8 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
         .sec-desc { font-size: .875rem; color: #334155; margin: 0; line-height: 1.5; font-weight: 500; }
         
         .sec-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; background: #f8fafc; padding: 12px; border-radius: 8px; font-size: .8rem; }
-        .sec-meta-grid div { color: #64748b; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 4px; }
-        .sec-meta-grid span { color: #1e293b; font-weight: 600; text-align: right; word-break: break-all; }
-
-        @media (max-width: 600px) {
-          .sec-meta-grid { grid-template-columns: 1fr; }
-          .sec-meta-grid div { flex-direction: row; }
-        }
+        .sec-meta-grid div { color: #64748b; display: flex; justify-content: space-between; align-items: center; }
+        .sec-meta-grid span { color: #1e293b; font-weight: 600; }
 
         .sec-metadata { background: #f1f5f9; padding: 10px; border-radius: 8px; font-size: .75rem; }
         .sec-metadata pre { margin: 8px 0 0 0; font-size: .7rem; overflow-x: auto; background: #0f172a; color: #e2e8f0; padding: 8px; border-radius: 6px; }

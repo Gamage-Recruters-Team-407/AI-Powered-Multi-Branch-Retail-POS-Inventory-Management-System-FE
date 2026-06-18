@@ -14,11 +14,7 @@ const recommendationApi = axios.create({
   timeout: 8000,
 });
 
-// When hitting Flask directly, it returns an array instead of { success: true, data: [...] }
-const unwrapRecommendationData = (response) => {
-  if (Array.isArray(response.data)) return response.data;
-  return response.data?.data || [];
-};
+const unwrapRecommendationData = (response) => response.data?.data || [];
 
 export const getTopProducts = async (limit = 10) => {
   const response = await recommendationApi.get('/sales/top-products', {
@@ -29,7 +25,7 @@ export const getTopProducts = async (limit = 10) => {
 };
 
 export const getTrendingProducts = async (limit = 10) => {
-  const response = await recommendationApi.get('/trending', {
+  const response = await recommendationApi.get('/trending/products', {
     params: { limit },
   });
 

@@ -132,11 +132,6 @@ const InventoryStatus = ({ data, role }) => {
         .st-bar-bg { flex: 1; height: 6px; background: var(--gray-100); border-radius: 99px; overflow: hidden; }
         .st-bar-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }
         .st-pct { font-size: .72rem; color: var(--gray-400); font-weight: 600; min-width: 28px; }
-
-        @media (max-width: 768px) {
-          .stock-table { overflow-x: auto; padding-bottom: 8px; }
-          .st-head, .st-row { min-width: 650px; }
-        }
       `}</style>
     </div>
   );

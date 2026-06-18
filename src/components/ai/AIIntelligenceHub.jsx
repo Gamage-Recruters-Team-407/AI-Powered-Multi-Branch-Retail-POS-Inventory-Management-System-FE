@@ -59,7 +59,7 @@ const AIIntelligenceHub = () => {
     }}>
 
       {/* ── HEADER & TABS (Glassmorphism) ── */}
-      <div className="ai-hub-header" style={{
+      <div style={{
         background: 'rgba(255, 255, 255, 0.4)',
         backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.6)',
@@ -82,9 +82,9 @@ const AIIntelligenceHub = () => {
             <h1 style={{ margin:0, fontSize:'18px', fontWeight:800, color:'white', letterSpacing:'-0.3px' }}>AI Hub</h1>
             <span style={{ background:'rgba(16,185,129,0.2)', color:'#34D399', fontSize:'9px', fontWeight:800, padding:'2px 6px', borderRadius:'999px', border:'1px solid rgba(16,185,129,0.4)' }}>LIVE</span>
             <button onClick={() => window.location.reload()} style={{
-              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '999px', padding: '6px 12px', color: 'white', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '4px'
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '999px', padding: '2px 8px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
             }} onMouseEnter={e => e.target.style.background='rgba(255,255,255,0.3)'} onMouseLeave={e => e.target.style.background='rgba(255,255,255,0.15)'}>
-              <span style={{fontSize:'14px'}}>🔄</span> Refresh
+              🔄 Refresh
             </button>
           </div>
         </div>
@@ -92,33 +92,26 @@ const AIIntelligenceHub = () => {
         {/* Tab Navigation */}
         <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
           {[
-            { id: 'chat', icon: '💬', label: 'AI Chat' },
-            { id: 'insights', icon: '📊', label: 'Business Insights' },
-            { id: 'decision', icon: '🧠', label: 'Decision Assistant' }
+            { id: 'chat', label: '💬 AI Chat' },
+            { id: 'insights', label: '📊 Business Insights' },
+            { id: 'decision', label: '🧠 Decision Assistant' }
           ].map(t => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className="ai-hub-tab-btn"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding:'8px 16px',
+                padding:'6px 14px',
                 borderRadius:'10px',
                 border: activeTab === t.id ? '1px solid #3B82F6' : '1px solid rgba(255,255,255,0.3)',
                 background: activeTab === t.id ? '#2563EB' : 'rgba(255,255,255,0.15)',
                 color: activeTab === t.id ? 'white' : 'rgba(255,255,255,0.85)',
                 fontWeight:700,
-                fontSize:'13px',
+                fontSize:'12px',
                 cursor:'pointer',
                 transition:'all 0.2s',
                 boxShadow: activeTab === t.id ? '0 2px 8px rgba(37,99,235,0.2)' : 'none',
               }}
-            >
-              <span className="ai-tab-icon" style={{fontSize: '16px'}}>{t.icon}</span>
-              <span className="ai-tab-text">{t.label}</span>
-            </button>
+            >{t.label}</button>
           ))}
         </div>
       </div>
@@ -208,14 +201,7 @@ const AIIntelligenceHub = () => {
           .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
         }
         @media (max-width: 640px) {
-          .ai-query-grid { display: flex !important; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; }
-          .ai-query-btn { min-width: 200px; padding: 10px !important; }
-          .ai-query-icon { font-size: 18px !important; margin-bottom: 4px !important; display: inline-block; margin-right: 8px; }
-          .ai-query-text { font-size: 11px !important; display: inline-block; }
-          .kpi-grid { grid-template-columns: 1fr !important; }
-          .ai-tab-text { display: none !important; }
-          .ai-tab-icon { margin: 0 !important; font-size: 20px !important; }
-          .ai-hub-tab-btn { padding: 8px 12px !important; }
+          .ai-query-grid, .kpi-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
@@ -286,14 +272,14 @@ const InlineChatPanelConnected = ({ messages, setMessages, input, setInput, isTy
           <p style={{ margin:'0 0 12px', fontSize:'13px', fontWeight:600, color:'white' }}>Try an example:</p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'24px' }} className="ai-query-grid">
             {EXAMPLES.map((q, i) => (
-              <motion.button key={i} whileHover={{ scale:1.02, y:-2 }} whileTap={{ scale:0.98 }} className="ai-query-btn"
+              <motion.button key={i} whileHover={{ scale:1.02, y:-2 }} whileTap={{ scale:0.98 }}
                 onClick={() => sendQuery(q.text)}
                 style={{ background:'rgba(255,255,255,0.9)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.8)', borderRadius:'14px', padding:'14px', cursor:'pointer', textAlign:'left', transition:'all 0.2s', boxShadow:'0 4px 12px rgba(0,0,0,0.05)' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor='#3B82F6'; e.currentTarget.style.background='#ffffff'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.8)'; e.currentTarget.style.background='rgba(255,255,255,0.9)'; }}
               >
-                <div className="ai-query-icon" style={{ fontSize:'24px', marginBottom:'8px' }}>{q.icon}</div>
-                <div className="ai-query-text" style={{ fontSize:'13px', color:'#1E293B', fontWeight:600, lineHeight:1.45 }}>{q.text}</div>
+                <div style={{ fontSize:'24px', marginBottom:'8px' }}>{q.icon}</div>
+                <div style={{ fontSize:'13px', color:'#1E293B', fontWeight:600, lineHeight:1.45 }}>{q.text}</div>
               </motion.button>
             ))}
           </div>

@@ -11,9 +11,12 @@ import PersonalizedRecommendations from '../../components/dashboard/Personalized
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { socketService } from '../../services/socketService';
+const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
+const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
 import { useNavigate } from 'react-router-dom';
 import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
+import NotificationsModule from '../../components/dashboard/NotificationsModule';
 
 
 const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
@@ -33,7 +36,11 @@ const CheckoutPage = lazy(() => import('../pos/CheckoutPage'));
 const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
 const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
+const UserListPage = lazy(() => import("../users/UserListPage")); 
+const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
 
+const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
+const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -82,31 +89,51 @@ const DATE_PRESETS = [
   { label: 'Custom', value: 'custom', icon: '⚙️' },
 ];
 
-// 22 Modules exactly as per your image
 const MODULE_NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard & Business Overview', icon: '📊', page: 1, isMain: true },
-  { id: 'auth', label: 'Authentication & Authorization', icon: '🔐', page: 1 },
-  { id: 'user-mgmt', label: 'User Management', icon: '👥', page: 1 },
-  { id: 'branch-mgmt', label: 'Branch Management', icon: '🏢', page: 1 },
-  { id: 'employee-mgmt', label: 'Employee Management', icon: '👔', page: 1 },
-  { id: 'customer-mgmt', label: 'Customer Management', icon: '👤', page: 2 },
-  { id: 'supplier-mgmt', label: 'Supplier Management', icon: '🚚', page: 2 },
-  { id: 'product-mgmt', label: 'Product Management', icon: '📦', page: 2 },
-  { id: 'inventory-mgmt', label: 'Inventory Management', icon: '📊', page: 2 },
-  { id: 'warehouse-mgmt', label: 'Warehouse Management', icon: '🏭', page: 2 },
-  { id: 'purchase-order', label: 'Purchase Order Management', icon: '📋', page: 2 },
-  { id: 'pos-sales', label: 'POS Sales & Billing', icon: '🛒', page: 3 },
-  { id: 'returns-refund', label: 'Returns & Refund Management', icon: '🔄', page: 3 },
-  { id: 'stock-transfer', label: 'Stock Transfer Management', icon: '🚛', page: 3 },
-  { id: 'promotion', label: 'Promotion & Discount Management', icon: '🏷️', page: 3 },
-  { id: 'ai-forecast', label: 'AI Demand Forecasting', icon: '🤖', page: 3 },
-  { id: 'ai-reorder', label: 'AI Smart Reordering', icon: '📈', page: 3 },
-  { id: 'analytics', label: 'Business Analytics', icon: '📉', page: 3 },
-  { id: 'reporting', label: 'Reporting Management', icon: '📄', page: 4 },
-  { id: 'notifications', label: 'Notifications & Alerts', icon: '🔔', page: 4 },
-  { id: 'audit-logs', label: 'Audit Logs & Security', icon: '🛡️', page: 4 },
-  // ── AI Intelligence ──
-  { id: 'ai-intelligence', label: 'AI Intelligence', icon: '🧠', page: 5, isAI: true },
+  { id: 'dashboard',     label: 'Dashboard & Business Overview',    icon: '📊', page: 1, isMain: true,
+    roles: ['admin','manager','cashier','user'] },
+  // { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
+  //   roles: ['admin'] },
+  { id: 'user-mgmt',     label: 'User Management',                  icon: '👥', page: 1,
+    roles: ['admin'] },
+  { id: 'branch-mgmt',   label: 'Branch Management',                icon: '🏢', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'employee-mgmt', label: 'Employee Management',              icon: '👔', page: 1,
+    roles: ['admin','manager'] },
+  { id: 'customer-mgmt', label: 'Customer Management',              icon: '👤', page: 2,
+    roles: ['admin','manager','cashier'] },
+  { id: 'supplier-mgmt', label: 'Supplier Management',              icon: '🚚', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'product-mgmt',  label: 'Product Management',               icon: '📦', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'inventory-mgmt',label: 'Inventory Management',             icon: '📊', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'warehouse-mgmt',label: 'Warehouse Management',             icon: '🏭', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'purchase-order',label: 'Purchase Order Management',        icon: '📋', page: 2,
+    roles: ['admin','manager'] },
+  { id: 'pos-sales',     label: 'POS Sales & Billing',              icon: '🛒', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'returns-refund',label: 'Returns & Refund Management',      icon: '🔄', page: 3,
+    roles: ['admin','manager','cashier'] },
+  { id: 'stock-transfer',label: 'Stock Transfer Management',        icon: '🚛', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'promotion',     label: 'Promotion & Discount Management',  icon: '🏷️', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-forecast',   label: 'AI Demand Forecasting',            icon: '🤖', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'ai-reorder',    label: 'AI Smart Reordering',              icon: '📈', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'analytics',     label: 'Business Analytics',               icon: '📉', page: 3,
+    roles: ['admin','manager'] },
+  { id: 'reporting',     label: 'Reporting Management',             icon: '📄', page: 4,
+    roles: ['admin'] },
+  { id: 'notifications', label: 'Notifications & Alerts',           icon: '🔔', page: 4,
+    roles: ['admin','manager','cashier'] },
+  { id: 'audit-logs',    label: 'Audit Logs & Security',            icon: '🛡️', page: 4,
+    roles: ['admin'] },
+  { id: 'ai-intelligence',label: 'AI Intelligence',                 icon: '🧠', page: 5, isAI: true,
+    roles: ['admin','manager'] },
 ];
 
 const _getDateRange = (preset) => {
@@ -129,10 +156,10 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  const filteredNavItems = MODULE_NAV_ITEMS.filter(item => {
-    if (item.id === 'reporting' && role !== 'admin') return false;
-    return true;
-  });
+  // ✅ අලුත් — roles array check
+  const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
+    item.roles.includes(role)
+  );
 
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
@@ -146,7 +173,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [navExpanded, setNavExpanded] = useState(() => window.innerWidth > 768);
+  const [navExpanded, setNavExpanded] = useState(true);
   const [warehouseDetailId, setWarehouseDetailId] = useState(null);
   const [activeModule, setActiveModule] = useState(() => {
     return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
@@ -280,11 +307,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setActiveModule('product-mgmt');
     } else {
       setActiveModule(moduleId);
-    }
-
-    // Auto-close sidebar on mobile after clicking a link
-    if (window.innerWidth <= 768) {
-      setNavExpanded(false);
     }
 
     // Reset warehouse detail when navigating away or back to list
@@ -453,19 +475,13 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                     </div>
                   )}
                 </div>
-                <div className="last-update"><span className="update-icon">🕐</span><span className="update-text">Updated {lastUpdated.toLocaleTimeString()}</span></div>
+                <div className="last-update"><span className="update-icon">🕐</span>Updated {lastUpdated.toLocaleTimeString()}</div>
                 <button className="refresh-btn" onClick={fetchData} disabled={loading}>
-                  <span className={loading ? 'spinning' : ''}>↻</span><span className="refresh-text">Refresh</span>
+                  <span className={loading ? 'spinning' : ''}>↻</span><span>Refresh</span>
                 </button>
                 <div className="logout-wrapper">
-                  <button className="logout-btn" onClick={(e) => {
-                    if (window.innerWidth <= 768) {
-                      handleLogout();
-                    } else {
-                      setShowLogoutConfirm(true);
-                    }
-                  }}>
-                    <span className="logout-icon">🚪</span><span className="logout-text">Logout</span>
+                  <button className="logout-btn" onClick={() => setShowLogoutConfirm(true)}>
+                    <span className="logout-icon">🚪</span><span>Logout</span>
                   </button>
                   {showLogoutConfirm && (
                     <div className="logout-confirm-modal">
@@ -537,9 +553,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
             <div className="dash-section">
               <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">📦</span><h2 className="section-title">Inventory Status</h2></div>
-                <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
+                {role?.toUpperCase() !== 'CASHIER' && (
+                  <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
+                )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>
@@ -569,23 +587,30 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
           </>
         );
 
-      case 'auth':
-        return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
+      // case 'auth':
+      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
         return <AIDemandForecastModule />;
-      case 'user-mgmt':
-        return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
+      // case 'user-mgmt':
+      //   return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
       //case 'branch-mgmt':
        // return <ModuleDetail title="Branch Management" icon="🏢" page={1} description="Manage branch records and configurations. Link branches with employees and inventory. Store branch-level settings. Generate branch performance statistics. Handle branch-related business logic." features={['Branch Information Display', 'Performance Metrics', 'Branch Creation & Updates', 'Branch-specific Inventory & Sales', 'Branch Search Functionality']} />;
+      
+      case 'user-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <UserListPage />
+          </Suspense>
+          );
       case 'branch-mgmt':
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <BranchListPage />
-    </Suspense>
-  );
-       case 'employee-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+        <BranchListPage />
+          </Suspense>
+      );
+      case 'employee-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
             <EmployeesPage />
@@ -603,7 +628,9 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       case 'supplier-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <SuppliersPage />
+            <InventoryProvider>
+              <SuppliersPage />
+            </InventoryProvider>
           </Suspense>
         );
       case 'product-mgmt':
@@ -706,7 +733,23 @@ case 'product-edit':
           </InventoryProvider>
         );
       case 'warehouse-mgmt':
-        return <ModuleDetail title="Warehouse Management" icon="🏭" page={2} description="Track warehouse inventory. Manage storage allocations. Record warehouse transactions. Handle warehouse transfers. Generate warehouse statistics." features={['Storage Location Visualization', 'Stock Allocations', 'Warehouse Transfers', 'Capacity Monitoring', 'Warehouse Reports']} />;
+        if (warehouseDetailId) {
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <WarehouseDetail
+                warehouseId={warehouseDetailId}
+                onBack={() => setWarehouseDetailId(null)}
+              />
+            </Suspense>
+          );
+        }
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <WarehouseList
+              onView={(id) => setWarehouseDetailId(id)}
+            />
+          </Suspense>
+        );
       case 'purchase-order':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -741,9 +784,14 @@ case 'product-edit':
       />
     </Suspense>
   );
+  if (posView === 'history') return (
+  <Suspense fallback={<ModuleLoading />}>
+    <SalesHistoryPage onBack={() => setPosView('pos')} />
+  </Suspense>
+);
   return (
     <Suspense fallback={<ModuleLoading />}>
-      <POSPage onCheckout={() => setPosView('checkout')} />
+      <POSPage onCheckout={() => setPosView('checkout')} onViewHistory={() => setPosView('history')} />
     </Suspense>
   );
 
@@ -768,7 +816,11 @@ case 'product-edit':
       case 'ai-reorder':
         return <AISmartReorderingModule />;
       case 'analytics':
-        return <BusinessAnalyticsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AnalyticsPageLazy />
+          </Suspense>
+        );
       case 'reporting':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -778,7 +830,11 @@ case 'product-edit':
       case 'notifications':
         return <NotificationsModule />;
       case 'audit-logs':
-        return <AuditLogsModule />;
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <AuditSecurityPage />
+          </Suspense>
+        );
       case 'ai-intelligence':
         return <AIIntelligenceHub />;
       default:
@@ -788,45 +844,14 @@ case 'product-edit':
 
   return (
     <div className={`dashboard-page theme-${sunPhase}`}>
-      {/* Mobile Hamburger */}
-      {!navExpanded && (
-        <button className="mobile-hamburger" onClick={() => setNavExpanded(true)}>
-          ☰
-        </button>
-      )}
-
-      {/* Mobile Overlay */}
-      {navExpanded && (
-        <div className="mobile-nav-overlay" onClick={() => setNavExpanded(false)}></div>
-      )}
-
       {/* Floating Navigation Menu */}
       <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
         <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
           {navExpanded ? '◀' : '▶'}
         </button>
-        <div className="nav-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span className="nav-logo">📋</span>
-            {navExpanded && <span className="nav-title">POS Modules</span>}
-          </div>
-          {navExpanded && (
-            <button 
-              className="mobile-close-btn" 
-              onClick={() => setNavExpanded(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#fff',
-                fontSize: '20px',
-                cursor: 'pointer',
-                display: 'none', // Hidden by default, shown on mobile via CSS
-                padding: '0 8px'
-              }}
-            >
-              ✕
-            </button>
-          )}
+        <div className="nav-header">
+          <span className="nav-logo">📋</span>
+          {navExpanded && <span className="nav-title">POS Modules</span>}
         </div>
         <div className="nav-items">
           {filteredNavItems.map(item => (
@@ -900,7 +925,79 @@ case 'product-edit':
       {visibleModule === 'dashboard' && <Chatbot />}
 
       <style>{`
-        .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; }
+        :root {
+          /* Default Theme (Morning) */
+          --bg-primary: #f0f9ff;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #475569;
+          --text-muted: #94a3b8;
+          --border-color: #e2e8f0;
+          --accent-color: #3b82f6;
+          --accent-light: #eff6ff;
+          --success-color: #10b981;
+          --success-light: #ecfdf5;
+          --warning-color: #f59e0b;
+          --warning-light: #fffbeb;
+          --danger-color: #ef4444;
+          --danger-light: #fef2f2;
+          --info-color: #06b6d4;
+          --info-light: #ecfeff;
+        }
+
+        .dashboard-page.theme-sunrise {
+          --bg-primary: #fff8eb;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #fff1e6;
+          --text-primary: #451a03;
+          --text-secondary: #78350f;
+          --text-muted: #b45309;
+          --border-color: #ffedd5;
+        }
+
+        .dashboard-page.theme-morning {
+          --bg-primary: #f0f9ff;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #475569;
+          --text-muted: #94a3b8;
+          --border-color: #e2e8f0;
+        }
+
+        .dashboard-page.theme-afternoon {
+          --bg-primary: #f8fafc;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #f1f5f9;
+          --text-primary: #0f172a;
+          --text-secondary: #334155;
+          --text-muted: #64748b;
+          --border-color: #e2e8f0;
+        }
+
+        .dashboard-page.theme-sunset {
+          --bg-primary: #fff1f2;
+          --bg-secondary: #ffffff;
+          --bg-tertiary: #fff1f2;
+          --text-primary: #4c0519;
+          --text-secondary: #881337;
+          --text-muted: #be123c;
+          --border-color: #fecdd3;
+        }
+
+        .dashboard-page.theme-night {
+          --bg-primary: #0f172a;
+          --bg-secondary: #1e293b;
+          --bg-tertiary: #334155;
+          --text-primary: #f8fafc;
+          --text-secondary: #cbd5e1;
+          --text-muted: #94a3b8;
+          --border-color: #334155;
+          --accent-light: rgba(59, 130, 246, 0.1);
+        }
+
+        .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; color: var(--text-primary); }
         .sky-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; transition: background 0.5s ease; }
         .sun { position: absolute; border-radius: 50%; transition: all 0.5s ease; }
         .sun.sunrise { bottom: 10%; right: 15%; width: 80px; height: 80px; animation: sunriseAnim 20s ease-in-out infinite; }
@@ -940,7 +1037,6 @@ case 'product-edit':
         .floating-nav.collapsed { width: 70px; }
         .nav-toggle { position: absolute; right: -12px; top: 20px; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; cursor: pointer; border: 2px solid white; z-index: 101; transition: transform 0.2s; }
         .nav-toggle:hover { transform: scale(1.1); }
-        .mobile-hamburger { display: none; position: fixed; top: 16px; left: 16px; z-index: 200; background: rgba(15, 23, 42, 0.95); color: white; border: 1px solid rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 10px; font-size: 24px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); backdrop-filter: blur(10px); }
         .nav-header { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
         .nav-logo { font-size: 28px; }
         .nav-title { font-size: 18px; font-weight: 700; color: white; }
@@ -972,14 +1068,13 @@ case 'product-edit':
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
         .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
-        .last-update { display: flex; align-items: center; gap: 8px; background: var(--glass-bg); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); font-size: 0.85rem; font-weight: 500; }
         .notification-wrapper { position: relative; }
-        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
+        .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; color: #1e293b; }
         .notification-btn:hover { background: white; transform: scale(1.05); }
         .notification-dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
-        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; }
-        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        .notification-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 280px; z-index: 10; overflow: hidden; color: #1e293b; }
+        .notification-header { padding: 12px 16px; background: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .notification-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; color: #334155; }
         .notification-item:hover { background: #f8fafc; }
         .branch-hero { background-size: cover; background-position: center; border-radius: 20px; margin-bottom: 24px; overflow: hidden; }
         .branch-hero-content { padding: 32px; display: flex; align-items: center; gap: 24px; color: white; flex-wrap: wrap; }
@@ -990,15 +1085,15 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
-        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; color: #1e293b; }
+        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; }
         .date-presets { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 12px; flex-wrap: wrap; }
-        .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; color: #64748b; }
+        .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; }
         .preset-btn.active { background: white; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .connection-status { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f1f5f9; border-radius: 20px; color: #1e293b; }
+        .connection-status { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f1f5f9; border-radius: 20px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
         .status-dot.connected { background: #10b981; }
         .status-dot.disconnected { background: #ef4444; }
@@ -1022,9 +1117,9 @@ case 'product-edit':
         .stat-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; }
         .stat-label { font-size: 0.75rem; color: #64748b; }
         .tp-live-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
-        .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); color: #1e293b; }
+        .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .live-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; animation: blink 1s ease-in-out infinite; }
-        .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; color: #1e293b; }
+        .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; }
         .view-all-btn:hover { background: #3b82f6; color: white; }
         .refresh-btn { display: flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 30px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
         .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
@@ -1034,7 +1129,7 @@ case 'product-edit':
         .logout-btn { display: flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 30px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
         .logout-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239,68,68,0.3); background: linear-gradient(135deg, #dc2626, #b91c1c); }
         .logout-icon { font-size: 16px; }
-        .logout-confirm-modal { position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 1000; min-width: 260px; animation: fadeInScale 0.2s ease; color: #1e293b; }
+        .logout-confirm-modal { position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 1000; min-width: 260px; animation: fadeInScale 0.2s ease; }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .logout-confirm-content { padding: 20px; text-align: center; }
         .logout-confirm-icon { font-size: 40px; display: block; margin-bottom: 12px; }
@@ -1051,7 +1146,7 @@ case 'product-edit':
         @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(1.2)} }
         
         /* Module Detail View Styles */
-        .module-detail { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; margin-bottom: 24px; animation: fadeIn 0.4s ease; color: #1e293b; }
+        .module-detail { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; margin-bottom: 24px; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .module-header { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid rgba(59,130,246,0.2); flex-wrap: wrap; }
         .module-icon { font-size: 64px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(59,130,246,0.3); }
@@ -1066,7 +1161,7 @@ case 'product-edit':
         .feature-text { font-size: 0.9rem; font-weight: 500; color: #334155; }
         
         /* AI Modules Styles */
-        .ai-forecast-module, .ai-reorder-module, .ai-assistant-module, .analytics-module, .reporting-module, .notifications-module, .audit-module { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; animation: fadeIn 0.4s ease; color: #1e293b; }
+        .ai-forecast-module, .ai-reorder-module, .ai-assistant-module, .analytics-module, .reporting-module, .notifications-module, .audit-module { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 28px; padding: 32px; animation: fadeIn 0.4s ease; }
         .forecast-header, .module-header-custom { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
         .forecast-icon, .module-icon-custom { font-size: 60px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 30px; }
         .forecast-stats, .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 30px 0; }
@@ -1077,7 +1172,37 @@ case 'product-edit':
         .forecast-item, .recommendation-item, .insight-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #e2e8f0; }
         .trend-up { color: #10b981; }
         .trend-down { color: #ef4444; }
-        
+
+        .reorder-filters { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; align-items: flex-end; }
+        .reorder-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 24px; }
+        .recommendation-card, .alert-card, .history-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
+        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 100%; }
+        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; }
+        .recommendation-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .recommendation-table tbody tr:last-child td { border-bottom: none; }
+        .approved-row { background: rgba(16,185,129,0.08); }
+        .risk-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+        .risk-high { background: rgba(239,68,68,0.12); color: #dc2626; }
+        .risk-medium { background: rgba(245,158,11,0.14); color: #d97706; }
+        .risk-low { background: rgba(16,185,129,0.12); color: #15803d; }
+        .approve-btn { padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 700; transition: all 0.2s; background: #3b82f6; color: white; }
+        .approve-btn.approved { background: #10b981; }
+        .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+        .alert-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; margin-bottom: 14px; }
+        .alert-high { background: rgba(254,226,226,0.9); }
+        .alert-medium { background: rgba(255,247,205,0.9); }
+        .alert-title { font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .alert-description { margin: 0 0 8px; color: #475569; font-size: 0.9rem; }
+        .alert-time { font-size: 0.78rem; color: #64748b; }
+        .alert-dismiss { border: none; background: #eef2ff; color: #3730a3; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all 0.2s; }
+        .alert-dismiss:hover { background: #c7d2fe; }
+        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table th, .history-table td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
+        .history-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .history-table tbody tr:last-child td { border-bottom: none; }
+        .search-group { flex: 1; min-width: 220px; }
+        .reorder-filters .filter-input { min-width: 260px; }
+
         /* AI Chatbot Styles */
         .chatbot-icon { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200; box-shadow: 0 4px 20px rgba(59,130,246,0.4); transition: all 0.3s ease; animation: floatIcon 3s ease-in-out infinite; }
         .chatbot-icon:hover { transform: scale(1.1); }
@@ -1141,43 +1266,6 @@ case 'product-edit':
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
         }
-        
-        @media (max-width: 768px) {
-          .floating-nav { transition: transform 0.3s ease; }
-          .floating-nav.collapsed { transform: translateX(-100%); width: 280px; }
-          .floating-nav.expanded { transform: translateX(0); width: 280px; }
-          .content-wrapper { margin-left: 0 !important; padding: 12px; }
-          .mobile-hamburger { display: flex; }
-          .nav-toggle { display: none; }
-          .dash-header { padding-left: 64px; padding-top: 16px; }
-          .ai-hub-header { padding-left: 64px !important; padding-top: 20px !important; padding-bottom: 16px !important; }
-          .greeting-badge { flex-wrap: wrap; padding: 10px 16px; border-radius: 20px; gap: 8px; font-size: 0.8rem; line-height: 1.4; width: 100%; max-width: calc(100vw - 90px); }
-          .dash-header-right { gap: 12px; flex-wrap: wrap; overflow: visible; margin-top: 12px; padding-bottom: 8px; justify-content: flex-start; }
-          .weather-location, .weather-temp, .update-text, .refresh-text, .logout-text, .time-indicator { display: none !important; }
-          .weather-widget, .last-update, .refresh-btn, .logout-btn, .notification-btn { padding: 0 !important; border-radius: 50% !important; width: 44px !important; height: 44px !important; display: flex; align-items: center; justify-content: center; }
-          .last-update { border-radius: 50% !important; }
-          /* Reset collapsed internal styles for mobile expanded view */
-          .floating-nav.collapsed .nav-label, .floating-nav.collapsed .nav-page, .floating-nav.collapsed .nav-title, .floating-nav.collapsed .nav-badge, .floating-nav.collapsed .nav-module-count { display: inline-block; }
-          .floating-nav.collapsed .nav-item { justify-content: flex-start; padding: 12px 16px; }
-          .floating-nav.collapsed .nav-icon { min-width: 32px; font-size: 16px; }
-          .mobile-nav-overlay { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 99; backdrop-filter: blur(2px); }
-          .mobile-close-btn { display: block !important; }
-          /* AI Smart Reordering Mobile specific fixes */
-          .ai-reorder-module { padding: 68px 16px 24px 16px !important; border-radius: 20px !important; margin: 0 !important; }
-          .ai-reorder-module .module-header-custom { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
-          .ai-reorder-module .module-header-custom h1 { font-size: 24px !important; line-height: 1.2; }
-          .ai-reorder-module .module-icon-custom { width: 68px; height: 68px; font-size: 32px; border-radius: 20px; }
-          .ai-reorder-module .reorder-grid { grid-template-columns: 1fr !important; }
-          .ai-reorder-module .reorder-filters { flex-direction: column; align-items: stretch !important; gap: 12px; }
-          .ai-reorder-module .filter-group, .ai-reorder-module .search-group { width: 100%; }
-          .ai-reorder-module .filter-select, .ai-reorder-module .filter-input { width: 100% !important; min-width: 100% !important; box-sizing: border-box; }
-          .ai-reorder-module .recommendation-card { overflow-x: auto; padding: 16px; border-radius: 16px; }
-          .ai-reorder-module .recommendation-table { min-width: 650px; }
-          .ai-reorder-module .stats-grid { grid-template-columns: 1fr !important; }
-
-          /* Fix Grid Blowout on Mobile */
-          .tp-live-grid > *, .inventory-grid > *, .dash-section { min-width: 0; max-width: 100vw; }
-        }
       `}</style>
     </div>
   );
@@ -1235,39 +1323,209 @@ const AIDemandForecastModule = () => (
 );
 
 // AI Smart Reordering Module
-const AISmartReorderingModule = () => (
-  <div className="ai-reorder-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">📈</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
-        <span className="module-page">📄 Page 3 of PDF Document</span>
+const AISmartReorderingModule = () => {
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [recommendations, setRecommendations] = useState([
+    { id: 1, name: 'Premium Basmati Rice', branch: 'All Branches', currentStock: 50, suggestedQty: 500, reorderPoint: 120, risk: 'High', confidence: 96, approved: false },
+    { id: 2, name: 'Organic Coconut Oil', branch: 'Kandy City Branch', currentStock: 23, suggestedQty: 200, reorderPoint: 80, risk: 'High', confidence: 92, approved: false },
+    { id: 3, name: 'Sugar (1kg)', branch: 'Colombo Head Office', currentStock: 35, suggestedQty: 300, reorderPoint: 90, risk: 'Medium', confidence: 89, approved: false },
+    { id: 4, name: 'Milk Powder', branch: 'Negombo Branch', currentStock: 42, suggestedQty: 150, reorderPoint: 70, risk: 'Medium', confidence: 94, approved: false },
+    { id: 5, name: 'Ceylon Tea Gift Pack', branch: 'Galle Fort Branch', currentStock: 80, suggestedQty: 180, reorderPoint: 100, risk: 'Low', confidence: 91, approved: false },
+  ]);
+
+  const [approvalHistory, setApprovalHistory] = useState([
+    { id: 101, item: 'Premium Basmati Rice', branch: 'Colombo Head Office', quantity: 250, approvedBy: 'Manager Kaushal', timestamp: '2026-06-02 16:30', status: 'Approved' },
+    { id: 102, item: 'Organic Coconut Oil', branch: 'Kandy City Branch', quantity: 120, approvedBy: 'Manager Kaushal', timestamp: '2026-06-01 11:45', status: 'Approved' },
+  ]);
+
+  const [procurementAlerts, setProcurementAlerts] = useState([
+    { id: 201, title: 'Low stock detected for Fresh Milk', description: 'Current stock is 42 units. Suggested reorder in 2 days.', severity: 'High', time: '5 mins ago', dismissed: false },
+    { id: 202, title: 'Rice inventory below threshold', description: 'Premium Basmati Rice requires supplier follow-up.', severity: 'High', time: '12 mins ago', dismissed: false },
+    { id: 203, title: 'Coconut Oil reorder window opening', description: 'Lead time is 4 days. Prepare PO.', severity: 'Medium', time: '22 mins ago', dismissed: false },
+  ]);
+
+  const handleApprove = (recommendation) => {
+    if (recommendation.approved) return;
+
+    setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
+    setApprovalHistory(prev => [
+      {
+        id: Date.now(),
+        item: recommendation.name,
+        branch: recommendation.branch,
+        quantity: recommendation.suggestedQty,
+        approvedBy: 'AI Manager',
+        timestamp: new Date().toLocaleString('en-US', { hour12: false }),
+        status: 'Approved',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleDismissAlert = (id) => {
+    setProcurementAlerts(prev => prev.map(alert => (alert.id === id ? { ...alert, dismissed: true } : alert)));
+  };
+
+  const filteredRecommendations = recommendations.filter(item => {
+    const query = searchTerm.trim().toLowerCase();
+    return (
+      (selectedBranch === 'all' || item.branch === BRANCHES.find(b => b.id === selectedBranch)?.name || selectedBranch === 'all') &&
+      (!query || item.name.toLowerCase().includes(query) || item.branch.toLowerCase().includes(query))
+    );
+  });
+
+  const visibleAlerts = procurementAlerts.filter(alert => !alert.dismissed);
+  const riskSummary = {
+    high: recommendations.filter(item => item.risk === 'High').length,
+    medium: recommendations.filter(item => item.risk === 'Medium').length,
+    low: recommendations.filter(item => item.risk === 'Low').length,
+  };
+
+  return (
+    <div className="ai-reorder-module">
+      <div className="module-header-custom">
+        <div className="module-icon-custom">📈</div>
+        <div>
+          <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
+          <span className="module-page">Page 3 · AI Inventory Intelligence</span>
+        </div>
+      </div>
+
+      <div className="module-description">
+        <strong>📋 Module Overview:</strong><br />
+        Display reorder recommendations with stock risk indicators, approval workflow, procurement alerts, and action history for managers.
+      </div>
+
+      <div className="reorder-filters">
+        <div className="filter-group">
+          <label className="filter-label">Branch</label>
+          <select className="filter-select" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
+            {BRANCHES.map(branch => (
+              <option key={branch.id} value={branch.id}>{branch.icon} {branch.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">Time Period</label>
+          <select className="filter-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">Last 3 Months</option>
+          </select>
+        </div>
+        <div className="filter-group search-group">
+          <label className="filter-label">Search</label>
+          <input className="filter-input" type="text" placeholder="Search products or branch" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
+        <div className="stat-card"><div className="value">{recommendations.length}</div><div className="label">Recommended Reorders</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.high}</div><div className="label">High Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.medium}</div><div className="label">Medium Risk Items</div></div>
+        <div className="stat-card"><div className="value">{riskSummary.low}</div><div className="label">Low Risk Items</div></div>
+      </div>
+
+      <div className="reorder-grid">
+        <div>
+          <div className="section-header" style={{ marginBottom: 16 }}>
+            <div className="section-title-wrapper">
+              <span className="section-icon">🛒</span>
+              <h2 className="section-title">Reorder Recommendations</h2>
+            </div>
+            <span className="section-badge">AI Suggested</span>
+          </div>
+
+          <div className="recommendation-card">
+            <table className="recommendation-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Branch</th>
+                  <th>Stock</th>
+                  <th>Reorder Qty</th>
+                  <th>Risk</th>
+                  <th>Confidence</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecommendations.map(item => (
+                  <tr key={item.id} className={item.approved ? 'approved-row' : ''}>
+                    <td>{item.name}</td>
+                    <td>{item.branch}</td>
+                    <td>{item.currentStock}</td>
+                    <td>{item.suggestedQty}</td>
+                    <td><span className={`risk-pill risk-${item.risk.toLowerCase()}`}>{item.risk}</span></td>
+                    <td>{item.confidence}%</td>
+                    <td>
+                      <button className={`approve-btn ${item.approved ? 'approved' : ''}`} onClick={() => handleApprove(item)}>
+                        {item.approved ? 'Approved' : 'Approve'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="sidebar-panel">
+          <div className="alert-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">⚠️</span>
+                <h2 className="section-title">Procurement Alerts</h2>
+              </div>
+            </div>
+            {visibleAlerts.length ? visibleAlerts.map(alert => (
+              <div key={alert.id} className={`alert-item alert-${alert.severity.toLowerCase()}`}>
+                <div>
+                  <p className="alert-title">{alert.title}</p>
+                  <p className="alert-description">{alert.description}</p>
+                  <p className="alert-time">{alert.time}</p>
+                </div>
+                <button className="alert-dismiss" onClick={() => handleDismissAlert(alert.id)}>Dismiss</button>
+              </div>
+            )) : <p style={{ color: '#64748b', fontSize: '0.95rem' }}>No active procurement alerts.</p>}
+          </div>
+
+          <div className="history-card">
+            <div className="section-header" style={{ marginBottom: 14 }}>
+              <div className="section-title-wrapper">
+                <span className="section-icon">📜</span>
+                <h2 className="section-title">Reorder Action History</h2>
+              </div>
+            </div>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Branch</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approvalHistory.map(entry => (
+                  <tr key={entry.id}>
+                    <td>{entry.item}</td>
+                    <td>{entry.quantity}</td>
+                    <td>{entry.branch}</td>
+                    <td>{entry.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Calculate reorder points automatically. Analyze inventory consumption. Generate purchase recommendations. Trigger low-stock alerts. Improve recommendations using AI.
-    </div>
-    <div className="stats-grid">
-      <div className="stat-card"><div className="value">12</div><div className="label">Items Need Reorder</div></div>
-      <div className="stat-card"><div className="value">94%</div><div className="label">AI Recommendation Accuracy</div></div>
-      <div className="stat-card"><div className="value">$24,500</div><div className="label">Optimal Order Value</div></div>
-      <div className="stat-card"><div className="value">3 Days</div><div className="label">Avg Lead Time</div></div>
-    </div>
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>🛒 Smart Reorder Recommendations</h3>
-    <div className="recommendation-list">
-      <div className="forecast-item"><span className="product">Premium Basmati Rice</span><span className="trend-up">Reorder 500 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 50 | AI Confidence: 96%</span></div>
-      <div className="forecast-item"><span className="product">Organic Coconut Oil</span><span className="trend-up">Reorder 200 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 23 | AI Confidence: 92%</span></div>
-      <div className="forecast-item"><span className="product">Sugar (1kg)</span><span className="trend-up">Reorder 300 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 35 | AI Confidence: 89%</span></div>
-      <div className="forecast-item"><span className="product">Milk Powder</span><span className="trend-up">Reorder 150 units</span><span style={{ fontSize: '12px', color: '#64748b' }}>Stock: 42 | AI Confidence: 94%</span></div>
-    </div>
-    <div className="features-grid" style={{ marginTop: 24 }}>
-      {['Reorder Recommendations Dashboard', 'Stock Risk Indicators', 'AI Suggestion Approval Workflow', 'Reorder Action Tracking', 'Procurement Alerts Integration', 'Supplier Auto-notification'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // Business Analytics Module
 const BusinessAnalyticsModule = () => (
@@ -1319,27 +1577,7 @@ const ReportingModule = () => (
   </div>
 );
 
-// Notifications Module
-const NotificationsModule = () => (
-  <div className="notifications-module">
-    <div className="module-header-custom">
-      <div className="module-icon-custom">🔔</div>
-      <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Notifications & Alerts</h1>
-        <span className="module-page">📄 Page 4 of PDF Document</span>
-      </div>
-    </div>
-    <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Send email, SMS, and push notifications. Trigger inventory and sales alerts. Manage notification queues. Store notification history. Monitor delivery status.
-    </div>
-    <div className="features-grid">
-      {['Central Notification Center', 'Real-time Alerts & Reminders', 'Email & SMS Integration', 'Push Notifications', 'Custom Alert Rules', 'Notification Templates', 'Delivery Status Tracking', 'Notification History Logs'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
-      ))}
-    </div>
-  </div>
-);
+
 
 // Audit Logs Module
 const AuditLogsModule = () => (

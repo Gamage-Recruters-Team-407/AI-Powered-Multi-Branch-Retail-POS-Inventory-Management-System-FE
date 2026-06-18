@@ -291,17 +291,16 @@ function DrillDownAnalysis({ params }) {
           </div>
 
           {/* Group-by toggle */}
-          <div className="flex overflow-x-auto rounded-xl border border-slate-200 p-1 bg-slate-50 gap-0.5 hide-scrollbar" style={{ maxWidth: '100%' }}>
+          <div className="flex rounded-xl border border-slate-200 p-1 bg-slate-50 gap-0.5">
             {GROUP_OPTIONS.map((g) => (
               <button
                 key={g.key}
                 onClick={() => handleGroupChange(g.key)}
-                className={`flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                   groupBy === g.key
                     ? 'bg-violet-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-white'
                 }`}
-                style={{ whiteSpace: 'nowrap' }}
               >
                 {g.label}
               </button>
@@ -379,11 +378,6 @@ function DrillDownAnalysis({ params }) {
           onClose={() => setModalRow(null)}
         />
       )}
-
-      <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </>
   );
 }

@@ -275,16 +275,6 @@ const AuditLogsTable = ({ logs = [], pagination = {}, loading, onPageChange }) =
         .skeleton-bar { height: 16px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 4px; }
         @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* Pagination Styles */
-        .table-pagination { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-top: 1px solid #e2e8f0; background: #fff; flex-wrap: wrap; gap: 12px; }
-        .page-info { font-size: .8rem; color: #64748b; }
-        .page-info b { color: #0f172a; }
-        .page-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-        .page-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; color: #475569; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; }
-        .page-btn:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; }
-        .page-btn.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
-        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
         /* ====== PREMIUM MODAL POPUP STYLES ====== */
         .audit-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.2s ease-out; }
         .audit-modal-content { background: white; width: 90%; max-width: 620px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 85vh; overflow: hidden; animation: modalScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1); }

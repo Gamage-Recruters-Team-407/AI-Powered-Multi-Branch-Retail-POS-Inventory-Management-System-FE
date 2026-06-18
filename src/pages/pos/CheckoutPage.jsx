@@ -256,12 +256,12 @@ const CheckoutPage = ({ onBack, onComplete }) => {
       <div className="w-full max-w-xl z-10">
         <button
           onClick={() => onBack ? onBack() : navigate("/pos")}
-          className="flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-xl mb-4 sm:mb-6 text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all duration-200 w-fit"
+          className="flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-xl mb-6 text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all duration-200"
         >
           <ArrowLeft size={14} strokeWidth={2.5} /> Back to POS
         </button>
 
-        <div className="backdrop-blur-xl bg-white/90 border border-white/40 rounded-3xl shadow-2xl p-4 sm:p-6 md:p-8">
+        <div className="backdrop-blur-xl bg-white/90 border border-white/40 rounded-3xl shadow-2xl p-6 md:p-8">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
               <CardIcon size={16} />
@@ -340,7 +340,7 @@ const CheckoutPage = ({ onBack, onComplete }) => {
             <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
               <Tag size={13} className="text-slate-400" /> Promo / Coupon Code
             </label>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={couponCode}
@@ -353,7 +353,7 @@ const CheckoutPage = ({ onBack, onComplete }) => {
                 <button
                   type="button"
                   onClick={handleRemoveCoupon}
-                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer w-full sm:w-auto"
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <Trash size={14} /> Remove
                 </button>
@@ -362,7 +362,7 @@ const CheckoutPage = ({ onBack, onComplete }) => {
                   type="button"
                   onClick={handleApplyCoupon}
                   disabled={!couponCode.trim() || isValidating}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm cursor-pointer w-full sm:w-auto"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                 >
                   {isValidating ? "Applying..." : "Apply"}
                 </button>
