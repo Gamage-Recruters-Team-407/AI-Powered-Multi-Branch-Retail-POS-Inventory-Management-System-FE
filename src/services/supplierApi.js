@@ -366,6 +366,55 @@ const fallbackAddTransaction = (id, transactionData) => {
   return { success: false, message: "Supplier not found" };
 };
 
+const fallbackUpdateTransactionStatus = (supplierId, transactionId, status) => {
+  const sups = getMockSuppliers();
+  const idx = sups.findIndex(s => s.id === supplierId || s._id === supplierId);
+  if (idx !== -1) {
+    const supplier = sups[idx];
+    if (supplier.transactions) {
+      const tIdx = supplier.transactions.findIndex(t => t.id === transactionId);
+      if (tIdx !== -1) {
+        const oldStatus = supplier.transactions[tIdx].status;
+        supplier.transactions[tIdx].status = status;
+
+        const amount = Number(supplier.transactions[tIdx].amount || 0);
+        if (oldStatus !== "Delivered" && status === "Delivered") {
+          supplier.totalSpend = (supplier.totalSpend || 0) + amount;
+        } else if (oldStatus === "Delivered" && status !== "Delivered") {
+          supplier.totalSpend = Math.max(0, (supplier.totalSpend || 0) - amount);
+        }
+
+        const total = supplier.transactions.length;
+        const delivered = supplier.transactions.filter(t => t.status === "Delivered").length;
+        const cancelled = supplier.transactions.filter(t => t.status === "Cancelled").length;
+
+        supplier.performance.returnRate = total > 0 ? Number(((cancelled / total) * 100).toFixed(2)) : 0.0;
+        supplier.performance.onTimeDelivery = total > 0 ? Number(((delivered / total) * 100).toFixed(2)) : 95;
+
+        let recommendation = "Stable performance. Standard operations recommended.";
+        const rating = supplier.rating || 5.0;
+        const onTime = supplier.performance.onTimeDelivery;
+        const retRate = supplier.performance.returnRate;
+        const quality = supplier.performance.qualityScore || 95;
+        const leadTime = supplier.performance.leadTimeDays || 3;
+
+        if (rating >= 4.5 && onTime >= 90) {
+          recommendation = "Excellent performance. Highly recommended to renew contract.";
+        } else if (retRate > 10 || quality < 80) {
+          recommendation = "Caution: High return rate or low quality. Consider auditing quality processes.";
+        } else if (onTime < 80 || leadTime > 5) {
+          recommendation = "Warning: Slow delivery times. Recommend discussing lead times with supplier.";
+        }
+        supplier.aiRecommendation = recommendation;
+
+        setLocalStorageDb("pos_suppliers", sups);
+        return { success: true, message: "Transaction status updated", data: supplier };
+      }
+    }
+  }
+  return { success: false, message: "Supplier or transaction not found" };
+};
+
 const fallbackGetProcurementHistory = (id) => {
   const sups = getMockSuppliers();
   const supplier = sups.find(s => s.id === id || s._id === id);
@@ -578,5 +627,12 @@ export const getDetailedPerformance = (id) => {
   return handleRequest(
     () => supplierApi.get(`/${id}/performance`),
     () => fallbackGetDetailedPerformance(id)
+  );
+};
+
+export const updateTransactionStatus = (supplierId, transactionId, status) => {
+  return handleRequest(
+    () => supplierApi.patch(`/${supplierId}/transactions/${transactionId}`, { status }),
+    () => fallbackUpdateTransactionStatus(supplierId, transactionId, status)
   );
 };

@@ -230,8 +230,8 @@ function ProductListPage({
       setMessage("Product reactivated successfully");
       fetchProducts();
     } catch (error) {
-      toast.error("Failed to reactivate product");
-      setMessage("Failed to reactivate product");
+      toast.error(`Failed to reactivate product: ${error.message}`);
+      setMessage(`Failed to reactivate product: ${error.message}`);
     }
   };
 

@@ -99,10 +99,10 @@ export const InventoryDashboard = () => {
                   <FiChevronRight className="text-blue-300" />
                   <span>Module 9</span>
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-black text-white leading-tight">
+                <h1 className="text-2xl lg:text-3xl font-black text-white leading-tight drop-shadow-sm">
                   Inventory Management
                 </h1>
-                <p className="text-blue-200 text-xs font-medium mt-1 max-w-sm">
+                <p className="text-blue-50 text-xs font-semibold mt-1 max-w-sm opacity-90">
                   Real-time stock tracking · Multi-branch visibility · Movement audit ledger
                 </p>
               </div>
@@ -127,8 +127,8 @@ export const InventoryDashboard = () => {
                 {isSyncing ? "Syncing…" : "Manual Sync"}
               </button>
               <div className="hidden sm:block text-right">
-                <div className="text-blue-300 text-[9px] font-semibold uppercase tracking-wider">Last refreshed</div>
-                <div className="text-white/80 text-[10px] font-semibold mt-0.5">{timeString}</div>
+                <div className="text-blue-100 text-[9px] font-bold uppercase tracking-wider">Last refreshed</div>
+                <div className="text-white text-[10px] font-bold mt-0.5">{timeString}</div>
               </div>
             </div>
           </div>
@@ -146,7 +146,7 @@ export const InventoryDashboard = () => {
                 <div className={`text-2xl font-black tabular-nums ${s.warn ? "text-amber-300" : "text-white"}`}>
                   {s.value}
                 </div>
-                <div className="text-blue-200/80 text-[9px] font-bold uppercase tracking-widest mt-0.5">
+                <div className="text-white/90 text-[9px] font-extrabold uppercase tracking-widest mt-0.5">
                   {s.label}
                 </div>
               </motion.div>

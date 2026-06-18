@@ -6,6 +6,7 @@ const BRANCH_API_URL =
 
 const branchApi = axios.create({
   baseURL: BRANCH_API_URL,
+  timeout: 60000,
 });
 
 branchApi.interceptors.request.use((config) => {

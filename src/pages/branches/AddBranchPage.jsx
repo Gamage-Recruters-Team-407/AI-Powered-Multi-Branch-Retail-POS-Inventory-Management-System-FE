@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axiosInstance from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { useBranches } from "../../context/BranchContext";
 
@@ -16,6 +17,20 @@ export default function AddBranchPage() {
     isActive: true,
   });
   const [error, setError] = useState("");
+  const [managers, setManagers] = useState([]);
+
+  useEffect(() => {
+  const fetchManagers = async () => {
+    try {
+      const response = await axiosInstance.get("/users/managers");
+      setManagers(response.data.data);
+    } catch (error) {
+      console.error("Failed to fetch managers:", error);
+    }
+  };
+
+  fetchManagers();
+}, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -129,16 +144,24 @@ export default function AddBranchPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Manager Name
+                Manager
               </label>
-              <input
-                type="text"
+
+              <select
                 name="manager"
                 value={formData.manager}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Manager name"
-              />
+              >
+              <option value="">Select Manager</option>
+
+              {managers.map((manager) => (
+              <option key={manager._id} value={manager._id}>
+               {manager.name ||
+               `${manager.firstName || ""} ${manager.lastName || ""}`.trim()}
+             </option>
+               ))}
+              </select>
             </div>
 
             <div className="flex items-center">

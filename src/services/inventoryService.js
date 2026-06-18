@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiHost = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE_URL = apiHost.endsWith("/api")
+  ? apiHost
+  : `${apiHost.replace(/\/$/, "")}/api`;
 
 const inventoryApi = axios.create({
   baseURL: `${API_BASE_URL}/inventory`,
@@ -10,7 +13,7 @@ const inventoryApi = axios.create({
 // Attach JWT token automatically
 inventoryApi.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("authToken");
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
     }

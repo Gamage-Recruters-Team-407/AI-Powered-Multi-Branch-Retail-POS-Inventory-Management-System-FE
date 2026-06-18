@@ -21,41 +21,104 @@ export const EmployeeProvider = ({ children }) => {
   const [schedules, setSchedules] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [performanceMetrics, setPerformanceMetrics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Fetch all data from API/Mock database on mount
-  const loadAllData = async () => {
-    setLoading(true);
+  // Granular loading & error states
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [employeesError, setEmployeesError] = useState(null);
+
+  const [schedulesLoading, setSchedulesLoading] = useState(false);
+  const [schedulesError, setSchedulesError] = useState(null);
+
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceError, setAttendanceError] = useState(null);
+
+  const [performanceLoading, setPerformanceLoading] = useState(false);
+  const [performanceError, setPerformanceError] = useState(null);
+
+  // Granular Fetching Loaders
+  const loadEmployees = async (silent = false) => {
+    if (!silent) setEmployeesLoading(true);
     try {
-      const empsRes = await getAllEmployees();
-      const schedsRes = await getSchedules();
-      const attendRes = await getAttendance();
-      const perfRes = await getPerformanceMetrics();
-
-      setEmployees(empsRes.data.employees || []);
-      setSchedules(schedsRes.data.schedules || []);
-      setAttendanceLogs(attendRes.data.attendance || []);
-      setPerformanceMetrics(perfRes.data.performance || []);
-      setError(null);
+      const res = await getAllEmployees();
+      setEmployees(res.data.employees || []);
+      setEmployeesError(null);
     } catch (err) {
-      console.error("Failed to load employee module state:", err);
-      setError("Failed to load employee management data.");
+      console.error("Failed to load employees:", err);
+      setEmployeesError("Failed to connect to backend server. Ensure the server is online.");
     } finally {
-      setLoading(false);
+      if (!silent) setEmployeesLoading(false);
     }
   };
 
+  const loadSchedules = async (silent = false) => {
+    if (!silent) setSchedulesLoading(true);
+    try {
+      const res = await getSchedules();
+      setSchedules(res.data.schedules || []);
+      setSchedulesError(null);
+    } catch (err) {
+      console.error("Failed to load schedules:", err);
+      setSchedulesError("Failed to retrieve shift planner schedules from the server.");
+    } finally {
+      if (!silent) setSchedulesLoading(false);
+    }
+  };
+
+  const loadAttendance = async (silent = false) => {
+    if (!silent) setAttendanceLoading(true);
+    try {
+      const res = await getAttendance();
+      setAttendanceLogs(res.data.attendance || []);
+      setAttendanceError(null);
+    } catch (err) {
+      console.error("Failed to load attendance logs:", err);
+      setAttendanceError("Failed to retrieve attendance logs from the server.");
+    } finally {
+      if (!silent) setAttendanceLoading(false);
+    }
+  };
+
+  const loadPerformance = async (silent = false) => {
+    if (!silent) setPerformanceLoading(true);
+    try {
+      const res = await getPerformanceMetrics();
+      setPerformanceMetrics(res.data.performance || []);
+      setPerformanceError(null);
+    } catch (err) {
+      console.error("Failed to load performance metrics:", err);
+      setPerformanceError("Failed to retrieve performance rating files from the server.");
+    } finally {
+      if (!silent) setPerformanceLoading(false);
+    }
+  };
+
+  // Backward compatibility wrapper
+  const loadAllData = async (silent = false) => {
+    await Promise.all([
+      loadEmployees(silent),
+      loadSchedules(silent),
+      loadAttendance(silent),
+      loadPerformance(silent),
+    ]);
+  };
+
+  // Initial mount - fetch only active roster (employees)
   useEffect(() => {
-    loadAllData();
+    loadEmployees();
+    
+    // Auto-refresh the active dataset silently every 30 seconds for live sync
+    const intervalId = setInterval(() => {
+      loadEmployees(true);
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   // Employee action handlers
   const handleRegisterEmployee = async (employeeData) => {
     try {
       const res = await apiAddEmployee(employeeData);
-      // Reload from local database or update state
-      await loadAllData();
+      await loadEmployees();
       return res.data;
     } catch (err) {
       console.error("Failed to register employee:", err);
@@ -66,7 +129,7 @@ export const EmployeeProvider = ({ children }) => {
   const handleUpdateEmployee = async (id, employeeData) => {
     try {
       const res = await apiUpdateEmployee(id, employeeData);
-      await loadAllData();
+      await loadEmployees();
       return res.data;
     } catch (err) {
       console.error("Failed to update employee:", err);
@@ -77,7 +140,7 @@ export const EmployeeProvider = ({ children }) => {
   const handleDeleteEmployee = async (id) => {
     try {
       const res = await apiDeleteEmployee(id);
-      await loadAllData();
+      await loadEmployees();
       return res.data;
     } catch (err) {
       console.error("Failed to delete employee profile:", err);
@@ -89,7 +152,7 @@ export const EmployeeProvider = ({ children }) => {
   const handleAssignSchedule = async (scheduleData) => {
     try {
       const res = await apiSaveSchedule(scheduleData);
-      await loadAllData();
+      await loadSchedules();
       return res.data;
     } catch (err) {
       console.error("Failed to assign schedule:", err);
@@ -102,13 +165,11 @@ export const EmployeeProvider = ({ children }) => {
     try {
       const res = await apiLogAttendance(attendanceData);
       
-      // Update employee active status in local state if relevant
+      // Optimistic local state update for status indicator
       const emps = [...employees];
       const empIdx = emps.findIndex(e => e._id === attendanceData.employeeId);
       if (empIdx !== -1) {
         if (attendanceData.status === "Present" || attendanceData.status === "Late") {
-          // If clocked out, set status to Active (not working right now) or custom sub-status.
-          // Let's assume clocking in changes active indicator
           if (attendanceData.clockOut) {
             emps[empIdx].workingStatus = "Off Duty";
           } else {
@@ -118,7 +179,7 @@ export const EmployeeProvider = ({ children }) => {
         }
       }
       
-      await loadAllData();
+      await loadAttendance();
       return res.data;
     } catch (err) {
       console.error("Failed to log attendance:", err);
@@ -130,13 +191,18 @@ export const EmployeeProvider = ({ children }) => {
   const handleLogPerformance = async (metricData) => {
     try {
       const res = await apiLogPerformanceMetric(metricData);
-      await loadAllData();
+      await loadPerformance();
+      await loadEmployees(true); // reload performanceScore average on directory card
       return res.data;
     } catch (err) {
       console.error("Failed to update performance log:", err);
       throw err;
     }
   };
+
+  // Backward compatible properties for legacy views
+  const loading = employeesLoading;
+  const error = employeesError;
 
   return (
     <EmployeeContext.Provider
@@ -147,6 +213,18 @@ export const EmployeeProvider = ({ children }) => {
         performanceMetrics,
         loading,
         error,
+        employeesLoading,
+        schedulesLoading,
+        attendanceLoading,
+        performanceLoading,
+        employeesError,
+        schedulesError,
+        attendanceError,
+        performanceError,
+        loadEmployees,
+        loadSchedules,
+        loadAttendance,
+        loadPerformance,
         registerEmployee: handleRegisterEmployee,
         updateEmployee: handleUpdateEmployee,
         deleteEmployee: handleDeleteEmployee,

@@ -8,15 +8,16 @@ const DEMO_LOW_STOCK = [
   { id: 5, name: 'Coconut Milk 400ml', sku: 'GRC-201', stock: 9, threshold: 35, branch: 'Kandy', category: 'Groceries' },
 ];
 
-const InventoryStatus = ({ data }) => {
+const InventoryStatus = ({ data, role }) => {
   const inventory = data?.inventory || {};
   const lowStock = data?.low_stock_alerts?.items || DEMO_LOW_STOCK;
   const lowCount = data?.low_stock_alerts?.count || DEMO_LOW_STOCK.length;
+  const isCashier = role?.toUpperCase() === 'CASHIER';
 
   const stats = [
     { label: 'Total Products', value: inventory.total_products?.toLocaleString() || '486', icon: '🏷️', color: 'blue' },
     { label: 'Total Stock Units', value: inventory.total_stock?.toLocaleString() || '32,610', icon: '📦', color: 'green' },
-    { label: 'Low Stock Items', value: lowCount, icon: '⚠️', color: 'warning', alert: true },
+    ...(!isCashier ? [{ label: 'Low Stock Items', value: lowCount, icon: '⚠️', color: 'warning', alert: true }] : []),
     { label: 'Avg Stock Level', value: inventory.avg_stock_level || '67.1', icon: '📊', color: 'purple' },
   ];
 
@@ -41,7 +42,7 @@ const InventoryStatus = ({ data }) => {
       </div>
 
       {/* Low Stock Table */}
-      {lowCount > 0 && (
+      {!isCashier && lowCount > 0 && (
         <div className="low-stock-card">
           <div className="lsc-header">
             <div className="lsc-title">

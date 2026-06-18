@@ -367,7 +367,7 @@ function ReportsPage() {
           </div>
 
           {/* 4 — Report Preview Table */}
-          <ReportPreviewTable reports={sales} loading={loading} source={source} />
+          <ReportPreviewTable reports={sales} loading={loading} source={source} isFiltered={hasActiveFilters} />
 
           {/* 5 — Scheduled + History row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

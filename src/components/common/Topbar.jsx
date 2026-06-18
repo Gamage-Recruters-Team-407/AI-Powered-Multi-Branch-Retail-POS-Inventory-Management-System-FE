@@ -155,7 +155,7 @@ const Topbar = ({ pageTitle, onRoleChange }) => {
         }
         .notif-panel {
           position: absolute; right: 0; top: calc(100% + 8px);
-          background: white; border-radius: var(--radius);
+          background: var(--white); border-radius: var(--radius);
           border: 1px solid var(--gray-200);
           box-shadow: var(--shadow-md);
           width: 320px; z-index: 200;

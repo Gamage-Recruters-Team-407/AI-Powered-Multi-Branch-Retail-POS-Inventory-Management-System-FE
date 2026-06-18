@@ -65,7 +65,7 @@ export const MovementHistoryModal = ({ item, onClose }) => {
               <h3 className="text-base font-extrabold text-[var(--text-primary)] mt-0.5">
                 {item?.product?.name || "Product Stock Movement Log"}
               </h3>
-              <span className="text-xs text-[var(--text-muted)] font-semibold mt-1 block">
+              <span className="text-xs text-[var(--text-secondary)] font-bold mt-1 block">
                 📍 {item?.branch?.name || "Global / Base"} • Current: {item?.quantity} units
               </span>
             </div>
@@ -135,7 +135,7 @@ export const MovementHistoryModal = ({ item, onClose }) => {
                     const isPositive = log.quantityChange > 0;
                     return (
                       <tr key={log._id} className="hover:bg-[var(--bg-tertiary)]/30 text-[var(--text-primary)]">
-                        <td className="px-5 py-3 text-[var(--text-secondary)] whitespace-nowrap">
+                        <td className="px-5 py-3 text-[var(--text-primary)] font-bold whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString()}
                         </td>
                         <td className="px-4 py-3">
@@ -146,7 +146,7 @@ export const MovementHistoryModal = ({ item, onClose }) => {
                         <td className={`px-4 py-3 text-right font-black ${isPositive ? "text-[var(--success-color)]" : "text-[var(--danger-color)]"}`}>
                           {isPositive ? `+${log.quantityChange}` : log.quantityChange}
                         </td>
-                        <td className="px-4 py-3 text-[var(--text-secondary)] max-w-[200px] truncate" title={log.reason}>
+                        <td className="px-4 py-3 text-[var(--text-primary)] font-semibold max-w-[200px] truncate" title={log.reason}>
                           {log.reason}
                         </td>
                         <td className="px-5 py-3 text-[var(--text-primary)] whitespace-nowrap">

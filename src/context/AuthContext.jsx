@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../api/axiosInstance';
 
 const AuthContext = createContext(null);
 
@@ -43,13 +44,23 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(normalizedUser));
     setToken(authToken);
     setUser(normalizedUser);
+
+    api.post('/employees/attendance/auto-clock-in').catch((err) => {
+      console.error('Auto clock-in failed:', err.message);
+    });
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await api.post('/employees/attendance/auto-clock-out');
+    } catch (err) {
+      console.error('Auto clock-out failed:', err.message);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+    }
   };
 
   const hasRole = (...roles) => {
