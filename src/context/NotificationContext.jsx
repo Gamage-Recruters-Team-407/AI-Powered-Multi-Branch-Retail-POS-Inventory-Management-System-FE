@@ -3,6 +3,25 @@ import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { getNotifications, markAsRead, markAllAsRead } from '../services/notificationApi';
 
+const formatDistanceToNow = (date) => {
+  if (!date) return 'Unknown time';
+  const now = new Date();
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return 'Unknown time';
+  const seconds = Math.floor((now - parsed) / 1000);
+  if (seconds < 0) return 'Just now';
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
+  const minutes = seconds / 60;
+  if (minutes < 60) return Math.floor(minutes) + ' minutes ago';
+  const hours = seconds / 3600;
+  if (hours < 24) return Math.floor(hours) + ' hours ago';
+  const days = seconds / 86400;
+  if (days < 30) return Math.floor(days) + ' days ago';
+  const months = seconds / 2592000;
+  if (months < 12) return Math.floor(months) + ' months ago';
+  return Math.floor(seconds / 31536000) + ' years ago';
+};
+
 const NotificationContext = createContext();
 
 export const useNotification = () => useContext(NotificationContext);
@@ -38,7 +57,7 @@ export const NotificationProvider = ({ children }) => {
                 id: newAlert._id || Date.now(),
                 type: newAlert.type ? newAlert.type.toLowerCase() : 'info',
                 msg: newAlert.message || newAlert.title || 'New System Alert',
-                time: 'Just now',
+                time: formatDistanceToNow(newAlert.createdAt || new Date()),
                 ...newAlert
             };
 
@@ -53,7 +72,7 @@ export const NotificationProvider = ({ children }) => {
                 id: Date.now() + Math.random().toString(36).substring(7),
                 type: 'warning',
                 msg: `Low Stock: Product #${alert.productId} in Branch #${alert.branchId}`,
-                time: 'Just now'
+                time: formatDistanceToNow(alert.createdAt || new Date())
             };
 
             setNotifications((prev) => [formattedAlert, ...prev]);
@@ -84,7 +103,7 @@ export const NotificationProvider = ({ children }) => {
                             id: n._id,
                             type: n.type ? n.type.toLowerCase() : 'info',
                             msg: n.message || n.title || 'System Alert',
-                            time: 'Just now',
+                            time: formatDistanceToNow(n.createdAt),
                             ...n
                         }));
                         setNotifications(unread);

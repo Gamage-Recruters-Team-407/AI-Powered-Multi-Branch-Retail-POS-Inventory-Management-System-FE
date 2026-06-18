@@ -6,11 +6,10 @@ import {
   getPreferences,
   updatePreferences,
   getEmailLogs,
-  sendSmsToSuppliers,
-  sendSmsToWarehouses,
   sendSupplierNotifications,
   sendEmployeeNotifications,
-  sendCustomerNotifications
+  sendCustomerNotifications,
+  sendWarehouseNotifications
 } from '../../services/notificationApi';
 import { getAllSuppliers } from '../../services/supplierManagementApi';
 import { getAllWarehouses } from '../../services/warehouseService';
@@ -20,19 +19,24 @@ import { getPromotions } from '../../services/promotionApi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
+// L2 Fix: Added edge-case guards for invalid/future dates
 const formatDistanceToNow = (date) => {
-  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-  let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + " years ago";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " months ago";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " days ago";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + " hours ago";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + " minutes ago";
-  return Math.floor(seconds) + " seconds ago";
+  if (!date) return 'Unknown time';
+  const now = new Date();
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return 'Unknown time';
+  const seconds = Math.floor((now - parsed) / 1000);
+  if (seconds < 0) return 'Just now';
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
+  const minutes = seconds / 60;
+  if (minutes < 60) return Math.floor(minutes) + ' minutes ago';
+  const hours = seconds / 3600;
+  if (hours < 24) return Math.floor(hours) + ' hours ago';
+  const days = seconds / 86400;
+  if (days < 30) return Math.floor(days) + ' days ago';
+  const months = seconds / 2592000;
+  if (months < 12) return Math.floor(months) + ' months ago';
+  return Math.floor(seconds / 31536000) + ' years ago';
 };
 
 const NotificationsModule = () => {
@@ -171,12 +175,13 @@ const NotificationsModule = () => {
     }
   };
 
+  // H2 Fix: Use correct enum values from Notification schema
   const getIconForType = (type) => {
     switch (type) {
-      case 'low_stock': return '⚠️';
-      case 'new_product': return '📦';
-      case 'promotion': return '🎉';
-      case 'system': return '⚙️';
+      case 'WARNING': return '⚠️';
+      case 'ERROR': return '❌';
+      case 'SUCCESS': return '✅';
+      case 'INFO': return 'ℹ️';
       default: return '🔔';
     }
   };
@@ -684,7 +689,7 @@ const NotificationsModule = () => {
                     onClick={async () => {
                       setSendingWarehouseSms(true);
                       try {
-                        await sendSmsToWarehouses(selectedWarehouses, warehouseSmsMessage);
+                        await sendWarehouseNotifications(selectedWarehouses, warehouseSmsMessage, 'Warehouse Alert', true, false);
                         toast.success('Warehouse SMS sent successfully!');
                         setWarehouseSmsMessage('');
                         setSelectedWarehouses([]);
