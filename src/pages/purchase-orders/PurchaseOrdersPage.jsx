@@ -83,7 +83,7 @@ const demoSupplierScorecards = [
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
 const buttonBase = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border-0 px-4 font-extrabold transition hover:-translate-y-0.5'
-const panelClass = 'rounded-2xl border border-[#dbe8f7] bg-white/95 p-5 shadow-[0_16px_42px_rgba(18,58,114,0.09)]'
+const panelClass = 'rounded-2xl border border-[#dbe8f7] bg-white/95 p-5 shadow-[0_16px_42px_rgba(18,58,114,0.09)] min-w-0'
 const sectionLabel = 'm-0 text-xs font-black uppercase tracking-[0.08em] text-[#0a62df]'
 const headingTwo = 'mt-1 text-[22px] font-black leading-tight text-[#101b31]'
 
