@@ -55,3 +55,16 @@ export const updatePreferences = (preferences) =>
   request("PUT", "/preferences", preferences);
 
 export const getEmailLogs = () => request("GET", "/emails");
+
+// Multi-channel broadcast endpoints (L5 Fix: Removed legacy SMS-only exports)
+export const sendSupplierNotifications = (supplierIds, message, subject, sendSms, sendEmail) =>
+  request("POST", "/notify/suppliers", { supplierIds, message, subject, sendSms, sendEmail });
+
+export const sendEmployeeNotifications = (employeeIds, message, subject, sendSms, sendEmail) =>
+  request("POST", "/notify/employees", { employeeIds, message, subject, sendSms, sendEmail });
+
+export const sendCustomerNotifications = (customerIds, message, subject, sendSms, sendEmail) =>
+  request("POST", "/notify/customers", { customerIds, message, subject, sendSms, sendEmail });
+
+export const sendWarehouseNotifications = (warehouseIds, message, subject, sendSms, sendEmail) =>
+  request("POST", "/notify/warehouses", { warehouseIds, message, subject, sendSms, sendEmail });

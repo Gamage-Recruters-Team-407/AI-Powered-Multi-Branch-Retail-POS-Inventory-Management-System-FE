@@ -17,250 +17,34 @@ const ACTION_STYLES = {
   EXPORT:  { bg: '#fffbeb', color: '#d97706' },
   IMPORT:  { bg: '#fdf4ff', color: '#9333ea' },
   APPROVE: { bg: '#ecfdf5', color: '#059669' },
-  REJECT:  { bg: '#fef2f2', color: '#b91c1c' },
+  REJECT:  { bg: '#fff1f2', color: '#e11d48' },
 };
 
-const SeverityBadge = ({ severity }) => {
-  const s = SEVERITY_STYLES[severity] || SEVERITY_STYLES.LOW;
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      fontSize: '.7rem', fontWeight: 700,
-      padding: '3px 9px', borderRadius: 99,
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      textTransform: 'uppercase', letterSpacing: '.05em',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
-      {severity}
-    </span>
-  );
-};
-
-const ActionBadge = ({ action }) => {
-  const s = ACTION_STYLES[action] || { bg: '#f1f5f9', color: '#475569' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      fontSize: '.7rem', fontWeight: 700,
-      padding: '3px 9px', borderRadius: 6,
-      textTransform: 'uppercase', letterSpacing: '.04em',
-    }}>
-      {action}
-    </span>
-  );
-};
-
-const AuditDetailModal = ({ log, onClose }) => {
-  if (!log) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div>
-            <h3 className="modal-title">Audit Log Detail</h3>
-            <p className="modal-sub">ID: {log._id || log.id}</p>
-          </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="modal-body">
-          <div className="detail-grid">
-            <div className="detail-item">
-              <span className="detail-key">Timestamp</span>
-              <span className="detail-val">{new Date(log.createdAt || log.timestamp).toLocaleString()}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">User</span>
-              <span className="detail-val">{log.userName || log.userId || '—'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">Action</span>
-              <span className="detail-val"><ActionBadge action={log.action} /></span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">Module</span>
-              <span className="detail-val">{log.module || '—'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">Severity</span>
-              <span className="detail-val"><SeverityBadge severity={log.severity || 'LOW'} /></span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">IP Address</span>
-              <span className="detail-val">{log.ipAddress || '—'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">Branch</span>
-              <span className="detail-val">{log.branchName || log.branchId || '—'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-key">User Agent</span>
-              <span className="detail-val">{log.userAgent || '—'}</span>
-            </div>
-          </div>
-
-          {log.description && (
-            <div className="detail-section">
-              <span className="detail-key">Description</span>
-              <p className="detail-desc">{log.description}</p>
-            </div>
-          )}
-
-          {log.metadata && Object.keys(log.metadata).length > 0 && (
-            <div className="detail-section">
-              <span className="detail-key">Metadata</span>
-              <pre className="detail-pre">{JSON.stringify(log.metadata, null, 2)}</pre>
-            </div>
-          )}
-
-          {log.changes && (
-            <div className="detail-section">
-              <span className="detail-key">Changes</span>
-              <div className="changes-wrap">
-                {log.changes.before && (
-                  <div className="change-block before">
-                    <div className="change-label">Before</div>
-                    <pre className="detail-pre">{JSON.stringify(log.changes.before, null, 2)}</pre>
-                  </div>
-                )}
-                {log.changes.after && (
-                  <div className="change-block after">
-                    <div className="change-label">After</div>
-                    <pre className="detail-pre">{JSON.stringify(log.changes.after, null, 2)}</pre>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <style>{`
-          .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,.45);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px;
-          }
-          .modal-panel {
-            background: white;
-            border-radius: 16px;
-            width: 100%; max-width: 680px;
-            max-height: 85vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,.2);
-          }
-          .modal-header {
-            display: flex; align-items: flex-start; justify-content: space-between;
-            padding: 24px 24px 18px;
-            border-bottom: 1px solid #e2e8f0;
-            position: sticky; top: 0;
-            background: white; z-index: 10;
-          }
-          .modal-title { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
-          .modal-sub { font-size: .75rem; color: #94a3b8; margin-top: 2px; font-family: monospace; }
-          .modal-close {
-            width: 32px; height: 32px; border-radius: 8px;
-            background: #f1f5f9; color: #64748b;
-            display: flex; align-items: center; justify-content: center;
-            font-size: .85rem; flex-shrink: 0;
-            transition: background .15s;
-          }
-          .modal-close:hover { background: #fee2e2; color: #ef4444; }
-          .modal-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 20px; }
-          .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 14px;
-          }
-          .detail-item { display: flex; flex-direction: column; gap: 4px; }
-          .detail-key { font-size: .7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; }
-          .detail-val { font-size: .875rem; color: #1e293b; font-weight: 500; }
-          .detail-section { display: flex; flex-direction: column; gap: 8px; }
-          .detail-desc { font-size: .875rem; color: #475569; line-height: 1.6; }
-          .detail-pre {
-            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
-            padding: 12px; font-size: .75rem; color: #334155;
-            overflow-x: auto; white-space: pre-wrap; line-height: 1.6;
-          }
-          .changes-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-          .change-block { display: flex; flex-direction: column; gap: 6px; }
-          .change-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-          .change-block.before .change-label { color: #ef4444; }
-          .change-block.after .change-label { color: #16a34a; }
-          .change-block.before .detail-pre { border-color: #fecaca; background: #fff5f5; }
-          .change-block.after .detail-pre { border-color: #bbf7d0; background: #f0fdf4; }
-        `}</style>
-      </div>
-    </div>
-  );
-};
-
-const AuditLogsTable = ({ logs, loading, pagination, onPageChange }) => {
+const AuditLogsTable = ({ logs = [], pagination = {}, loading, onPageChange }) => {
+  const [expandedRow, setExpandedRow] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const formatTime = (ts) => {
-    if (!ts) return '—';
-    const d = new Date(ts);
-    return d.toLocaleString('en-US', {
-      month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
+  const toggleRow = (id) => {
+    setExpandedRow(expandedRow === id ? null : id);
   };
 
-  if (loading) {
-    return (
-      <div className="table-loading">
-        <div className="loading-spinner" />
-        <span>Loading audit logs…</span>
-        <style>{`
-          .table-loading {
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 14px;
-            padding: 60px 20px;
-            background: white; border-radius: 14px;
-            border: 1.5px solid #e2e8f0;
-            color: #64748b; font-size: .9rem;
-          }
-          .loading-spinner {
-            width: 32px; height: 32px;
-            border: 3px solid #e2e8f0;
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin .7s linear infinite;
-          }
-          @keyframes spin { to { transform: rotate(360deg); } }
-        `}</style>
-      </div>
-    );
-  }
+  const page = pagination.page || 1;
+  const limit = pagination.limit || 10;
+  const total = pagination.total || 0;
+  const totalPages = pagination.totalPages || 1;
 
-  const baseTimestamp = new Date('2024-01-01T00:00:00.000Z').getTime();
-  const mockLogs = logs?.length ? logs : Array.from({ length: 8 }, (_, i) => ({
-    _id: `log_${i + 1}`,
-    createdAt: new Date(baseTimestamp - i * 1800000).toISOString(),
-    userName: ['Admin User', 'John Manager', 'Sarah Cashier', 'Mike Admin'][i % 4],
-    action: ['CREATE', 'UPDATE', 'DELETE', 'VIEW', 'LOGIN', 'EXPORT', 'APPROVE', 'REJECT'][i % 8],
-    module: ['Products', 'Inventory', 'POS', 'Employees', 'Auth', 'Reports', 'Purchase Orders', 'Returns'][i % 8],
-    description: [
-      'Created new product: Nike Air Max 270',
-      'Updated stock quantity for SKU-001',
-      'Deleted customer record #4421',
-      'Viewed sales report for Q4',
-      'Successful login from 192.168.1.42',
-      'Exported inventory CSV report',
-      'Approved purchase order PO-2024-089',
-      'Rejected return request RET-2024-112',
-    ][i % 8],
-    severity: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'LOW', 'MEDIUM', 'LOW', 'HIGH'][i % 8],
-    ipAddress: `192.168.${Math.floor(i / 3)}.${10 + i}`,
-    branchName: ['Main Branch', 'City Centre', 'Kandy Branch'][i % 3],
-  }));
+  const startIdx = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endIdx = Math.min(page * limit, total);
+
+  // 💡 User ගේ නමේ මුල් අකුර ගන්නා Function එක (Default Avatar එක සඳහා)
+  const getInitial = (name) => {
+    if (!name) return 'S';
+    return name.charAt(0).toUpperCase();
+  };
 
   return (
-    <div className="audit-table-wrap">
-      <div className="audit-table-scroll">
+    <div className="audit-table-container">
+      <div className="table-responsive">
         <table className="audit-table">
           <thead>
             <tr>
@@ -269,165 +53,282 @@ const AuditLogsTable = ({ logs, loading, pagination, onPageChange }) => {
               <th>Action</th>
               <th>Module</th>
               <th>Description</th>
-              <th>Severity</th>
               <th>IP Address</th>
               <th>Branch</th>
-              <th></th>
+              <th>Severity</th>
+              <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {mockLogs.map((log) => (
-              <tr key={log._id} className="audit-row" onClick={() => setSelectedLog(log)}>
-                <td className="td-time">{formatTime(log.createdAt || log.timestamp)}</td>
-                <td className="td-user">
-                  <div className="user-cell">
-                    <div className="user-avatar-xs">{(log.userName || 'U')[0]}</div>
-                    <span>{log.userName || log.userId || '—'}</span>
+            {loading ? (
+              Array.from({ length: limit }).map((_, i) => (
+                <tr key={`skeleton-${i}`} className="skeleton-row">
+                  <td colSpan="9"><div className="skeleton-bar" /></td>
+                </tr>
+              ))
+            ) : logs.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="empty-cell">
+                  <div className="empty-state">
+                    <span>📋</span>
+                    <p>No audit logs found matching the filters.</p>
                   </div>
                 </td>
-                <td><ActionBadge action={log.action} /></td>
-                <td className="td-module">{log.module}</td>
-                <td className="td-desc">{log.description}</td>
-                <td><SeverityBadge severity={log.severity || 'LOW'} /></td>
-                <td className="td-ip">{log.ipAddress || '—'}</td>
-                <td className="td-branch">{log.branchName || '—'}</td>
-                <td>
-                  <button className="view-btn" onClick={e => { e.stopPropagation(); setSelectedLog(log); }}>
-                    View
-                  </button>
-                </td>
               </tr>
-            ))}
+            ) : (
+              logs.map((log) => {
+                const sev = SEVERITY_STYLES[log.severity] || { bg: '#f8fafc', color: '#64748b', dot: '#cbd5e1' };
+                const act = ACTION_STYLES[log.action] || { bg: '#f1f5f9', color: '#475569' };
+                const isExpanded = expandedRow === log._id;
+                const currentUserName = log.userId?.name || log.user?.name || log.userName || log.performedBy || 'System';
+
+                return (
+                  <React.Fragment key={log._id}>
+                    <tr className={`log-row ${isExpanded ? 'expanded' : ''}`} onClick={() => toggleRow(log._id)}>
+                      <td className="td-time">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}
+                      </td>
+                      
+                      <td className="td-user">
+                        {/* Table එක ඇතුලෙත් පොඩි Avatar එකක් පෙන්වීම */}
+                        <div className="table-user-flex">
+                          {log.userId?.image || log.user?.image ? (
+                            <img src={log.userId?.image || log.user?.image} alt="User" className="table-avatar" />
+                          ) : (
+                            <div className="table-avatar-fallback">{getInitial(currentUserName)}</div>
+                          )}
+                          <div className="user-info-text">
+                            <span className="user-fallback-name">{currentUserName}</span>
+                            <span className="user-fallback-role">{log.userId?.role || log.user?.role || log.userRole || 'Staff'}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="action-badge" style={{ backgroundColor: act.bg, color: act.color }}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="td-module">{log.module}</td>
+                      <td className="td-desc" title={log.description}>{log.description}</td>
+                      <td className="td-ip">{log.ipAddress || '—'}</td>
+                      
+                      <td className="td-branch">
+                        {log.branchId?.name || log.branch?.name || log.branchName || 'Main Branch'}
+                      </td>
+
+                      <td>
+                        <span className="severity-badge" style={{ backgroundColor: sev.bg, color: sev.color }}>
+                          <span className="sev-dot" style={{ backgroundColor: sev.dot }} />
+                          {log.severity}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <button className="view-btn" onClick={() => setSelectedLog(log)}>
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="expanded-details-row">
+                        <td colSpan="9">
+                          <div className="expanded-details-content">
+                            <div className="details-grid">
+                              <div><strong>Log ID:</strong> {log._id}</div>
+                              <div><strong>User Agent:</strong> {log.userAgent || '—'}</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
-      {pagination && (
+      {totalPages > 1 && (
         <div className="table-pagination">
-          <span className="page-info">
-            Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total?.toLocaleString()} records
-          </span>
+          <div className="page-info">
+            Showing <b>{startIdx}</b> to <b>{endIdx}</b> of <b>{total}</b> entries
+          </div>
           <div className="page-btns">
-            <button
-              className="page-btn"
-              disabled={pagination.page <= 1}
-              onClick={() => onPageChange(pagination.page - 1)}
-            >← Prev</button>
-            {Array.from({ length: Math.min(5, pagination.totalPages || 1) }, (_, i) => {
-              const page = Math.max(1, (pagination.page || 1) - 2) + i;
-              return (
-                <button
-                  key={page}
-                  className={`page-btn ${page === pagination.page ? 'active' : ''}`}
-                  onClick={() => onPageChange(page)}
-                >
-                  {page}
-                </button>
-              );
-            })}
-            <button
-              className="page-btn"
-              disabled={pagination.page >= (pagination.totalPages || 1)}
-              onClick={() => onPageChange(pagination.page + 1)}
-            >Next →</button>
+            <button className="page-btn" disabled={page <= 1 || loading} onClick={() => onPageChange(page - 1)}>Previous</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button key={`page-${p}`} className={`page-btn ${page === p ? 'active' : ''}`} disabled={loading} onClick={() => onPageChange(p)}>{p}</button>
+            ))}
+            <button className="page-btn" disabled={page >= totalPages || loading} onClick={() => onPageChange(page + 1)}>Next</button>
           </div>
         </div>
       )}
 
-      {selectedLog && <AuditDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />}
+      {/* 🛠️ PREMIUM AUDIT LOG DETAILS MODAL POPUP */}
+      {selectedLog && (() => {
+        const modalUserName = selectedLog.userId?.name || selectedLog.user?.name || selectedLog.userName || 'System';
+        return (
+          <div className="audit-modal-overlay" onClick={() => setSelectedLog(null)}>
+            <div className="audit-modal-content" onClick={(e) => e.stopPropagation()}>
+              
+              {/* Modal Banner Area */}
+              <div className={`modal-premium-banner ${selectedLog.severity}`}>
+                <div className="banner-title-wrap">
+                  <span className="banner-icon">🔍</span>
+                  <div>
+                    <h3>Audit Trail Details</h3>
+                    <p>Log ID: {selectedLog._id}</p>
+                  </div>
+                </div>
+                <button className="modal-close-icon-btn" onClick={() => setSelectedLog(null)}>×</button>
+              </div>
+              
+              <div className="audit-modal-body">
+                
+                {/* 🌟 USER PROFILE CARD SECTION */}
+                <div className="modal-user-profile-card">
+                  {selectedLog.userId?.image || selectedLog.user?.image ? (
+                    <img src={selectedLog.userId?.image || selectedLog.user?.image} alt="User Avatar" className="modal-large-avatar" />
+                  ) : (
+                    <div className="modal-large-avatar-fallback">{getInitial(modalUserName)}</div>
+                  )}
+                  <div className="modal-user-meta">
+                    <h4>{modalUserName}</h4>
+                    <span className="modal-user-role-badge">{selectedLog.userId?.role || selectedLog.user?.role || selectedLog.userRole || 'Staff'}</span>
+                    <p className="modal-user-email-text">{selectedLog.userId?.email || selectedLog.user?.email || 'No email attached'}</p>
+                  </div>
+                </div>
 
+                {/* Core Meta Details */}
+                <div className="modal-section-title">Activity Information</div>
+                <div className="modal-details-grid">
+                  <div className="modal-detail-item"><strong>Action Triggered:</strong> <span className="modal-text-badge">{selectedLog.action}</span></div>
+                  <div className="modal-detail-item"><strong>Module Impacted:</strong> <b style={{ color: '#0f172a' }}>{selectedLog.module}</b></div>
+                  <div className="modal-detail-item"><strong>Timestamp:</strong> {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString() : '—'}</div>
+                  <div className="modal-detail-item"><strong>Branch Code/Name:</strong> {selectedLog.branchId?.name || selectedLog.branch?.name || selectedLog.branchName || 'Main Branch'}</div>
+                  <div className="modal-detail-item"><strong>IP Address:</strong> <span className="mono-text">{selectedLog.ipAddress || '—'}</span></div>
+                  <div className="modal-detail-item"><strong>Severity Level:</strong> <span className={`modal-sev-label ${selectedLog.severity}`}>{selectedLog.severity}</span></div>
+                </div>
+
+                <div className="modal-section-title" style={{ marginTop: '16px' }}>Operation Description</div>
+                <div className="modal-desc-box">{selectedLog.description}</div>
+
+                <div className="modal-section-title" style={{ marginTop: '16px' }}>System Environment Context</div>
+                <div className="modal-agent-box">
+                  <strong>User Agent:</strong> {selectedLog.userAgent || '—'}
+                </div>
+
+                {/* Metadata JSON Changes Block */}
+                {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
+                  <>
+                    <div className="modal-section-title" style={{ marginTop: '16px' }}>Payload Metadata / Changes</div>
+                    <div className="modal-json-box">
+                      <pre>{JSON.stringify(selectedLog.details, null, 2)}</pre>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="audit-modal-footer">
+                <button className="modal-footer-close-btn" onClick={() => setSelectedLog(null)}>Dismiss View</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 🎨 PREMIUM STYLES */}
       <style>{`
-        .audit-table-wrap {
-          background: white;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 14px;
-          overflow: hidden;
-        }
-        .audit-table-scroll { overflow-x: auto; }
-        .audit-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: .83rem;
-        }
-        .audit-table thead tr {
-          background: #f8fafc;
-          border-bottom: 1.5px solid #e2e8f0;
-        }
-        .audit-table th {
-          padding: 12px 14px;
-          text-align: left;
-          font-size: .7rem;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: .06em;
-          white-space: nowrap;
-        }
-        .audit-row {
-          border-bottom: 1px solid #f1f5f9;
-          cursor: pointer;
-          transition: background .1s;
-        }
-        .audit-row:hover { background: #f8fafc; }
-        .audit-row:last-child { border-bottom: none; }
-        .audit-table td { padding: 12px 14px; vertical-align: middle; }
-        .td-time { font-family: monospace; font-size: .76rem; color: #64748b; white-space: nowrap; }
-        .td-user { white-space: nowrap; }
-        .user-cell { display: flex; align-items: center; gap: 8px; }
-        .user-avatar-xs {
-          width: 26px; height: 26px; border-radius: 50%;
-          background: #dbeafe; color: #2563eb;
-          font-size: .72rem; font-weight: 700;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-        .td-module { color: #475569; font-weight: 500; }
-        .td-desc {
-          color: #374151;
-          max-width: 260px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
+        .audit-table-container { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.02); position: relative; }
+        .table-responsive { width: 100%; overflow-x: auto; }
+        .audit-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .85rem; }
+        .audit-table th { background: #f8fafc; padding: 12px 16px; font-weight: 600; color: #475569; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1.5px solid #e2e8f0; }
+        .audit-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+        
+        /* Table User Profile Custom Flex */
+        .table-user-flex { display: flex; align-items: center; gap: 10px; }
+        .table-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1.5px solid #e2e8f0; }
+        .table-avatar-fallback { width: 32px; height: 32px; border-radius: 50%; background: #e0f2fe; color: #0369a1; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; border: 1.5px solid #bae6fd; }
+        .user-info-text { display: flex; flex-direction: column; }
+
+        .log-row { cursor: pointer; transition: background .1s; }
+        .log-row:hover { background: #f8fafc; }
+        .log-row.expanded { background: #f8fafc; }
+        .td-time { white-space: nowrap; font-variant-numeric: tabular-nums; color: #64748b; }
+        .user-fallback-name { font-weight: 600; color: #0f172a; font-size: 0.85rem; }
+        .user-fallback-role { font-size: .72rem; color: #94a3b8; font-weight: 500; }
+        .action-badge { padding: 4px 8px; border-radius: 6px; font-size: .72rem; font-weight: 700; display: inline-block; }
+        .td-module { font-weight: 500; color: #1e293b; }
+        .td-desc { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #475569; }
+        .severity-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 99px; font-size: .72rem; font-weight: 600; }
+        .sev-dot { width: 6px; height: 6px; border-radius: 50%; }
         .td-ip { font-family: monospace; font-size: .76rem; color: #94a3b8; }
         .td-branch { color: #64748b; font-size: .8rem; }
-        .view-btn {
-          padding: 5px 12px;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 7px;
-          font-size: .75rem;
-          font-weight: 600;
-          color: #3b82f6;
-          background: white;
-          transition: all .15s;
-          white-space: nowrap;
-        }
+        
+        .view-btn { padding: 5px 12px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: .75rem; font-weight: 600; color: #3b82f6; background: white; transition: all .15s; cursor: pointer; }
         .view-btn:hover { background: #eff6ff; border-color: #93c5fd; }
-        .table-pagination {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 20px;
-          border-top: 1px solid #f1f5f9;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        .page-info { font-size: .8rem; color: #64748b; }
-        .page-btns { display: flex; gap: 6px; }
-        .page-btn {
-          padding: 6px 12px;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 7px;
-          font-size: .8rem;
-          font-weight: 500;
-          color: #475569;
-          background: white;
-          transition: all .15s;
-        }
-        .page-btn:hover:not(:disabled):not(.active) { background: #f8fafc; border-color: #cbd5e1; }
-        .page-btn.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
-        .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+        
+        .expanded-details-row td { padding: 0; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+        .expanded-details-content { padding: 10px 24px; font-size: .8rem; color: #64748b; border-left: 3px solid #cbd5e1; }
+        .details-grid { display: flex; gap: 24px; }
+        .skeleton-bar { height: 16px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 4px; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* ====== PREMIUM MODAL POPUP STYLES ====== */
+        .audit-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.2s ease-out; }
+        .audit-modal-content { background: white; width: 90%; max-width: 620px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 85vh; overflow: hidden; animation: modalScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        
+        /* Modal Banner */
+        .modal-premium-banner { padding: 20px 24px; color: white; display: flex; align-items: center; justify-content: space-between; position: relative; background: #1e3a5f; }
+        .modal-premium-banner.LOW { background: linear-gradient(135deg, #1e3a5f 0%, #16a34a 100%); }
+        .modal-premium-banner.MEDIUM { background: linear-gradient(135deg, #1e3a5f 0%, #ca8a04 100%); }
+        .modal-premium-banner.HIGH { background: linear-gradient(135deg, #1e3a5f 0%, #ea580c 100%); }
+        .modal-premium-banner.CRITICAL { background: linear-gradient(135deg, #1e3a5f 0%, #dc2626 100%); }
+        
+        .banner-title-wrap { display: flex; align-items: center; gap: 14px; }
+        .banner-icon { font-size: 1.6rem; background: rgba(255,255,255,0.2); padding: 6px; border-radius: 10px; }
+        .modal-premium-banner h3 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+        .modal-premium-banner p { margin: 2px 0 0 0; font-size: 0.75rem; opacity: 0.8; font-family: monospace; }
+        .modal-close-icon-btn { background: transparent; border: none; font-size: 1.8rem; color: white; opacity: 0.7; cursor: pointer; transition: opacity 0.15s; padding: 0; line-height: 1; }
+        .modal-close-icon-btn:hover { opacity: 1; }
+        
+        .audit-modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; background: #fdfdfd; }
+        
+        /* 🌟 PREMIUM USER CARD STYLES */
+        .modal-user-profile-card { display: flex; align-items: center; gap: 18px; background: white; padding: 16px; border-radius: 14px; border: 1.5px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); margin-bottom: 20px; }
+        .modal-large-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; box-shadow: 0 0 0 2px #3b82f6; }
+        .modal-large-avatar-fallback { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0369a1; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; border: 2px solid white; box-shadow: 0 0 0 2px #0ea5e9; }
+        .modal-user-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+        .modal-user-meta h4 { margin: 0; font-size: 1rem; color: #0f172a; font-weight: 700; }
+        .modal-user-role-badge { background: #eff6ff; color: #2563eb; padding: 1px 8px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+        .modal-user-email-text { margin: 4px 0 0 0; font-size: 0.78rem; color: #64748b; }
+
+        .modal-section-title { font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; margin-top: 4px; padding-bottom: 4px; border-bottom: 1px dashed #e2e8f0; }
+        .modal-details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 24px; margin-bottom: 20px; }
+        .modal-detail-item { font-size: 0.85rem; color: #475569; line-height: 1.5; display: flex; align-items: center; justify-content: space-between; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #f8fafc; }
+        .modal-detail-item strong { color: #64748b; font-weight: 500; }
+        
+        .mono-text { font-family: monospace; font-size: 0.78rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155; font-weight: 600; }
+        .modal-text-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; color: #1e3a5f; }
+        
+        .modal-sev-label { padding: 2px 8px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+        .modal-sev-label.LOW { background: #f0fdf4; color: #16a34a; }
+        .modal-sev-label.MEDIUM { background: #fffbeb; color: #d97706; }
+        .modal-sev-label.HIGH { background: #fff7ed; color: #ea580c; }
+        .modal-sev-label.CRITICAL { background: #fef2f2; color: #dc2626; }
+
+        .modal-desc-box { background: #fff; border: 1.5px solid #e2e8f0; padding: 14px 16px; border-radius: 10px; font-size: 0.85rem; color: #0f172a; line-height: 1.5; font-weight: 500; box-shadow: inset 0 1px 2px rgba(0,0,0,0.01); margin-bottom: 20px; }
+        .modal-agent-box { font-size: 0.76rem; color: #64748b; line-height: 1.4; padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .modal-json-box { background: #0f172a; padding: 14px; border-radius: 10px; overflow-x: auto; max-height: 180px; margin-top: 4px; }
+        .modal-json-box pre { margin: 0; font-family: monospace; font-size: 0.76rem; color: #38bdf8; }
+
+        .audit-modal-footer { padding: 14px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc; }
+        .modal-footer-close-btn { padding: 9px 20px; background: #1e3a5f; color: white; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.15s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .modal-footer-close-btn:hover { background: #2563eb; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
       `}</style>
     </div>
   );

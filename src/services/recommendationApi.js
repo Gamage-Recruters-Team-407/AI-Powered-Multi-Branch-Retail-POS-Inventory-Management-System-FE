@@ -1,12 +1,16 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
+const apiHost =
   import.meta.env.VITE_RECOMMENDATION_API_URL ||
+  import.meta.env.VITE_API_URL ||
   'http://localhost:5000';
 
+const API_BASE_URL = apiHost.endsWith('/api')
+  ? apiHost
+  : `${apiHost.replace(/\/$/, '')}/api`;
+
 const recommendationApi = axios.create({
-  baseURL: `${API_BASE_URL}/api/recommendations`,
+  baseURL: `${API_BASE_URL}/recommendations`,
   timeout: 8000,
 });
 

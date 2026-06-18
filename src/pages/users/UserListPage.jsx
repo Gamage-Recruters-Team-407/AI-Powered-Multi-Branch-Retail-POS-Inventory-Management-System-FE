@@ -26,22 +26,27 @@ export default function UserListPage() {
   const handleSearch = async (e) => {
     const q = e.target.value; setSearch(q);
     if (!q.trim()) { fetchUsers(); return; }
-    try { const res = await searchUsers(q); setUsers(res.data.data || []); } catch { fetchUsers(); }
+    try { const res = await searchUsers(q); setUsers(res.data.data || res.data || []); } catch (err) { console.error("Search error:", err); fetchUsers(); }
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
-  const openEdit = (u) => { setEditUser(u); setForm({ name:u.name||"", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active" }); setFormError(""); setShowModal(true); };
+  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active" }); setFormError(""); setShowModal(true); };
   const handleFormChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     if (!form.name || !form.email || (!editUser && !form.password)) { setFormError("Name, Email and Password are required."); return; }
     setSaving(true); setFormError("");
-    try {   
-      const payload = { 
-  ...form,
-  firstName: form.name.split(' ')[0],
-  lastName: form.name.split(' ')[1] || '',
-};
+    try {
+      const payload = {
+        firstName: form.name.split(' ')[0],
+        lastName: form.name.split(' ')[1] || '',
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
+        address: form.address,
+        role: form.role,
+        isActive: form.status === 'active',
+      };
       if (editUser && !payload.password) delete payload.password;
       editUser ? await updateUser(editUser._id, payload) : await createUser(payload);
       setShowModal(false); fetchUsers();
@@ -110,7 +115,7 @@ export default function UserListPage() {
             <tbody>
               {users.length === 0 ? (
                 <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
-                  <div style={{ fontSize:"40px", marginBottom:"12px" }}>👤</div>
+                  <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
                   <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
                   <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
                 </td></tr>
@@ -121,10 +126,10 @@ export default function UserListPage() {
                   <td style={{ padding:"16px 20px" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
                       <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
-                        {user.name?.charAt(0).toUpperCase()}
+                        {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.name}</div>
+                        <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || ""}</div>
                         <div style={{ fontSize:"12px", color:"#94a3b8", marginTop:"2px" }}>ID: {user._id?.slice(-6)}</div>
                       </div>
                     </div>
@@ -138,25 +143,41 @@ export default function UserListPage() {
                     </span>
                   </td>
                   <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.status==="active"?"#f0fdf4":"#f8fafc", color:user.status==="active"?"#16a34a":"#94a3b8" }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.status==="active"?"#16a34a":"#cbd5e1" }}></span>
-                      {user.status || "active"}
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.isActive!==false?"#f0fdf4":"#f8fafc", color:user.isActive!==false?"#16a34a":"#94a3b8" }}>
+                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1" }}></span>
+                      {user.isActive!==false?"active":"inactive"}
                     </span>
                   </td>
+
+                  {/* ========== UPDATED BUTTONS ========== */}
                   <td style={{ padding:"16px 20px" }}>
                     <div style={{ display:"flex", gap:"8px" }}>
-                      <button onClick={()=>openEdit(user)} style={{ padding:"6px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"12px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.target.style.borderColor="#2563eb";e.target.style.color="#2563eb"}}
-                        onMouseLeave={e=>{e.target.style.borderColor="#e2e8f0";e.target.style.color="#475569"}}>
-                        ✏️ Edit
+                      <button onClick={()=>openEdit(user)}
+                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit
                       </button>
-                      <button onClick={()=>setDeleteConfirm(user)} style={{ padding:"6px 14px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"12px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.target.style.background="#fef2f2"}}
-                        onMouseLeave={e=>{e.target.style.background="#fff5f5"}}>
-                        🗑️ Delete
+                      <button onClick={()=>setDeleteConfirm(user)}
+                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
+                        onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
+                        onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6M14 11v6"/>
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                        Delete
                       </button>
                     </div>
                   </td>
+                  {/* ========== END UPDATED BUTTONS ========== */}
+
                 </tr>
               ))}
             </tbody>
@@ -245,7 +266,7 @@ export default function UserListPage() {
           <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
             <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:"24px" }}>🗑️</div>
             <h3 style={{ fontSize:"18px", fontWeight:"700", color:"#0f172a", margin:"0 0 8px" }}>Delete User</h3>
-            <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.name}</strong>? This action cannot be undone.</p>
+            <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.firstName || deleteConfirm.name}</strong>? This action cannot be undone.</p>
             <div style={{ display:"flex", gap:"12px", justifyContent:"center" }}>
               <button onClick={()=>setDeleteConfirm(null)} style={{ padding:"10px 24px", borderRadius:"10px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"500", color:"#64748b" }}>Cancel</button>
               <button onClick={()=>handleDelete(deleteConfirm._id)} style={{ padding:"10px 24px", borderRadius:"10px", border:"none", background:"linear-gradient(135deg,#dc2626,#b91c1c)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 4px 14px rgba(220,38,38,0.3)" }}>Delete</button>
