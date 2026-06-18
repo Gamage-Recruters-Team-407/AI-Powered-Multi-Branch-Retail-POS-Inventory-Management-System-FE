@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p style={{ color: '#93c5fd', fontSize: '.78rem', marginBottom: 4 }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color, fontWeight: 700, fontSize: '.88rem' }}>
-          {p.name}: {typeof p.value === 'number' && p.name === 'revenue' ? `$${p.value.toLocaleString()}` : p.value}
+          {p.name}: {typeof p.value === 'number' && p.name === 'revenue' ? `Rs. ${p.value.toLocaleString()}` : p.value}
         </p>
       ))}
     </div>

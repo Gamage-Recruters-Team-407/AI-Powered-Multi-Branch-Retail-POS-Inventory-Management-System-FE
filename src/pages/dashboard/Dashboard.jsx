@@ -60,13 +60,13 @@ import InventoryDashboard from '../inventory/InventoryDashboard';
 // Demo data generator
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: '$48,250', growth_percentage: 12.4, trend: 'up' },
-    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: '$37.58', unique_customers: 842 },
-    profit: { total: '$14,820', margin_percentage: 30.7 },
-    stock_turnover: { avg_rate: '4.2x', efficiency: 'Healthy' },
+    revenue: { total: 'Rs. 0', growth_percentage: 0, trend: 'up' },
+    sales: { count: 0, growth_percentage: 0, avg_transaction_value: 'Rs. 0.00', unique_customers: 0 },
+    profit: { total: 'Rs. 0', margin_percentage: 0 },
+    stock_turnover: { avg_rate: '0.0x', efficiency: 'Loading...' },
   },
-  inventory: { total_products: 486, total_stock: 32610, inventory_value: '$124,600', avg_stock_level: 67.1 },
-  low_stock_alerts: { count: 12 },
+  inventory: { total_products: 0, total_stock: 0, inventory_value: 'Rs. 0', avg_stock_level: 0 },
+  low_stock_alerts: { count: 0 },
   branches: null,
   top_products: null,
   sales: null,
@@ -156,8 +156,74 @@ const formatLKR = (amount, decimals = 0) => {
   })}`;
 };
 
-const mapStatsToDashboardData = (stats) => {
-  if (!stats) return generateDemoData();
+// rawVal eka 0 / null / undefined / NaN nam -> parana (already formatted) agayama return karanna
+// ehemath athi real agayak nam (0 nemei) witharak athi formatter ekak use karala aluth value eka denna
+const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+  const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
+  if (isEmpty) {
+    return prevValue !== undefined && prevValue !== null ? prevValue : formatter(0);
+  }
+  return formatter(rawVal);
+};
+
+// const mapStatsToDashboardData = (stats) => {
+//   if (!stats) return generateDemoData();
+
+//   const kpis = stats.kpis || {};
+//   const inventory = stats.inventory || {};
+//   const sales = stats.sales || {};
+//   const system = stats.system || {};
+
+//   return {
+//     kpi: {
+//       revenue: {
+//         total: formatLKR(kpis.revenue ?? 0),
+//         growth_percentage: kpis.salesGrowth ?? 0,
+//         trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
+//       },
+//       sales: {
+//         count: kpis.transactionCount ?? 0,
+//         growth_percentage: kpis.salesGrowth ?? 0,
+//         avg_transaction_value: formatLKR(sales.averageTransactionValue ?? 0, 2),
+//         unique_customers: system.totalCustomers ?? 0,
+//       },
+//       profit: {
+//         total: formatLKR(kpis.profit ?? 0),
+//         margin_percentage: kpis.profitMargin ?? 0,
+//       },
+//       stock_turnover: {
+//         avg_rate: `${Number(kpis.stockTurnover ?? 0).toFixed(1)}x`,
+//         efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
+//       },
+//     },
+//     inventory: {
+//       total_products: system.totalProducts ?? 0,
+//       total_stock: inventory.totalItems ?? 0,
+//       inventory_value: formatLKR(inventory.totalValue ?? 0),
+//       avg_stock_level: inventory.branchStockStatus?.length
+//         ? (
+//             inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
+//             inventory.branchStockStatus.length
+//           ).toFixed(1)
+//         : 0,
+//     },
+//     low_stock_alerts: { count: inventory.lowStockAlert?.count ?? 0 },
+//     branches: (stats.branches ?? null)?.map(b => ({
+//       ...b,
+//       revenue: typeof b.revenue === 'number'
+//         ? `Rs. ${b.revenue.toLocaleString()}`
+//         : b.revenue  // already formatted string  as-is
+//     })),
+//     top_products: sales.topProducts ?? null,
+//     sales: sales.dailySales ?? null,
+//   };
+// };
+
+const mapStatsToDashboardData = (stats, prevData) => {
+  if (!stats) return prevData || generateDemoData();
+
+  const prevKpi = prevData?.kpi || {};
+  const prevInventory = prevData?.inventory || {};
 
   const kpis = stats.kpis || {};
   const inventory = stats.inventory || {};
@@ -167,40 +233,43 @@ const mapStatsToDashboardData = (stats) => {
   return {
     kpi: {
       revenue: {
-        total: formatLKR(kpis.revenue ?? 0),
-        growth_percentage: kpis.salesGrowth ?? 0,
+        total: resolveValue(kpis.revenue, prevKpi.revenue?.total, formatLKR),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.revenue?.growth_percentage ?? 0,
         trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
       },
       sales: {
-        count: kpis.transactionCount ?? 0,
-        growth_percentage: kpis.salesGrowth ?? 0,
-        avg_transaction_value: formatLKR(sales.averageTransactionValue ?? 0, 2),
-        unique_customers: system.totalCustomers ?? 0,
+        count: resolveValue(kpis.transactionCount, prevKpi.sales?.count),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.sales?.growth_percentage ?? 0,
+        avg_transaction_value: resolveValue(sales.averageTransactionValue, prevKpi.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
+        unique_customers: resolveValue(system.totalCustomers, prevKpi.sales?.unique_customers),
       },
       profit: {
-        total: formatLKR(kpis.profit ?? 0),
-        margin_percentage: kpis.profitMargin ?? 0,
+        total: resolveValue(kpis.profit, prevKpi.profit?.total, formatLKR),
+        margin_percentage: kpis.profitMargin ?? prevKpi.profit?.margin_percentage ?? 0,
       },
       stock_turnover: {
-        avg_rate: `${Number(kpis.stockTurnover ?? 0).toFixed(1)}x`,
+        avg_rate: resolveValue(kpis.stockTurnover, prevKpi.stock_turnover?.avg_rate, (v) => `${Number(v).toFixed(1)}x`),
         efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
       },
     },
     inventory: {
-      total_products: system.totalProducts ?? 0,
-      total_stock: inventory.totalItems ?? 0,
-      inventory_value: formatLKR(inventory.totalValue ?? 0),
+      total_products: resolveValue(system.totalProducts, prevInventory.total_products),
+      total_stock: resolveValue(inventory.totalItems, prevInventory.total_stock),
+      inventory_value: resolveValue(inventory.totalValue, prevInventory.inventory_value, formatLKR),
       avg_stock_level: inventory.branchStockStatus?.length
         ? (
             inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
             inventory.branchStockStatus.length
           ).toFixed(1)
-        : 0,
+        : prevInventory.avg_stock_level ?? 0,
     },
-    low_stock_alerts: { count: inventory.lowStockAlert?.count ?? 0 },
-    branches: stats.branches ?? null,
-    top_products: sales.topProducts ?? null,
-    sales: sales.dailySales ?? null,
+    low_stock_alerts: { count: inventory.lowStockAlert?.count ?? prevData?.low_stock_alerts?.count ?? 0 },
+    branches: (stats.branches ?? prevData?.branches ?? null)?.map?.(b => ({
+      ...b,
+      revenue: typeof b.revenue === 'number' ? `Rs. ${b.revenue.toLocaleString()}` : b.revenue,
+    })) ?? null,
+    top_products: sales.topProducts ?? prevData?.top_products ?? null,
+    sales: sales.dailySales ?? prevData?.sales ?? null,
   };
 };
 
@@ -277,17 +346,17 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Sales & Revenue queries
     if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: $48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+      return `📊 **Sales Performance Update**\n\n• Total Revenue: Rs.48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
     }
 
     // Profit queries
     if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: $32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
+      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: Rs.32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
     }
 
     // Inventory queries
     if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: $124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: Rs.124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
     }
 
     // Low stock alerts
@@ -297,12 +366,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Branch performance
     if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: $18,240 (Top performer)\n• Kandy City Branch: $12,560 (+8.2% growth)\n• Galle Fort Branch: $9,340\n• Negombo Branch: $8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+      return `🏢 **Branch Performance**\n\n• Colombo Head Office: Rs.18,240 (Top performer)\n• Kandy City Branch: Rs.12,560 (+8.2% growth)\n• Galle Fort Branch: Rs.9,340\n• Negombo Branch: RS.8,110\n\n📈 Colombo leads with 38% of total revenue.`;
     }
 
     // Product recommendations
     if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - $12,450\n2. Organic Coconut Oil - $8,920\n3. Ceylon Tea Gift Pack - $7,340\n4. Fresh Milk - $5,670\n5. Spice Assortment - $4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - Rs.12,450\n2. Organic Coconut Oil - Rs.8,920\n3. Ceylon Tea Gift Pack - Rs.7,340\n4. Fresh Milk - Rs.5,670\n5. Spice Assortment - Rs.4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
     }
 
     // Demand forecasting
@@ -415,30 +484,60 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // WebSocket
-  useEffect(() => {
-    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
-    socketService.on('connect', () => setWsConnected(true));
-    socketService.on('disconnect', () => setWsConnected(false));
-    socketService.on('dashboard-update', (data) => {
-      setDashboardData(prev => ({ ...prev, ...data }));
-      setLastUpdated(new Date());
-      if (data.liveTransaction) setLiveTransaction(data.liveTransaction);
-    });
-    return () => socketService.disconnect();
-  }, [token]);
 
-  // Fetch data
-  // const fetchData = useCallback(async () => {
-  //   setLoading(true);
-  //   try {
-  //     await new Promise(r => setTimeout(r, 800));
-  //     setDashboardData(generateDemoData());
-  //     setLastUpdated(new Date());
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }, []);
+// WebSocket
+useEffect(() => {
+  socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+  socketService.on('connect', () => setWsConnected(true));
+  socketService.on('disconnect', () => setWsConnected(false));
+
+// socketService.on('dashboard-update', (data) => {
+//   setDashboardData(prev => {
+//     const updated = { ...prev };
+
+//     if (data.kpi) {
+//       updated.kpi = {
+//         ...prev.kpi,
+//         ...data.kpi,
+//         revenue: data.kpi.revenue ? {
+//           ...prev.kpi?.revenue,
+//           ...data.kpi.revenue,
+//           total: resolveValue(data.kpi.revenue.total, prev.kpi?.revenue?.total, formatLKR),
+//         } : prev.kpi?.revenue,
+//         profit: data.kpi.profit ? {
+//           ...prev.kpi?.profit,
+//           ...data.kpi.profit,
+//           total: resolveValue(data.kpi.profit.total, prev.kpi?.profit?.total, formatLKR),
+//         } : prev.kpi?.profit,
+//         sales: data.kpi.sales ? {
+//           ...prev.kpi?.sales,
+//           ...data.kpi.sales,
+//           count: resolveValue(data.kpi.sales.count, prev.kpi?.sales?.count),
+//           avg_transaction_value: resolveValue(data.kpi.sales.avg_transaction_value, prev.kpi?.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
+//         } : prev.kpi?.sales,
+//       };
+//     }
+
+//     if (data.inventory) {
+//       updated.inventory = {
+//         ...prev.inventory,
+//         ...data.inventory,
+//         inventory_value: resolveValue(data.inventory.inventory_value, prev.inventory?.inventory_value, formatLKR),
+//       };
+//     }
+
+//     return updated;
+//   });
+
+//   setLastUpdated(new Date());
+
+//   if (data.liveTransaction) {
+//     setLiveTransaction(data.liveTransaction);
+//   }
+// });
+
+  return () => socketService.disconnect();
+}, [token]);
 
 const fetchData = useCallback(async () => {
   setLoading(true);
@@ -449,14 +548,17 @@ const fetchData = useCallback(async () => {
     });
     if (selectedBranch !== 'all') params.append('branchId', selectedBranch);
 
+    const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000')
+      .replace(/\/api\/?$/, '');  // trailing /api strip 
+
     const res = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dashboard/stats?${params.toString()}`,
+      `${BASE}/api/dashboard/stats?${params.toString()}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
 
     const json = await res.json();
-    setDashboardData(mapStatsToDashboardData(json.data));
+    setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
     setLastUpdated(new Date());
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
@@ -587,7 +689,7 @@ const fetchData = useCallback(async () => {
                   <span className="branch-hero-icon">{selectedBranchData?.icon}</span>
                   <div className="branch-hero-info"><h2>{selectedBranchData?.name}</h2><p>Branch Performance Overview</p></div>
                   <div className="branch-stats">
-                    <div className="branch-stat"><span>Today's Revenue</span><strong>$12,450</strong></div>
+                    <div className="branch-stat"><span>Today's Revenue</span><strong>Rs. 12,450</strong></div>
                     <div className="branch-stat"><span>Growth</span><strong className="positive">+8.2%</strong></div>
                   </div>
                 </div>
@@ -1373,7 +1475,7 @@ const AIDemandForecastModule = () => (
       <div className="forecast-card"><div className="value">↑ 15%</div><div className="label">Next Month Demand Increase</div></div>
       <div className="forecast-card"><div className="value">94%</div><div className="label">Forecast Accuracy</div></div>
       <div className="forecast-card"><div className="value">2,450</div><div className="label">Predicted Sales (units)</div></div>
-      <div className="forecast-card"><div className="value">$52.8K</div><div className="label">Expected Revenue</div></div>
+      <div className="forecast-card"><div className="value">Rs.52.8K</div><div className="label">Expected Revenue</div></div>
     </div>
 
     <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>📈 Product Demand Forecast (Next 30 Days)</h3>
