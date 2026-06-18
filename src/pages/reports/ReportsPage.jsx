@@ -362,8 +362,12 @@ function ReportsPage() {
 
           {/* 3 — Charts row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <SalesTrendChart salesData={sales} />
-            <BranchPerformanceChart branchData={branchPerf} />
+            <div className="min-w-0">
+              <SalesTrendChart salesData={sales} />
+            </div>
+            <div className="min-w-0">
+              <BranchPerformanceChart branchData={branchPerf} />
+            </div>
           </div>
 
           {/* 4 — Report Preview Table */}
@@ -371,8 +375,12 @@ function ReportsPage() {
 
           {/* 5 — Scheduled + History row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ScheduledReports scheduled={scheduled} />
-            <ReportHistory history={history} />
+            <div className="min-w-0">
+              <ScheduledReports scheduled={scheduled} />
+            </div>
+            <div className="min-w-0">
+              <ReportHistory history={history} />
+            </div>
           </div>
 
           {/* 6 — API Integration Status info */}
