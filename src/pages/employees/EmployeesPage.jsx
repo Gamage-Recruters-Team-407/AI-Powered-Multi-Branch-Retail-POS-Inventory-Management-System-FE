@@ -383,7 +383,7 @@ export default function EmployeesPage() {
       lastName: emp.lastName || "",
       email: emp.email || "",
       phone: emp.phone || "",
-      role: emp.role || "cashier",
+      role: emp.role ? emp.role.toLowerCase() : "cashier",
       branch: emp.branch || "",
       salary: emp.salary || "",
       hireDate: formattedDate,
