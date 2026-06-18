@@ -157,9 +157,16 @@ const AuditLogsTable = ({ logs = [], pagination = {}, loading, onPageChange }) =
           </div>
           <div className="page-btns">
             <button className="page-btn" disabled={page <= 1 || loading} onClick={() => onPageChange(page - 1)}>Previous</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button key={`page-${p}`} className={`page-btn ${page === p ? 'active' : ''}`} disabled={loading} onClick={() => onPageChange(p)}>{p}</button>
-            ))}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .map((p, index, array) => (
+                <React.Fragment key={`page-wrapper-${p}`}>
+                  {index > 0 && array[index - 1] !== p - 1 && (
+                    <span className="page-ellipsis" style={{ padding: '0 8px', color: '#94a3b8' }}>...</span>
+                  )}
+                  <button className={`page-btn ${page === p ? 'active' : ''}`} disabled={loading} onClick={() => onPageChange(p)}>{p}</button>
+                </React.Fragment>
+              ))}
             <button className="page-btn" disabled={page >= totalPages || loading} onClick={() => onPageChange(page + 1)}>Next</button>
           </div>
         </div>
@@ -329,6 +336,10 @@ const AuditLogsTable = ({ logs = [], pagination = {}, loading, onPageChange }) =
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes modalScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        
+        @media (max-width: 600px) {
+          .modal-details-grid { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
   );

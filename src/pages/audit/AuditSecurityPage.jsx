@@ -307,6 +307,13 @@ const AuditSecurityPage = () => {
         .tab-section-header { display: flex; flex-direction: column; gap: 3px; }
         .tab-section-title { font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; }
         .tab-section-sub { font-size: .83rem; color: #64748b; margin: 0; }
+        
+        @media (max-width: 768px) {
+          .audit-page-header { flex-direction: column; align-items: flex-start; }
+          .audit-tabs { max-width: 100%; overflow-x: auto; white-space: nowrap; }
+          .audit-tab { flex: 1; justify-content: center; }
+          .export-all-btn { width: 100%; justify-content: center; }
+        }
       `}</style>
     </div>
   );

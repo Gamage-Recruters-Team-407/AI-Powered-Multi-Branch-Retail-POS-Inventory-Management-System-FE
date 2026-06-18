@@ -115,7 +115,7 @@ const AIAssistantPage = () => {
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
-      <div style={{ padding: '28px', maxWidth: '1600px', margin: '0 auto' }}>
+      <div className="ai-content-wrapper" style={{ maxWidth: '1600px', margin: '0 auto' }}>
 
         {/* ── NL QUERY SECTION ── */}
         <motion.div
@@ -209,12 +209,17 @@ const AIAssistantPage = () => {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         .ai-page * { box-sizing: border-box; }
+        .ai-content-wrapper { padding: 28px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         @media (max-width: 1024px) {
           .ai-grid { grid-template-columns: 1fr !important; }
+          .ai-grid > div { min-width: 0; max-width: 100vw; overflow: hidden; }
           .rec-grid { grid-template-columns: 1fr !important; }
+          .kpi-grid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
-          .ai-grid { padding: 0; }
+          .ai-content-wrapper { padding: 12px; }
+          .kpi-grid { grid-template-columns: 1fr !important; }
         }
         select option { background: #1E293B; color: white; }
         .ai-page.dark select option { background: #0F172A; color: #F1F5F9; }
