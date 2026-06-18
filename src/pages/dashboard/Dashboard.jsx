@@ -146,12 +146,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-<<<<<<< Updated upstream
-  const [navExpanded, setNavExpanded] = useState(true);
-=======
   const [navExpanded, setNavExpanded] = useState(() => window.innerWidth > 768);
   const [warehouseDetailId, setWarehouseDetailId] = useState(null);
->>>>>>> Stashed changes
   const [activeModule, setActiveModule] = useState(() => {
     return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
   });
@@ -286,8 +282,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setActiveModule(moduleId);
     }
 
-<<<<<<< Updated upstream
-=======
     // Auto-close sidebar on mobile after clicking a link
     if (window.innerWidth <= 768) {
       setNavExpanded(false);
@@ -298,7 +292,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       setWarehouseDetailId(null);
     }
 
->>>>>>> Stashed changes
     setVisibleModule(moduleId);
     sessionStorage.setItem('dashboard_activeModule', moduleId);
     sessionStorage.setItem('dashboard_visibleModule', moduleId);
@@ -794,9 +787,6 @@ case 'product-edit':
   };
 
   return (
-<<<<<<< Updated upstream
-    <div className="dashboard-page">
-=======
     <div className={`dashboard-page theme-${sunPhase}`}>
       {/* Mobile Hamburger */}
       {!navExpanded && (
@@ -810,7 +800,6 @@ case 'product-edit':
         <div className="mobile-nav-overlay" onClick={() => setNavExpanded(false)}></div>
       )}
 
->>>>>>> Stashed changes
       {/* Floating Navigation Menu */}
       <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
         <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
@@ -982,12 +971,8 @@ case 'product-edit':
         @keyframes badgeBlink { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.8)} }
         .time-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.8rem; color: #475569; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; width: fit-content; }
         .dash-header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-<<<<<<< Updated upstream
-        .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); }
-=======
         .weather-widget { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); color: #1e293b; }
         .last-update { display: flex; align-items: center; gap: 8px; background: var(--glass-bg); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); font-size: 0.85rem; font-weight: 500; }
->>>>>>> Stashed changes
         .notification-wrapper { position: relative; }
         .notification-btn { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); position: relative; cursor: pointer; transition: all 0.2s; }
         .notification-btn:hover { background: white; transform: scale(1.05); }

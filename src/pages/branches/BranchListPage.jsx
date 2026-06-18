@@ -47,18 +47,6 @@ function BranchListPage() {
   };
 
   return (
-<<<<<<< Updated upstream
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mx-auto max-w-7xl">
-
-        {/* Header */}
-        <div className="mb-6 flex justify-between rounded-2xl bg-white p-6 shadow-sm">
-          <div>
-            <h1 className="text-2xl font-bold">Branch Management</h1>
-            <p className="text-sm text-slate-500">
-              Manage all branches
-            </p>
-=======
     <>
       <div
         className="rounded-2xl md:rounded-[28px] p-4 md:p-6 min-h-[calc(100vh-100px)] shadow-lg text-slate-800"
@@ -92,17 +80,9 @@ function BranchListPage() {
                 + Add Branch
               </button>
             )}
->>>>>>> Stashed changes
           </div>
 
-          <Link
-            to="/branches/add"
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg"
-          >
-<<<<<<< Updated upstream
-            + Add Branch
-          </Link>
-=======
+          <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
               <input
                 value={keyword}
@@ -223,7 +203,6 @@ function BranchListPage() {
               </table>
             )}
           </div>
->>>>>>> Stashed changes
         </div>
 
         {/* Search */}
@@ -328,7 +307,7 @@ function BranchListPage() {
         </div>
 
       </div>
-    </div>
+    </>
   );
 }
 
