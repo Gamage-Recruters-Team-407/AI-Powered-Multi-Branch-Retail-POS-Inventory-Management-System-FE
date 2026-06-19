@@ -7,7 +7,7 @@ const QUICK_ACTIONS = ["Low Stock", "Top Sellers", "Sales Report", "Trending", "
 const AI_RESPONSES = {
   "Low Stock": "⚠️ **Low Stock Alert**\n\n3 items are critically low:\n• Mechanical Keyboard — 2 units left\n• Bluetooth Speaker — 4 units left\n• USB-C Cable — 6 units left\n\nI recommend creating purchase orders today.",
   "Top Sellers": "⭐ **Top Performing Products**\n\n1. Wireless Mouse — 142 units sold\n2. A4 Copy Paper — 310 packs sold\n3. Mechanical Keyboard — 89 units sold\n4. Desk Lamp — 74 units sold\n\nOrganic product demand is up 23% this month.",
-  "Sales Report": "📊 **Sales Summary**\n\n• Total Revenue: $52,800\n• Transactions: 1,284\n• Avg. Order Value: $124.50\n• Growth vs Last Month: +16.8%\n\nSaturday & Sunday account for 41% of weekly revenue.",
+  "Sales Report": "📊 **Sales Summary**\n\n• Total Revenue: Rs 52,800\n• Transactions: 1,284\n• Avg. Order Value: Rs 124.50\n• Growth vs Last Month: +16.8%\n\nSaturday & Sunday account for 41% of weekly revenue.",
   "Trending": "📈 **Trending Right Now**\n\nTop trending categories:\n• Electronics (+40% this week)\n• Office Supplies (+22%)\n• Ergonomic Furniture (+18%)\n\n💡 Tip: Bundle Wireless Mouse + Keyboard for a 15% bundle offer.",
   "Help": "🤖 **How I Can Help**\n\nAsk me about:\n• 📦 Inventory & stock levels\n• 💰 Sales & revenue reports\n• 🏢 Branch performance\n• 📈 Demand forecasting\n• 🛒 Purchase order suggestions\n• 👥 Customer insights\n\nType any question or click a quick action!",
 };
@@ -19,7 +19,7 @@ const getAIResponse = (text) => {
   if (lower.includes('sale') || lower.includes('revenue') || lower.includes('profit')) return AI_RESPONSES["Sales Report"];
   if (lower.includes('trend') || lower.includes('popular')) return AI_RESPONSES["Trending"];
   if (lower.includes('help') || lower.includes('hi') || lower.includes('hello')) return AI_RESPONSES["Help"];
-  if (lower.includes('branch') || lower.includes('location')) return "🏢 **Branch Performance**\n\n• Main HQ: $18,240 (Top)\n• Downtown Store: $12,560\n• Uptown Mall: $9,340\n\nMain HQ accounts for 38% of total revenue.";
+  if (lower.includes('branch') || lower.includes('location')) return "🏢 **Branch Performance**\n\n• Main HQ: Rs 18,240 (Top)\n• Downtown Store: Rs 12,560\n• Uptown Mall: Rs 9,340\n\nMain HQ accounts for 38% of total revenue.";
   if (lower.includes('forecast') || lower.includes('predict')) return "🔮 **AI Demand Forecast (Next 30 days)**\n\n• Electronics: ↑15% demand\n• Office Supplies: ↑12%\n• Furniture: ↑8%\n\nRecommend increasing inventory by 20% for Electronics.";
   return `🤔 I understand your question about "${text.substring(0, 40)}..."\n\nTry asking about: Sales, Inventory, Branches, Trends, or Forecasts. I'm here to help!`;
 };
