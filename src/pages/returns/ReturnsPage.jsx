@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { 
   FiSearch, 
   FiAlertTriangle, 
@@ -12,7 +12,99 @@ import {
   FiPrinter
 } from 'react-icons/fi';
 import ReceiptModal from '../../components/ReceiptModal';
-import { createReturn, updateReturnStatus, getInvoices, getReturns } from '../../services/returnsApi';
+import { createReturn, updateReturnStatus, getInvoiceById, getInvoices, getReturns } from '../../services/returnsApi';
+
+const FALLBACK_INVOICES = [
+  {
+    id: 'INV-2026-001',
+    customer: 'Yasith Silva',
+    branch: 'Colombo Main (HQ)',
+    date: '2026-05-20',
+    paymentMethod: 'Credit Card',
+    taxRate: 0.12,
+    discountAmount: 50,
+    items: [
+      { id: 'PROD-101', name: 'iPad Pro 11-inch M4', qty: 1, price: 999, returnedQty: 1 },
+      { id: 'PROD-102', name: 'Apple Pencil Pro', qty: 1, price: 129, returnedQty: 1 },
+      { id: 'PROD-103', name: 'Paperlike Screen Protector', qty: 2, price: 39.99, returnedQty: 2 }
+    ]
+  },
+  {
+    id: 'INV-2026-002',
+    customer: 'Malmi Shehara',
+    branch: 'Kandy City Mall',
+    date: '2026-04-10',
+    paymentMethod: 'Cash',
+    taxRate: 0.08,
+    discountAmount: 0,
+    items: [
+      { id: 'PROD-201', name: 'MacBook Air M3', qty: 1, price: 1099, returnedQty: 1 },
+      { id: 'PROD-202', name: 'Apple Magic Mouse', qty: 1, price: 79, returnedQty: 1 }
+    ]
+  },
+  {
+    id: 'INV-2026-003',
+    customer: 'Gavesha Thathsarani',
+    branch: 'Galle Harbour Rd',
+    date: '2026-05-29',
+    paymentMethod: 'Digital Wallet',
+    taxRate: 0.1,
+    discountAmount: 20,
+    items: [
+      { id: 'PROD-301', name: 'Sony WH-1000XM5 Headphones', qty: 1, price: 399, returnedQty: 1 },
+      { id: 'PROD-302', name: 'Anker USB-C Hub 7-in-1', qty: 2, price: 49.99, returnedQty: 2 }
+    ]
+  },
+  {
+    id: 'INV-2026-004',
+    customer: 'Nethmi Perera',
+    branch: 'Colombo Main (HQ)',
+    date: '2026-06-09',
+    paymentMethod: 'Credit Card',
+    taxRate: 0.12,
+    discountAmount: 25,
+    items: [
+      { id: 'PROD-401', name: 'Samsung Galaxy Tab S9', qty: 1, price: 799, returnedQty: 0 },
+      { id: 'PROD-402', name: 'Tablet Keyboard Case', qty: 1, price: 89, returnedQty: 0 }
+    ]
+  },
+  {
+    id: 'INV-2026-005',
+    customer: 'Kavindu Senanayake',
+    branch: 'Kandy City Mall',
+    date: '2026-06-08',
+    paymentMethod: 'Cash',
+    taxRate: 0.08,
+    discountAmount: 10,
+    items: [
+      { id: 'PROD-501', name: 'JBL Charge 5 Speaker', qty: 1, price: 179, returnedQty: 0 },
+      { id: 'PROD-502', name: 'USB-C Fast Charger', qty: 2, price: 24.5, returnedQty: 0 }
+    ]
+  },
+  {
+    id: 'INV-2026-006',
+    customer: 'Anudi Fernando',
+    branch: 'Galle Harbour Rd',
+    date: '2026-05-28',
+    paymentMethod: 'Digital Wallet',
+    taxRate: 0.1,
+    discountAmount: 15,
+    items: [
+      { id: 'PROD-601', name: 'Canon PIXMA Printer', qty: 1, price: 249, returnedQty: 0 },
+      { id: 'PROD-602', name: 'Printer Ink Combo Pack', qty: 1, price: 59.99, returnedQty: 0 }
+    ]
+  }
+];
+
+const normalizeInvoiceId = (value) => String(value ?? '').trim().toUpperCase();
+
+const normalizeInvoice = (invoice) => ({
+  ...invoice,
+  id: invoice?.id || invoice?.invoiceId || '',
+  items: Array.isArray(invoice?.items) ? invoice.items : [],
+  taxRate: Number(invoice?.taxRate ?? 0),
+  discountAmount: Number(invoice?.discountAmount ?? 0)
+});
 
 const ReturnsPage = ({ returnState, setReturnState }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -23,6 +115,8 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
   const [returnReason, setReturnReason] = useState('Defective item');
   const [returnCondition, setReturnCondition] = useState('Resellable (Restock)');
   const [selectedReturnForDetails, setSelectedReturnForDetails] = useState(null);
+  const [localInvoices, setLocalInvoices] = useState([]);
+  const [localReturns, setLocalReturns] = useState([]);
   
   // Receipt modal state
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -33,39 +127,145 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
 
   // Helper date function (System date: June 2, 2026)
   const systemDate = new Date('2026-06-02');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReturnWorkspaceData = async () => {
+      try {
+        const [invoicesRes, returnsRes] = await Promise.all([getInvoices(), getReturns()]);
+        const invoices = Array.isArray(invoicesRes?.data)
+          ? invoicesRes.data
+          : Array.isArray(invoicesRes)
+            ? invoicesRes
+            : [];
+        const returnsData = Array.isArray(returnsRes?.data)
+          ? returnsRes.data
+          : Array.isArray(returnsRes)
+            ? returnsRes
+            : [];
+
+        if (!cancelled) {
+          setLocalInvoices(invoices.map(normalizeInvoice));
+          setLocalReturns(returnsData);
+        }
+      } catch (error) {
+        console.error('Error loading return workspace data:', error);
+        if (!cancelled) {
+          setLocalInvoices([]);
+          setLocalReturns([]);
+        }
+      }
+    };
+
+    loadReturnWorkspaceData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const availableInvoices = useMemo(() => {
+    const propInvoices = Array.isArray(returnState?.invoices)
+      ? returnState.invoices.map(normalizeInvoice)
+      : [];
+    const mergedInvoices = [...propInvoices, ...localInvoices];
+    const uniqueInvoices = new Map();
+
+    mergedInvoices.forEach((invoice) => {
+      const key = normalizeInvoiceId(invoice.id || invoice.invoiceId);
+      if (key && !uniqueInvoices.has(key)) {
+        uniqueInvoices.set(key, invoice);
+      }
+    });
+
+    if (uniqueInvoices.size === 0) {
+      FALLBACK_INVOICES.forEach((invoice) => {
+        uniqueInvoices.set(normalizeInvoiceId(invoice.id), normalizeInvoice(invoice));
+      });
+    }
+
+    return Array.from(uniqueInvoices.values());
+  }, [localInvoices, returnState?.invoices]);
+
+  const syncReturnState = (nextState) => {
+    if (typeof setReturnState === 'function') {
+      setReturnState(nextState);
+      return;
+    }
+
+    if (Array.isArray(nextState?.invoices)) {
+      setLocalInvoices(nextState.invoices.map(normalizeInvoice));
+    }
+    if (Array.isArray(nextState?.returns)) {
+      setLocalReturns(nextState.returns);
+    }
+  };
   
   // Calculate dashboard statistics
-  const totalApprovedRefunds = returnState.returns
+  const returnsList = Array.isArray(returnState?.returns) && returnState.returns.length > 0
+    ? returnState.returns
+    : localReturns;
+
+  const totalApprovedRefunds = returnsList
     .filter(r => r.status === 'Refunded')
     .reduce((sum, r) => sum + r.amount, 0);
 
-  const pendingApprovalsCount = returnState.returns
+  const pendingApprovalsCount = returnsList
     .filter(r => r.status === 'Pending Approval')
     .length;
 
-  const totalRestocked = returnState.returns
+  const totalRestocked = returnsList
     .filter(r => r.status === 'Refunded' && r.condition.includes('Resellable'))
     .reduce((sum, r) => sum + r.items.reduce((itemSum, item) => itemSum + item.qty, 0), 0);
 
-  const totalDamaged = returnState.returns
+  const totalDamaged = returnsList
     .filter(r => r.status === 'Refunded' && r.condition.includes('Damaged'))
     .reduce((sum, r) => sum + r.items.reduce((itemSum, item) => itemSum + item.qty, 0), 0);
 
-  const handleInvoiceSearch = (e) => {
+  const handleInvoiceSearch = async (e) => {
     e.preventDefault();
     setSearchError('');
     setActiveInvoice(null);
     setReturnItems({});
 
-    const invoice = returnState.invoices.find(
-      inv => inv.id.trim().toUpperCase() === searchInvoiceId.trim().toUpperCase()
+    const normalizedSearchInvoiceId = normalizeInvoiceId(searchInvoiceId);
+    const cachedInvoice = availableInvoices.find(
+      inv => normalizeInvoiceId(inv.id || inv.invoiceId) === normalizedSearchInvoiceId
     );
 
-    if (invoice) {
-      setActiveInvoice(invoice);
-    } else {
-      setSearchError(`Invoice ID "${searchInvoiceId}" not found. Try INV-2026-001, INV-2026-002, or INV-2026-003.`);
+    if (cachedInvoice) {
+      setActiveInvoice(cachedInvoice);
+      return;
     }
+
+    try {
+      const invoiceRes = await getInvoiceById(normalizedSearchInvoiceId);
+      const apiInvoice = invoiceRes?.data ? normalizeInvoice(invoiceRes.data) : null;
+
+      if (apiInvoice?.id) {
+        setLocalInvoices((currentInvoices) => {
+          const nextInvoices = [...currentInvoices];
+          const existingIndex = nextInvoices.findIndex(
+            (invoice) => normalizeInvoiceId(invoice.id) === normalizeInvoiceId(apiInvoice.id)
+          );
+
+          if (existingIndex >= 0) {
+            nextInvoices[existingIndex] = apiInvoice;
+          } else {
+            nextInvoices.unshift(apiInvoice);
+          }
+
+          return nextInvoices;
+        });
+        setActiveInvoice(apiInvoice);
+        return;
+      }
+    } catch (error) {
+      console.error('Invoice lookup failed:', error);
+    }
+
+    setSearchError(`Invoice ID "${searchInvoiceId}" not found. Try INV-2026-004, INV-2026-005, or INV-2026-006.`);
   };
 
   const handleQtyChange = (itemId, val, maxQty) => {
@@ -139,7 +339,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
           return Promise.all([getInvoices(), getReturns()]);
         })
         .then(([invoicesRes, returnsRes]) => {
-          setReturnState({
+          syncReturnState({
             invoices: invoicesRes.data || [],
             returns: returnsRes.data || []
           });
@@ -169,10 +369,11 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         return getReturns();
       })
       .then((returnsRes) => {
-        setReturnState(prevState => ({
-          ...prevState,
+        syncReturnState({
+          ...(returnState || {}),
+          invoices: Array.isArray(returnState?.invoices) ? returnState.invoices : localInvoices,
           returns: returnsRes.data || []
-        }));
+        });
 
         // Update details view
         if (selectedReturnForDetails && selectedReturnForDetails.id === returnId) {
@@ -188,7 +389,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
   };
 
   // Filter returns
-  const filteredReturns = returnState.returns.filter(ret => {
+  const filteredReturns = returnsList.filter(ret => {
     if (statusFilter === 'All') return true;
     return ret.status.toLowerCase() === statusFilter.toLowerCase();
   });
@@ -242,10 +443,19 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         .returns-theme-override a:not([style*="color"]) {
           color: #475569 !important;
         }
+        @media (max-width: 768px) {
+          .returns-grid { grid-template-columns: 1fr !important; }
+          .returns-header { flex-direction: column; gap: 16px; }
+        }
       `}</style>
       
-      {/* Header Info */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Returns App Header */}
+      <div className="returns-header" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '24px'
+      }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', color: 'var(--text-primary)' }}>Returns & Refund Workspace</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Log returns, inspect conditions, auto-verify warranties, and authorize customer payouts.</p>
@@ -272,7 +482,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px', marginBottom: '8px' }}>
+      <div className="returns-tabs" style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         <button 
           onClick={() => setActiveTab('dashboard')} 
           style={{
@@ -380,13 +590,13 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       )}
 
       {activeTab === 'new_return' && (
-        <div style={{ display: 'grid', gridTemplateColumns: activeInvoice ? '1fr 340px' : '1fr', gap: '24px' }}>
+        <div className="returns-grid" style={{ display: 'grid', gridTemplateColumns: activeInvoice ? '1fr 340px' : '1fr', gap: '24px' }}>
           
           {/* Main workspace pane */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="glass-card" style={{ padding: '24px' }}>
               <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>Find Sale Transaction</h3>
-              <form onSubmit={handleInvoiceSearch} style={{ display: 'flex', gap: '12px' }}>
+              <form className="returns-search-form" onSubmit={handleInvoiceSearch} style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input 
@@ -479,7 +689,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
                     const selectedReturnQty = returnItems[item.id] || 0;
 
                     return (
-                      <div key={item.id} style={{
+                      <div className="returns-item-row" key={item.id} style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -495,7 +705,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="returns-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           {maxQtyToReturn > 0 ? (
                             <>
                               <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Qty to Return:</label>
@@ -702,10 +912,10 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
           </div>
 
           {/* Grid Layout containing Log and Selected Details Side-by-Side */}
-          <div style={{ display: 'grid', gridTemplateColumns: selectedReturnForDetails ? '1fr 360px' : '1fr', gap: '20px' }}>
+          <div className="returns-grid" style={{ display: 'grid', gridTemplateColumns: selectedReturnForDetails ? '1fr 360px' : '1fr', gap: '20px' }}>
             
             {/* Returns Table */}
-            <div className="glass-card" style={{ overflow: 'hidden' }}>
+            <div className="glass-card return-history-table-container" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -914,6 +1124,38 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         onClose={() => setIsReceiptOpen(false)}
         returnItem={receiptData}
       />
+      <style>{`
+        @media (max-width: 768px) {
+          .returns-header {
+            flex-direction: column !important;
+            gap: 16px !important;
+          }
+          .returns-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .returns-search-form {
+            flex-direction: column !important;
+          }
+          .returns-item-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          .returns-item-actions {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .returns-tabs {
+            scrollbar-width: none;
+          }
+          .returns-tabs::-webkit-scrollbar {
+            display: none;
+          }
+          .return-history-table-container {
+            overflow-x: auto !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

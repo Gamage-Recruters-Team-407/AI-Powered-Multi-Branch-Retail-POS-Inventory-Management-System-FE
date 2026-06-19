@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-
+import DashboardLayout from "./layouts/DashboardLayout";
 // Contexts
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
@@ -15,7 +15,7 @@ import { CustomerProvider } from "./context/CustomerContext";
 // Components
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import DashboardLayout from "./layouts/DashboardLayout";
+// import DashboardLayout from "./layouts/DashboardLayout";
 
 // Auth Pages
 import Login from "./pages/auth/Login";
@@ -68,6 +68,8 @@ import "./App.css";
 
 // Placeholder pages
 const AdminPanel = () => <h1>🔐 Admin Panel</h1>;
+// const WarehouseList = () => <h1>Warehouse List</h1>;
+// const WarehouseDetail = () => <h1>Warehouse Detail</h1>;
 
 function App() {
   const [returnState, setReturnState] = useState({
@@ -332,7 +334,15 @@ function App() {
                               path="/employees"
                               element={<EmployeesPage />}
                             />
-                            <Route path="/returns" element={<ReturnsPage />} />
+                            <Route
+                              path="/returns"
+                              element={
+                                <ReturnsPage
+                                  returnState={returnState}
+                                  setReturnState={setReturnState}
+                                />
+                              }
+                            />
                             <Route
                               path="/purchase-orders"
                               element={<PurchaseOrdersPage />}

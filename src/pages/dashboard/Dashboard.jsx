@@ -11,12 +11,14 @@ import PersonalizedRecommendations from '../../components/dashboard/Personalized
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { socketService } from '../../services/socketService';
-const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
-const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
 import { useNavigate } from 'react-router-dom';
 import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
+import axiosInstance from '../../api/axiosInstance';
+
+const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
+const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
 
 
 const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
@@ -25,6 +27,9 @@ const ReturnsPage = lazy(() => import('../returns/ReturnsPage'));
 const StockTransferPage = lazy(() => import('../stock-transfer/StockTransferPage'));
 const PurchaseOrdersPage = lazy(() => import('../purchase-orders/PurchaseOrdersPage'));
 const CustomerListPage = lazy(() => import('../customers/CustomerListPage'));
+const UserListPage = lazy(() => import('../users/UserListPage'));
+const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
+const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
 const ProductListPage = lazy(() => import('../products/ProductListPage'));
 const CategoryManagementPage = lazy(() => import('../products/CategoryManagementPage'));
 const AddProductPage = lazy(() => import('../products/AddProductPage'));
@@ -36,11 +41,7 @@ const CheckoutPage = lazy(() => import('../pos/CheckoutPage'));
 const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
 const BranchListPage = lazy(() => import('../branches/BranchListPage'));
 const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
-const UserListPage = lazy(() => import("../users/UserListPage")); 
 const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
-
-const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
-const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
 const ModuleLoading = () => (
   <div
     className="module-detail"
@@ -60,13 +61,13 @@ import InventoryDashboard from '../inventory/InventoryDashboard';
 // Demo data generator
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: '$48,250', growth_percentage: 12.4, trend: 'up' },
-    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: '$37.58', unique_customers: 842 },
-    profit: { total: '$14,820', margin_percentage: 30.7 },
-    stock_turnover: { avg_rate: '4.2x', efficiency: 'Healthy' },
+    revenue: { total: 'Rs. 0', growth_percentage: 0, trend: 'up' },
+    sales: { count: 0, growth_percentage: 0, avg_transaction_value: 'Rs. 0.00', unique_customers: 0 },
+    profit: { total: 'Rs. 0', margin_percentage: 0 },
+    stock_turnover: { avg_rate: '0.0x', efficiency: 'Loading...' },
   },
-  inventory: { total_products: 486, total_stock: 32610, inventory_value: '$124,600', avg_stock_level: 67.1 },
-  low_stock_alerts: { count: 12 },
+  inventory: { total_products: 0, total_stock: 0, inventory_value: 'Rs. 0', avg_stock_level: 0 },
+  low_stock_alerts: { count: 0 },
   branches: null,
   top_products: null,
   sales: null,
@@ -148,6 +149,76 @@ const _getDateRange = (preset) => {
   return { startDate: start, endDate: end };
 };
 
+const formatLKR = (amount, decimals = 0) => {
+  const value = Number(amount) || 0;
+  return `Rs. ${value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+};
+
+const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+  const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
+  if (isEmpty) {
+    return prevValue !== undefined && prevValue !== null ? prevValue : formatter(0);
+  }
+  return formatter(rawVal);
+};
+
+const mapStatsToDashboardData = (stats, prevData) => {
+  if (!stats) return prevData || generateDemoData();
+
+  const prevKpi = prevData?.kpi || {};
+  const prevInventory = prevData?.inventory || {};
+
+  const kpis = stats.kpis || {};
+  const inventory = stats.inventory || {};
+  const sales = stats.sales || {};
+  const system = stats.system || {};
+
+  return {
+    kpi: {
+      revenue: {
+        total: resolveValue(kpis.revenue, prevKpi.revenue?.total, formatLKR),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.revenue?.growth_percentage ?? 0,
+        trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
+      },
+      sales: {
+        count: resolveValue(kpis.transactionCount, prevKpi.sales?.count),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.sales?.growth_percentage ?? 0,
+        avg_transaction_value: resolveValue(sales.averageTransactionValue, prevKpi.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
+        unique_customers: resolveValue(system.totalCustomers, prevKpi.sales?.unique_customers),
+      },
+      profit: {
+        total: resolveValue(kpis.profit, prevKpi.profit?.total, formatLKR),
+        margin_percentage: kpis.profitMargin ?? prevKpi.profit?.margin_percentage ?? 0,
+      },
+      stock_turnover: {
+        avg_rate: resolveValue(kpis.stockTurnover, prevKpi.stock_turnover?.avg_rate, (v) => `${Number(v).toFixed(1)}x`),
+        efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
+      },
+    },
+    inventory: {
+      total_products: resolveValue(system.totalProducts, prevInventory.total_products),
+      total_stock: resolveValue(inventory.totalItems, prevInventory.total_stock),
+      inventory_value: resolveValue(inventory.totalValue, prevInventory.inventory_value, formatLKR),
+      avg_stock_level: inventory.branchStockStatus?.length
+        ? (
+            inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
+            inventory.branchStockStatus.length
+          ).toFixed(1)
+        : prevInventory.avg_stock_level ?? 0,
+    },
+    low_stock_alerts: { count: inventory.lowStockAlert?.count ?? prevData?.low_stock_alerts?.count ?? 0 },
+    branches: (stats.branches ?? prevData?.branches ?? null)?.map?.(b => ({
+      ...b,
+      revenue: typeof b.revenue === 'number' ? `Rs. ${b.revenue.toLocaleString()}` : b.revenue,
+    })) ?? null,
+    top_products: sales.topProducts ?? prevData?.top_products ?? null,
+    sales: sales.dailySales ?? prevData?.sales ?? null,
+  };
+};
+
 const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
 
@@ -156,7 +227,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  // ✅ අලුත් — roles array check
+  // roles array check
   const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
     item.roles.includes(role)
   );
@@ -221,17 +292,17 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Sales & Revenue queries
     if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: $48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+      return `📊 **Sales Performance Update**\n\n• Total Revenue: Rs.48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
     }
 
     // Profit queries
     if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: $32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
+      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: Rs.32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
     }
 
     // Inventory queries
     if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: $124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: Rs.124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
     }
 
     // Low stock alerts
@@ -241,12 +312,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Branch performance
     if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: $18,240 (Top performer)\n• Kandy City Branch: $12,560 (+8.2% growth)\n• Galle Fort Branch: $9,340\n• Negombo Branch: $8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+      return `🏢 **Branch Performance**\n\n• Colombo Head Office: Rs.18,240 (Top performer)\n• Kandy City Branch: Rs.12,560 (+8.2% growth)\n• Galle Fort Branch: Rs.9,340\n• Negombo Branch: RS.8,110\n\n📈 Colombo leads with 38% of total revenue.`;
     }
 
     // Product recommendations
     if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - $12,450\n2. Organic Coconut Oil - $8,920\n3. Ceylon Tea Gift Pack - $7,340\n4. Fresh Milk - $5,670\n5. Spice Assortment - $4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - Rs.12,450\n2. Organic Coconut Oil - Rs.8,920\n3. Ceylon Tea Gift Pack - Rs.7,340\n4. Fresh Milk - Rs.5,670\n5. Spice Assortment - Rs.4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
     }
 
     // Demand forecasting
@@ -317,6 +388,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     setVisibleModule(moduleId);
     sessionStorage.setItem('dashboard_activeModule', moduleId);
     sessionStorage.setItem('dashboard_visibleModule', moduleId);
+    
+    // Close sidebar on mobile after navigating
+    if (window.innerWidth <= 1024) {
+      setNavExpanded(false);
+    }
   };
 
   useEffect(() => {
@@ -359,32 +435,97 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // WebSocket
-  useEffect(() => {
-    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
-    socketService.on('connect', () => setWsConnected(true));
-    socketService.on('disconnect', () => setWsConnected(false));
-    socketService.on('dashboard-update', (data) => {
-      setDashboardData(prev => ({ ...prev, ...data }));
-      setLastUpdated(new Date());
-      if (data.liveTransaction) setLiveTransaction(data.liveTransaction);
+
+// WebSocket
+useEffect(() => {
+  socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+  socketService.on('connect', () => setWsConnected(true));
+  socketService.on('disconnect', () => setWsConnected(false));
+
+// socketService.on('dashboard-update', (data) => {
+//   setDashboardData(prev => {
+//     const updated = { ...prev };
+
+//     if (data.kpi) {
+//       updated.kpi = {
+//         ...prev.kpi,
+//         ...data.kpi,
+//         revenue: data.kpi.revenue ? {
+//           ...prev.kpi?.revenue,
+//           ...data.kpi.revenue,
+//           total: resolveValue(data.kpi.revenue.total, prev.kpi?.revenue?.total, formatLKR),
+//         } : prev.kpi?.revenue,
+//         profit: data.kpi.profit ? {
+//           ...prev.kpi?.profit,
+//           ...data.kpi.profit,
+//           total: resolveValue(data.kpi.profit.total, prev.kpi?.profit?.total, formatLKR),
+//         } : prev.kpi?.profit,
+//         sales: data.kpi.sales ? {
+//           ...prev.kpi?.sales,
+//           ...data.kpi.sales,
+//           count: resolveValue(data.kpi.sales.count, prev.kpi?.sales?.count),
+//           avg_transaction_value: resolveValue(data.kpi.sales.avg_transaction_value, prev.kpi?.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
+//         } : prev.kpi?.sales,
+//       };
+//     }
+
+//     if (data.inventory) {
+//       updated.inventory = {
+//         ...prev.inventory,
+//         ...data.inventory,
+//         inventory_value: resolveValue(data.inventory.inventory_value, prev.inventory?.inventory_value, formatLKR),
+//       };
+//     }
+
+//     return updated;
+//   });
+
+//   setLastUpdated(new Date());
+
+//   if (data.liveTransaction) {
+//     setLiveTransaction(data.liveTransaction);
+//   }
+// });
+
+  return () => socketService.disconnect();
+}, [token]);
+
+const fetchData = useCallback(async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
     });
-    return () => socketService.disconnect();
-  }, [token]);
+    if (selectedBranch !== 'all') params.append('branchId', selectedBranch);
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise(r => setTimeout(r, 800));
-      setDashboardData(generateDemoData());
-      setLastUpdated(new Date());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000')
+      .replace(/\/api\/?$/, '');  // trailing /api strip 
 
-  useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
+    const res = await fetch(
+      `${BASE}/api/dashboard/stats?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
+
+    // const json = await res.json();
+    const json = await res.json();
+    console.log('🔴 RAW API Response:', json.data);           // full response
+    console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);  // chart data
+    console.log('💰 KPIs:', json.data?.kpis);                 // kpi data
+    setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+    setLastUpdated(new Date());
+    // setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+    // setLastUpdated(new Date());
+  } catch (err) {
+    console.error('Failed to load dashboard data:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [selectedBranch, dateRange, token]);
+  // useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
+
+ useEffect(() => { fetchData(); }, [selectedBranch, dateRange, fetchData]);
 
   const handlePreset = (preset) => {
     setDatePreset(preset);
@@ -505,7 +646,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   <span className="branch-hero-icon">{selectedBranchData?.icon}</span>
                   <div className="branch-hero-info"><h2>{selectedBranchData?.name}</h2><p>Branch Performance Overview</p></div>
                   <div className="branch-stats">
-                    <div className="branch-stat"><span>Today's Revenue</span><strong>$12,450</strong></div>
+                    <div className="branch-stat"><span>Today's Revenue</span><strong>Rs. 12,450</strong></div>
                     <div className="branch-stat"><span>Growth</span><strong className="positive">+8.2%</strong></div>
                   </div>
                 </div>
@@ -593,11 +734,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
         return <AIDemandForecastModule />;
-      // case 'user-mgmt':
-      //   return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
-      //case 'branch-mgmt':
-       // return <ModuleDetail title="Branch Management" icon="🏢" page={1} description="Manage branch records and configurations. Link branches with employees and inventory. Store branch-level settings. Generate branch performance statistics. Handle branch-related business logic." features={['Branch Information Display', 'Performance Metrics', 'Branch Creation & Updates', 'Branch-specific Inventory & Sales', 'Branch Search Functionality']} />;
-      
+
       case 'user-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -627,11 +764,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
         );
       case 'supplier-mgmt':
         return (
-          <Suspense fallback={<ModuleLoading />}>
-            <InventoryProvider>
+          <InventoryProvider>
+            <Suspense fallback={<ModuleLoading />}>
               <SuppliersPage />
-            </InventoryProvider>
-          </Suspense>
+            </Suspense>
+          </InventoryProvider>
         );
       case 'product-mgmt':
         return (
@@ -745,9 +882,7 @@ case 'product-edit':
         }
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <WarehouseList
-              onView={(id) => setWarehouseDetailId(id)}
-            />
+            <WarehouseList onView={(id) => setWarehouseDetailId(id)} />
           </Suspense>
         );
       case 'purchase-order':
@@ -814,11 +949,11 @@ case 'product-edit':
           </Suspense>
         );
       case 'ai-reorder':
-        return <AISmartReorderingModule />;
+        return <AISmartReorderingModule token={token} />;
       case 'analytics':
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <AnalyticsPageLazy />
+            <AnalyticsPage />
           </Suspense>
         );
       case 'reporting':
@@ -844,14 +979,27 @@ case 'product-edit':
 
   return (
     <div className={`dashboard-page theme-${sunPhase}`}>
+      {/* Mobile Hamburger & Overlay */}
+      <button className="mobile-hamburger" onClick={() => setNavExpanded(true)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div 
+        className={`mobile-overlay ${navExpanded ? 'active' : ''}`} 
+        onClick={() => setNavExpanded(false)} 
+      />
       {/* Floating Navigation Menu */}
-      <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
+      <div className={`floating-nav ${navExpanded ? 'expanded mobile-open' : 'collapsed'}`}>
         <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
           {navExpanded ? '◀' : '▶'}
         </button>
         <div className="nav-header">
           <span className="nav-logo">📋</span>
           {navExpanded && <span className="nav-title">POS Modules</span>}
+          {navExpanded && (
+            <button className="mobile-nav-close-btn" onClick={() => setNavExpanded(false)}>
+              ✕
+            </button>
+          )}
         </div>
         <div className="nav-items">
           {filteredNavItems.map(item => (
@@ -1035,12 +1183,15 @@ case 'product-edit':
         .floating-nav.collapsed + .sky-background + .content-wrapper { margin-left: 70px; }
         .floating-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); border-right: 1px solid rgba(255,255,255,0.1); z-index: 100; display: flex; flex-direction: column; transition: width 0.3s ease; box-shadow: 2px 0 20px rgba(0,0,0,0.2); }
         .floating-nav.collapsed { width: 70px; }
-        .nav-toggle { position: absolute; right: -12px; top: 20px; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; cursor: pointer; border: 2px solid white; z-index: 101; transition: transform 0.2s; }
-        .nav-toggle:hover { transform: scale(1.1); }
-        .nav-header { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
-        .nav-logo { font-size: 28px; }
-        .nav-title { font-size: 18px; font-weight: 700; color: white; }
-        .nav-items { flex: 1; overflow-y: auto; padding: 12px 0; }
+        .nav-toggle { position: absolute; right: -14px; top: 30px; width: 28px; height: 28px; background: #2563eb; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 4px 12px rgba(37,99,235,0.4); z-index: 101; transition: all 0.3s; }
+        .nav-toggle:hover { transform: scale(1.1); background: #1d4ed8; }
+        .nav-header { padding: 24px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-logo { font-size: 1.5rem; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2)); }
+        .nav-title { font-weight: 800; font-size: 1.1rem; color: white; letter-spacing: 0.5px; white-space: nowrap; }
+        .mobile-nav-close-btn { display: none; margin-left: auto; background: rgba(255,255,255,0.1); border: none; color: white; width: 28px; height: 28px; border-radius: 6px; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        .nav-items { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-items::-webkit-scrollbar { width: 4px; }
+        .nav-items::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         .nav-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: transparent; border: none; color: #94a3b8; cursor: pointer; transition: all 0.2s; text-align: left; font-size: 13px; border-radius: 0; }
         .nav-item:hover { background: rgba(59,130,246,0.2); color: #60a5fa; }
         .nav-item.active { background: linear-gradient(90deg, rgba(59,130,246,0.3), transparent); color: #3b82f6; border-left: 3px solid #3b82f6; }
@@ -1089,7 +1240,8 @@ case 'product-edit':
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
-        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; }
+        .filter-select, .filter-input { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; color: #1e293b; }
+        .filter-select { cursor: pointer; }
         .date-presets { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 12px; flex-wrap: wrap; }
         .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; }
         .preset-btn.active { background: white; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -1117,6 +1269,7 @@ case 'product-edit':
         .stat-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; }
         .stat-label { font-size: 0.75rem; color: #64748b; }
         .tp-live-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+        .tp-live-grid > div { min-width: 0; max-width: 100vw; overflow: hidden; }
         .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .live-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; animation: blink 1s ease-in-out infinite; }
         .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; }
@@ -1175,9 +1328,11 @@ case 'product-edit':
 
         .reorder-filters { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; align-items: flex-end; }
         .reorder-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 24px; }
+        .reorder-grid > div { min-width: 0; max-width: 100vw; overflow: hidden; }
         .recommendation-card, .alert-card, .history-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
-        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 100%; }
-        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; }
+        .recommendation-card, .history-card { overflow-x: auto; padding-bottom: 8px; }
+        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 750px; }
+        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; color: #1e293b; }
         .recommendation-table th { color: #475569; font-weight: 700; background: #f8fafc; }
         .recommendation-table tbody tr:last-child td { border-bottom: none; }
         .approved-row { background: rgba(16,185,129,0.08); }
@@ -1196,7 +1351,7 @@ case 'product-edit':
         .alert-time { font-size: 0.78rem; color: #64748b; }
         .alert-dismiss { border: none; background: #eef2ff; color: #3730a3; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all 0.2s; }
         .alert-dismiss:hover { background: #c7d2fe; }
-        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 400px; }
         .history-table th, .history-table td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
         .history-table th { color: #475569; font-weight: 700; background: #f8fafc; }
         .history-table tbody tr:last-child td { border-bottom: none; }
@@ -1266,6 +1421,20 @@ case 'product-edit':
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
         }
+        @media (max-width: 1024px) {
+          .floating-nav { transform: translateX(-100%); width: 280px; }
+          .floating-nav.expanded { transform: translateX(0); }
+          .content-wrapper { margin-left: 0 !important; width: 100% !important; padding: 16px; margin-top: 60px; }
+          .mobile-hamburger { display: flex; }
+          .nav-toggle { display: none; }
+          .mobile-nav-close-btn { display: flex; }
+          .reorder-grid { grid-template-columns: 1fr; }
+          .filters-bar, .reorder-filters { flex-direction: column; align-items: stretch; }
+          .search-group { width: 100%; }
+        }
+        @media (max-width: 768px) {
+          .nav-toggle { display: none !important; }
+        }
       `}</style>
     </div>
   );
@@ -1291,7 +1460,7 @@ const AIDemandForecastModule = () => (
       <div className="forecast-card"><div className="value">↑ 15%</div><div className="label">Next Month Demand Increase</div></div>
       <div className="forecast-card"><div className="value">94%</div><div className="label">Forecast Accuracy</div></div>
       <div className="forecast-card"><div className="value">2,450</div><div className="label">Predicted Sales (units)</div></div>
-      <div className="forecast-card"><div className="value">$52.8K</div><div className="label">Expected Revenue</div></div>
+      <div className="forecast-card"><div className="value">Rs.52.8K</div><div className="label">Expected Revenue</div></div>
     </div>
 
     <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>📈 Product Demand Forecast (Next 30 Days)</h3>
@@ -1327,41 +1496,82 @@ const AISmartReorderingModule = () => {
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [searchTerm, setSearchTerm] = useState('');
-  const [recommendations, setRecommendations] = useState([
-    { id: 1, name: 'Premium Basmati Rice', branch: 'All Branches', currentStock: 50, suggestedQty: 500, reorderPoint: 120, risk: 'High', confidence: 96, approved: false },
-    { id: 2, name: 'Organic Coconut Oil', branch: 'Kandy City Branch', currentStock: 23, suggestedQty: 200, reorderPoint: 80, risk: 'High', confidence: 92, approved: false },
-    { id: 3, name: 'Sugar (1kg)', branch: 'Colombo Head Office', currentStock: 35, suggestedQty: 300, reorderPoint: 90, risk: 'Medium', confidence: 89, approved: false },
-    { id: 4, name: 'Milk Powder', branch: 'Negombo Branch', currentStock: 42, suggestedQty: 150, reorderPoint: 70, risk: 'Medium', confidence: 94, approved: false },
-    { id: 5, name: 'Ceylon Tea Gift Pack', branch: 'Galle Fort Branch', currentStock: 80, suggestedQty: 180, reorderPoint: 100, risk: 'Low', confidence: 91, approved: false },
-  ]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [approvalHistory, setApprovalHistory] = useState([]);
+  const [procurementAlerts, setProcurementAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [approvalHistory, setApprovalHistory] = useState([
-    { id: 101, item: 'Premium Basmati Rice', branch: 'Colombo Head Office', quantity: 250, approvedBy: 'Manager Kaushal', timestamp: '2026-06-02 16:30', status: 'Approved' },
-    { id: 102, item: 'Organic Coconut Oil', branch: 'Kandy City Branch', quantity: 120, approvedBy: 'Manager Kaushal', timestamp: '2026-06-01 11:45', status: 'Approved' },
-  ]);
+  useEffect(() => {
+    fetchRecommendations();
+  }, [selectedBranch, selectedPeriod]);
 
-  const [procurementAlerts, setProcurementAlerts] = useState([
-    { id: 201, title: 'Low stock detected for Fresh Milk', description: 'Current stock is 42 units. Suggested reorder in 2 days.', severity: 'High', time: '5 mins ago', dismissed: false },
-    { id: 202, title: 'Rice inventory below threshold', description: 'Premium Basmati Rice requires supplier follow-up.', severity: 'High', time: '12 mins ago', dismissed: false },
-    { id: 203, title: 'Coconut Oil reorder window opening', description: 'Lead time is 4 days. Prepare PO.', severity: 'Medium', time: '22 mins ago', dismissed: false },
-  ]);
+  const fetchRecommendations = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (selectedBranch !== 'all') params.branchId = selectedBranch;
+      
+      const res = await axiosInstance.get('/reorders/suggestions', { params });
+      if (res.data && res.data.success) {
+         setRecommendations(res.data.data.map(item => {
+           let riskLabel = 'Low';
+           if (item.urgency === 'CRITICAL' || item.urgency === 'HIGH') riskLabel = 'High';
+           else if (item.urgency === 'MEDIUM') riskLabel = 'Medium';
 
-  const handleApprove = (recommendation) => {
+           return {
+             id: item.id,
+             name: item.product?.name || 'Unknown Product',
+             branch: item.branch?.name || 'Unknown Branch',
+             currentStock: item.currentStock,
+             suggestedQty: item.recommendedQuantity,
+             reorderPoint: item.reorderPoint,
+             risk: riskLabel,
+             confidence: Math.min(99, Math.round((item.avgDailySales || 1) * 5 + 75)), 
+             approved: item.status === 'APPROVED',
+           };
+         }));
+
+         const criticalItems = res.data.data.filter(i => i.urgency === 'CRITICAL' && i.status !== 'APPROVED');
+         setProcurementAlerts(criticalItems.map((item, idx) => ({
+           id: item.id + '-' + idx,
+           title: `Critical stock for ${item.product?.name || 'Product'}`,
+           description: `Current stock: ${item.currentStock}. Below reorder point (${item.reorderPoint}).`,
+           severity: 'High',
+           time: 'Live',
+           dismissed: false
+         })));
+      }
+    } catch (err) {
+      console.error('Error fetching reorder recommendations:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (recommendation) => {
     if (recommendation.approved) return;
 
-    setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
-    setApprovalHistory(prev => [
-      {
-        id: Date.now(),
-        item: recommendation.name,
-        branch: recommendation.branch,
-        quantity: recommendation.suggestedQty,
-        approvedBy: 'AI Manager',
-        timestamp: new Date().toLocaleString('en-US', { hour12: false }),
-        status: 'Approved',
-      },
-      ...prev,
-    ]);
+    try {
+      const res = await axiosInstance.post(`/reorders/suggestions/${recommendation.id}/approve`);
+      if (res.data && res.data.success) {
+        setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
+        setApprovalHistory(prev => [
+          {
+            id: Date.now(),
+            item: recommendation.name,
+            branch: recommendation.branch,
+            quantity: recommendation.suggestedQty,
+            approvedBy: 'Current User',
+            timestamp: new Date().toLocaleString('en-US', { hour12: false }),
+            status: 'Approved',
+          },
+          ...prev,
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to approve recommendation:', error);
+      alert('Failed to approve reorder recommendation.');
+    }
   };
 
   const handleDismissAlert = (id) => {
@@ -1453,7 +1663,11 @@ const AISmartReorderingModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecommendations.map(item => (
+                {loading ? (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Loading real-time ML recommendations...</td></tr>
+                ) : filteredRecommendations.length === 0 ? (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No recommendations found for this criteria.</td></tr>
+                ) : filteredRecommendations.map(item => (
                   <tr key={item.id} className={item.approved ? 'approved-row' : ''}>
                     <td>{item.name}</td>
                     <td>{item.branch}</td>

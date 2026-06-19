@@ -1,10 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getAllCategories,
   addCategory,
   updateCategory,
   deleteCategory,
 } from "../../services/categoryManagementApi";
+
+const baseControlClass =
+  "cm-control w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition";
+
+const getControlClass = (hasError) =>
+  `${baseControlClass} ${
+    hasError
+      ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+      : "border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+  }`;
 
 function CategoryManagementPage({ onBack }) {
   const [categories, setCategories] = useState([]);
@@ -19,6 +29,9 @@ function CategoryManagementPage({ onBack }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchCategories = async () => {
     try {
@@ -36,18 +49,70 @@ function CategoryManagementPage({ onBack }) {
     fetchCategories();
   }, []);
 
+  const totalCategories = categories.length;
+  const totalPages = Math.max(1, Math.ceil(totalCategories / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex =
+    totalCategories === 0 ? 0 : (currentPage - 1) * itemsPerPage;
+
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCategories);
+
+  const paginatedCategories = categories.slice(startIndex, endIndex);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const pages = [1];
+    const leftPage = Math.max(2, currentPage - 1);
+    const rightPage = Math.min(totalPages - 1, currentPage + 1);
+
+    if (leftPage > 2) {
+      pages.push("left-ellipsis");
+    }
+
+    for (let page = leftPage; page <= rightPage; page += 1) {
+      pages.push(page);
+    }
+
+    if (rightPage < totalPages - 1) {
+      pages.push("right-ellipsis");
+    }
+
+    pages.push(totalPages);
+
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
 
-    setErrors({
-      ...errors,
+    setErrors((prev) => ({
+      ...prev,
       [name]: "",
-    });
+    }));
 
     setMessage("");
   };
@@ -60,7 +125,6 @@ function CategoryManagementPage({ onBack }) {
 
     setEditingCategoryId(null);
     setErrors({});
-    setMessage("");
   };
 
   const validateForm = () => {
@@ -121,14 +185,16 @@ function CategoryManagementPage({ onBack }) {
 
       if (editingCategoryId) {
         await updateCategory(editingCategoryId, categoryPayload);
+        resetForm();
         setMessage("Category updated successfully");
       } else {
         await addCategory(categoryPayload);
+        resetForm();
+        setCurrentPage(1);
         setMessage("Category added successfully");
       }
 
-      resetForm();
-      fetchCategories();
+      await fetchCategories();
     } catch (error) {
       setMessage(error.response?.data?.message || "Failed to save category");
     } finally {
@@ -157,14 +223,16 @@ function CategoryManagementPage({ onBack }) {
 
     try {
       setSaving(true);
+      setMessage("");
+
       await deleteCategory(id);
-      setMessage("Category deleted successfully");
 
       if (editingCategoryId === id) {
         resetForm();
       }
 
-      fetchCategories();
+      setMessage("Category deleted successfully");
+      await fetchCategories();
     } catch (error) {
       setMessage(error.response?.data?.message || "Failed to delete category");
     } finally {
@@ -173,7 +241,42 @@ function CategoryManagementPage({ onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
+    <div className="category-management-page min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+      <style>
+        {`
+          .category-management-page .cm-control {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .category-management-page textarea.cm-control {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .category-management-page .cm-control::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #94a3b8 !important;
+          }
+
+          .category-management-page .cm-control option {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .category-management-page .cm-control:-webkit-autofill,
+          .category-management-page .cm-control:-webkit-autofill:hover,
+          .category-management-page .cm-control:-webkit-autofill:focus {
+            -webkit-text-fill-color: #0f172a !important;
+            box-shadow: 0 0 0px 1000px #ffffff inset !important;
+          }
+        `}
+      </style>
+
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl bg-white p-6 shadow-sm md:flex-row md:items-center">
           <div>
@@ -222,11 +325,7 @@ function CategoryManagementPage({ onBack }) {
                 onChange={handleInputChange}
                 placeholder="Example: Beverages"
                 maxLength={50}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  errors.name
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                }`}
+                className={getControlClass(errors.name)}
               />
 
               {errors.name ? (
@@ -252,11 +351,7 @@ function CategoryManagementPage({ onBack }) {
                 rows="4"
                 placeholder="Example: Soft drinks, juices, and water"
                 maxLength={300}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  errors.description
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                }`}
+                className={getControlClass(errors.description)}
               />
 
               <div className="mt-1 flex items-center justify-between">
@@ -285,8 +380,8 @@ function CategoryManagementPage({ onBack }) {
                 {saving
                   ? "Saving..."
                   : editingCategoryId
-                    ? "Update Category"
-                    : "Save Category"}
+                  ? "Update Category"
+                  : "Save Category"}
               </button>
 
               {editingCategoryId && (
@@ -302,14 +397,33 @@ function CategoryManagementPage({ onBack }) {
             </div>
           </form>
 
-          <div className="rounded-2xl bg-white shadow-sm lg:col-span-2">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-800">
-                Category List
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Showing {categories.length} category(s)
-              </p>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm lg:col-span-2">
+            <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-6 py-4 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  Category List
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Showing {totalCategories === 0 ? 0 : startIndex + 1} to{" "}
+                  {endIndex} of {totalCategories} category(s)
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold text-slate-700">
+                  Rows:
+                </label>
+                <select
+                  value={itemsPerPage}
+                  onChange={handleItemsPerPageChange}
+                  className="cm-control rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
 
             {loading ? (
@@ -321,61 +435,131 @@ function CategoryManagementPage({ onBack }) {
                 No categories found.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left">
-                  <thead className="bg-blue-50">
-                    <tr>
-                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                        Category Name
-                      </th>
-                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                        Description
-                      </th>
-                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {categories.map((category) => (
-                      <tr key={category._id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-slate-900">
-                            {category.name}
-                          </p>
-                        </td>
-
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {category.description || "N/A"}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(category)}
-                              disabled={saving}
-                              className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(category._id)}
-                              disabled={saving}
-                              className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left">
+                    <thead className="bg-blue-50">
+                      <tr>
+                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">
+                          Category Name
+                        </th>
+                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">
+                          Description
+                        </th>
+                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedCategories.map((category) => (
+                        <tr key={category._id} className="hover:bg-slate-50">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-slate-900">
+                              {category.name}
+                            </p>
+                          </td>
+
+                          <td className="px-6 py-4 text-sm text-slate-600">
+                            {category.description || "N/A"}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(category)}
+                                disabled={saving}
+                                className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(category._id)}
+                                disabled={saving}
+                                className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 md:flex-row">
+                  <p className="text-sm text-slate-500">
+                    Page {currentPage} of {totalPages}
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => goToPage(1)}
+                      disabled={currentPage === 1}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      First
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+
+                    {pageNumbers.map((page) =>
+                      typeof page === "string" ? (
+                        <span
+                          key={page}
+                          className="px-2 py-2 text-sm font-semibold text-slate-400"
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => goToPage(page)}
+                          className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                            currentPage === page
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => goToPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

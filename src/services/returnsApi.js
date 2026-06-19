@@ -1,8 +1,7 @@
-import api from "../api/axiosInstance"; 
+import api from "../api/axiosInstance";
 
 const returnsApi = {
   getInvoices: async () => {
-    // ✅ Correct: No /api prefix
     const response = await api.get("/returns/invoices");
     return response.data;
   },
