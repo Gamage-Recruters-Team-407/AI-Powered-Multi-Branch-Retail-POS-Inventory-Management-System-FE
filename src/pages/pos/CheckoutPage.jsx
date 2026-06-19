@@ -153,10 +153,10 @@
 //   );
 // };
 
-// export default CheckoutPage;
+// export default CheckoutPage;import { useState } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle, AlertCircle, Package, User, CreditCard as CardIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle, Package, User, CreditCard as CardIcon, Tag, Check, Trash } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useSales } from "../../context/SalesContext";
 import { createSale } from "../../services/salesApi";
@@ -164,7 +164,6 @@ import PaymentMethod from "../../components/pos/PaymentMethod";
 import { useAuth } from "../../context/AuthContext";
 import { validateCoupon } from "../../services/promotionApi";
 import { toast } from "react-hot-toast";
-import { Tag, Check, Trash } from "lucide-react";
 
 const CheckoutPage = ({ onBack, onComplete }) => {
   const navigate = useNavigate();
@@ -249,55 +248,53 @@ const CheckoutPage = ({ onBack, onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex flex-col justify-start items-center py-10 px-4 antialiased relative overflow-hidden">
-      
+    <div className="min-h-screen bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex flex-col justify-start items-center py-4 sm:py-10 px-2 sm:px-4 antialiased relative overflow-hidden">
+
       <div className="absolute top-10 right-1/4 w-36 h-36 bg-yellow-400 rounded-full blur-2xl opacity-50 pointer-events-none" />
 
       <div className="w-full max-w-xl z-10">
         <button
           onClick={() => onBack ? onBack() : navigate("/pos")}
-          className="flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-xl mb-6 text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all duration-200"
+          className="flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 sm:px-4 py-2 rounded-xl mb-4 sm:mb-6 text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all"
         >
           <ArrowLeft size={14} strokeWidth={2.5} /> Back to POS
         </button>
 
-        <div className="backdrop-blur-xl bg-white/90 border border-white/40 rounded-3xl shadow-2xl p-6 md:p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <CardIcon size={16} />
+        <div className="backdrop-blur-xl bg-white/90 border border-white/40 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-4 sm:mb-6">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <CardIcon size={14} className="sm:hidden" />
+              <CardIcon size={16} className="hidden sm:block" />
             </div>
-            <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Checkout Terminal</h1>
+            <h1 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">Checkout Terminal</h1>
           </div>
 
-          {/* Order Summary Box */}
-          <div className="bg-slate-50/80 border border-slate-200/60 rounded-2xl p-4 mb-6 shadow-inner">
-            <p className="font-bold text-slate-700 mb-3 text-xs uppercase tracking-wider">Order Summary ({cart.length} items)</p>
-            
-            {/* Scrollable Items list inside summary */}
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mb-3 scrollbar-thin">
+          {/* Order Summary */}
+          <div className="bg-slate-50/80 border border-slate-200/60 rounded-2xl p-3 sm:p-4 mb-4 sm:mb-6 shadow-inner">
+            <p className="font-bold text-slate-700 mb-3 text-[10px] sm:text-xs uppercase tracking-wider">Order Summary ({cart.length} items)</p>
+
+            <div className="space-y-2 max-h-32 sm:max-h-40 overflow-y-auto pr-1 mb-3 scrollbar-thin">
               {cart.map((i) => (
                 <div key={i._id} className="flex items-center justify-between bg-white border border-slate-100 p-2 rounded-xl shadow-sm">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Product Circular/Rounded Image Frame */}
-                    <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                       {i.image || i.imageUrl ? (
                         <img src={i.image || i.imageUrl} alt={i.name} className="w-full h-full object-cover" />
                       ) : (
-                        <Package size={16} className="text-slate-400" />
+                        <Package size={14} className="text-slate-400" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-800 text-xs truncate">{i.name}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">Rs.{i.price.toLocaleString()} × {i.qty}</p>
+                      <p className="font-bold text-slate-800 text-[11px] sm:text-xs truncate">{i.name}</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium">Rs.{i.price.toLocaleString()} × {i.qty}</p>
                     </div>
                   </div>
-                  <span className="font-bold text-xs text-slate-700 shrink-0">Rs.{(i.price * i.qty).toLocaleString()}</span>
+                  <span className="font-bold text-[11px] sm:text-xs text-slate-700 shrink-0">Rs.{(i.price * i.qty).toLocaleString()}</span>
                 </div>
               ))}
             </div>
 
-            {/* Price Breakdowns */}
-            <div className="border-t border-slate-200 pt-3 space-y-1.5 text-xs font-semibold text-slate-500">
+            <div className="border-t border-slate-200 pt-3 space-y-1.5 text-[11px] sm:text-xs font-semibold text-slate-500">
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span className="text-slate-700 font-bold">Rs.{subtotal.toLocaleString()}</span>
@@ -316,44 +313,44 @@ const CheckoutPage = ({ onBack, onComplete }) => {
               )}
               <div className="flex justify-between font-extrabold text-blue-600 text-sm border-t border-dashed border-slate-200 pt-2.5 mt-2">
                 <span>TOTAL AMOUNT</span>
-                <span className="text-base tracking-tight">Rs.{total.toLocaleString()}</span>
+                <span className="text-sm sm:text-base tracking-tight">Rs.{total.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          {/* Customer Input Section */}
-          <div className="mb-5">
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
-              <User size={13} className="text-slate-400" /> Customer ID <span className="text-slate-400 font-normal lowercase">(optional)</span>
+          {/* Customer ID */}
+          <div className="mb-4 sm:mb-5">
+            <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+              <User size={12} className="text-slate-400" /> Customer ID <span className="text-slate-400 font-normal lowercase">(optional)</span>
             </label>
             <input
               type="text"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               placeholder="Leave blank for walk-in customer"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 sm:px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
             />
           </div>
 
-          {/* Coupon Code Section */}
-          <div className="mb-5">
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
-              <Tag size={13} className="text-slate-400" /> Promo / Coupon Code
+          {/* Coupon */}
+          <div className="mb-4 sm:mb-5">
+            <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+              <Tag size={12} className="text-slate-400" /> Promo / Coupon Code
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
                 disabled={appliedCoupon || isValidating}
                 placeholder="e.g. SUMMER25"
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 sm:px-4 py-2.5 text-xs font-bold uppercase tracking-wider outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
               />
               {appliedCoupon ? (
                 <button
                   type="button"
                   onClick={handleRemoveCoupon}
-                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1"
                 >
                   <Trash size={14} /> Remove
                 </button>
@@ -362,7 +359,7 @@ const CheckoutPage = ({ onBack, onComplete }) => {
                   type="button"
                   onClick={handleApplyCoupon}
                   disabled={!couponCode.trim() || isValidating}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm"
                 >
                   {isValidating ? "Applying..." : "Apply"}
                 </button>
@@ -374,7 +371,7 @@ const CheckoutPage = ({ onBack, onComplete }) => {
               </p>
             )}
             {appliedCoupon && (
-              <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200/50 rounded-xl text-[10px] font-bold text-emerald-700 flex items-center justify-between animate-fade-in">
+              <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200/50 rounded-xl text-[10px] font-bold text-emerald-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="flex items-center gap-1">
                   <Check size={13} strokeWidth={3} className="text-emerald-500" />
                   <span>Promo applied: "{appliedCoupon.code}" ({appliedCoupon.title})</span>
@@ -384,26 +381,26 @@ const CheckoutPage = ({ onBack, onComplete }) => {
             )}
           </div>
 
-          {/* Payment Method Selector Grid */}
-          <div className="mb-5">
-            <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Select Payment Mode</label>
+          {/* Payment Method */}
+          <div className="mb-4 sm:mb-5">
+            <label className="block text-[10px] sm:text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Select Payment Mode</label>
             <PaymentMethod selected={paymentMethod} setSelected={(m) => { setPaymentMethod(m); setCashReceived(""); }} />
           </div>
 
-          {/* Conditional Input for Cash Method */}
+          {/* Cash Received */}
           {paymentMethod === "CASH" && (
-            <div className="mb-5 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 animate-fade-in">
-              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Cash Received (Rs.)</label>
+            <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200/60 animate-fade-in">
+              <label className="block text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Cash Received (Rs.)</label>
               <input
                 type="number"
                 value={cashReceived}
                 onChange={(e) => setCashReceived(e.target.value)}
                 placeholder={`Minimum: Rs.${total.toLocaleString()}`}
-                className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm font-bold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 text-slate-700"
+                className="w-full border border-slate-200 bg-white rounded-xl px-3 sm:px-4 py-2.5 text-sm font-bold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 text-slate-700"
                 autoFocus
               />
               {cashReceived && (
-                <div className={`mt-3 flex items-center gap-2 text-xs font-bold px-3 py-2.5 rounded-xl ${change >= 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" : "bg-rose-50 text-rose-600 border border-rose-200/50"}`}>
+                <div className={`mt-3 flex items-center gap-2 text-[11px] sm:text-xs font-bold px-3 py-2.5 rounded-xl ${change >= 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" : "bg-rose-50 text-rose-600 border border-rose-200/50"}`}>
                   {change >= 0 ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
                   {change >= 0
                     ? `Balance to return: Rs.${change.toLocaleString("en-LK", { minimumFractionDigits: 2 })}`
@@ -413,30 +410,27 @@ const CheckoutPage = ({ onBack, onComplete }) => {
             </div>
           )}
 
-          {/* Prompt boxes for Terminal Methods */}
           {paymentMethod === "CARD" && (
-            <div className="mb-5 p-3.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold flex items-center gap-2">
+            <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" /> Swipe or tap the customer's card on the physical terminal device.
             </div>
           )}
           {paymentMethod === "QR" && (
-            <div className="mb-5 p-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-xl text-xs font-bold flex items-center gap-2">
+            <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" /> Present the static/dynamic QR code to customer & verify incoming transaction.
             </div>
           )}
 
-          {/* Error Message banner */}
           {error && (
-            <div className="mb-5 p-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-bold flex gap-2">
+            <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-[11px] sm:text-xs font-bold flex gap-2">
               <AlertCircle size={16} className="shrink-0 mt-0.5" /> {error}
             </div>
           )}
 
-          {/* Submission Button */}
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || loading}
-            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-extrabold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 text-xs uppercase tracking-wider"
+            className="w-full bg-blue-600 text-white py-3 sm:py-3.5 rounded-xl font-extrabold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 text-[11px] sm:text-xs uppercase tracking-wider"
           >
             {loading ? "Processing Bill..." : `Confirm Payment — Rs.${total.toLocaleString()}`}
           </button>

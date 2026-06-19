@@ -46,7 +46,6 @@
 // };
 
 // export default ReceiptPage;
-
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, FileText, Printer, Download } from "lucide-react";
 import ReceiptPreview from "../../components/pos/ReceiptPreview";
@@ -81,14 +80,14 @@ const ReceiptPage = ({ sale: saleProp, onNewSale }) => {
   if (!sale) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white p-8 rounded-2xl shadow-md border max-w-sm w-full">
+        <div className="text-center bg-white p-6 sm:p-8 rounded-2xl shadow-md border max-w-sm w-full">
           <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-3">
             <FileText size={24} />
           </div>
-          <p className="text-slate-600 font-medium mb-5">No receipt data available.</p>
+          <p className="text-slate-600 font-medium mb-5 text-sm sm:text-base">No receipt data available.</p>
           <button
             onClick={() => onNewSale ? onNewSale() : navigate("/pos")}
-            className="w-full bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition"
+            className="w-full bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition text-sm"
           >
             Back to POS
           </button>
@@ -98,11 +97,11 @@ const ReceiptPage = ({ sale: saleProp, onNewSale }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center py-12 px-4 antialiased">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center py-6 sm:py-12 px-2 sm:px-4 antialiased">
 
       {/* Success Banner */}
-      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-200 px-5 py-3 rounded-xl font-bold mb-8 shadow-sm print:hidden text-sm">
-        <CheckCircle size={20} className="text-emerald-500" />
+      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-200 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-bold mb-5 sm:mb-8 shadow-sm print:hidden text-xs sm:text-sm text-center">
+        <CheckCircle size={18} className="text-emerald-500 shrink-0" />
         Sale Completed Successfully!
       </div>
 
@@ -112,26 +111,26 @@ const ReceiptPage = ({ sale: saleProp, onNewSale }) => {
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-3 mt-6 print:hidden flex-wrap justify-center">
+      <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-5 sm:mt-6 print:hidden w-full max-w-md sm:max-w-none sm:justify-center sm:flex-wrap px-2 sm:px-0">
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold transition-all shadow-md text-sm"
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-md text-xs sm:text-sm w-full sm:w-auto"
         >
-          <Printer size={16} /> Print Receipt
+          <Printer size={15} /> Print Receipt
         </button>
 
         <button
           onClick={handleDownloadPDF}
-          className="flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-6 py-3 rounded-xl font-semibold transition-all shadow-md text-sm"
+          className="flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-md text-xs sm:text-sm w-full sm:w-auto"
         >
-          <Download size={16} /> Download PDF
+          <Download size={15} /> Download PDF
         </button>
 
         <button
           onClick={() => onNewSale ? onNewSale() : navigate("/pos")}
-          className="flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-900 px-6 py-3 rounded-xl font-semibold transition-all shadow-md text-sm"
+          className="flex items-center justify-center gap-2 bg-slate-800 text-white hover:bg-slate-900 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-md text-xs sm:text-sm w-full sm:w-auto"
         >
-          <ArrowLeft size={16} /> Start New Sale
+          <ArrowLeft size={15} /> Start New Sale
         </button>
       </div>
     </div>
