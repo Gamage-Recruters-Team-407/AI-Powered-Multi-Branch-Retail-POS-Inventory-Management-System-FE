@@ -218,7 +218,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                       id="amount"
                       type="number"
                       min="0"
-                      step="100"
+                      step="1"
                       value={amount}
                       onChange={(e) => { setAmount(e.target.value); setError(""); }}
                       placeholder="Enter purchase amount"
