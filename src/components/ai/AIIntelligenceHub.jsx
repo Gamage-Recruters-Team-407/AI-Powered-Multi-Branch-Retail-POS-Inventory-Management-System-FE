@@ -46,13 +46,12 @@ const AIIntelligenceHub = () => {
   }, []);
 
   return (
-    <div style={{
+    <div className="ai-hub-container" style={{
       height: activeTab === 'chat' ? '100vh' : 'auto',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
       background: 'transparent',
-      margin: '-24px -28px',
       padding: '0',
       fontFamily: "'Inter', system-ui, sans-serif",
       overflow: activeTab === 'chat' ? 'hidden' : 'visible',
@@ -63,7 +62,7 @@ const AIIntelligenceHub = () => {
         background: 'rgba(255, 255, 255, 0.4)',
         backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.6)',
-        padding: '12px 36px',
+        padding: '12px 36px 12px 60px',
         boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05)',
         display: 'flex',
         alignItems: 'center',
@@ -140,13 +139,12 @@ const AIIntelligenceHub = () => {
 
           {/* ── TAB 2: BUSINESS INSIGHTS ── */}
           {activeTab === 'insights' && (
-            <motion.div key="insights" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-16}} style={{ padding:'32px 36px 0', maxWidth:'1400px', margin:'0 auto', width:'100%' }}>
-              <div style={{
+            <motion.div key="insights" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-16}} className="insights-outer" style={{ maxWidth:'1400px', margin:'0 auto', width:'100%' }}>
+              <div className="insights-inner" style={{
                 background:'rgba(255,255,255,0.6)',
                 backdropFilter:'blur(24px)',
                 borderRadius:'24px',
                 border:'1px solid rgba(255,255,255,0.8)',
-                padding:'32px',
                 boxShadow:'0 12px 40px rgba(0,0,0,0.06)',
               }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'28px' }}>
@@ -196,12 +194,43 @@ const AIIntelligenceHub = () => {
       </div>
 
       <style>{`
-        @media (max-width: 1100px) {
+        .ai-hub-container { margin: -24px -28px; }
+        .insights-outer { padding: 32px 36px 0; }
+        .insights-inner { padding: 32px; }
+        @media (max-width: 1024px) {
           .ai-query-grid { grid-template-columns: repeat(2,1fr) !important; }
-          .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .kpi-grid { grid-template-columns: 1fr !important; }
+          .ai-hub-container { margin: -70px -16px -16px; }
         }
         @media (max-width: 640px) {
           .ai-query-grid, .kpi-grid { grid-template-columns: 1fr !important; }
+          .insights-outer { padding: 16px 12px 0; }
+          .insights-inner { padding: 16px; }
+        }
+        .example-box {
+          background: rgba(255,255,255,0.9);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.8);
+          border-radius: 12px;
+          padding: 10px 14px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .example-box:hover {
+          border-color: #3B82F6;
+          background: #ffffff;
+        }
+        .example-icon { font-size: 20px; }
+        .example-text { font-size: 13px; color: #1E293B; font-weight: 600; line-height: 1.4; }
+        @media (max-width: 640px) {
+          .example-box { padding: 8px 12px; gap: 8px; }
+          .example-icon { font-size: 18px; }
+          .example-text { font-size: 12px; }
         }
       `}</style>
     </div>
@@ -274,12 +303,10 @@ const InlineChatPanelConnected = ({ messages, setMessages, input, setInput, isTy
             {EXAMPLES.map((q, i) => (
               <motion.button key={i} whileHover={{ scale:1.02, y:-2 }} whileTap={{ scale:0.98 }}
                 onClick={() => sendQuery(q.text)}
-                style={{ background:'rgba(255,255,255,0.9)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.8)', borderRadius:'14px', padding:'14px', cursor:'pointer', textAlign:'left', transition:'all 0.2s', boxShadow:'0 4px 12px rgba(0,0,0,0.05)' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor='#3B82F6'; e.currentTarget.style.background='#ffffff'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.8)'; e.currentTarget.style.background='rgba(255,255,255,0.9)'; }}
+                className="example-box"
               >
-                <div style={{ fontSize:'24px', marginBottom:'8px' }}>{q.icon}</div>
-                <div style={{ fontSize:'13px', color:'#1E293B', fontWeight:600, lineHeight:1.45 }}>{q.text}</div>
+                <div className="example-icon">{q.icon}</div>
+                <div className="example-text">{q.text}</div>
               </motion.button>
             ))}
           </div>

@@ -11,12 +11,11 @@ function BranchListPage() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = user?.role === "admin";
-  const [message, setMessage] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const isAdmin = ["admin", "manager", "super_admin"].includes(user?.role);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
-
+  const [message, setMessage] = useState("");
+  const [keyword, setKeyword] = useState("");
   useEffect(() => {
     fetchBranches();
   }, []);
@@ -62,7 +61,7 @@ function BranchListPage() {
         <div className="mx-auto max-w-7xl">
           {/* Header */}
           <div
-            className="mb-6 flex justify-between rounded-2xl p-6 shadow-sm"
+            className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0 rounded-2xl p-6 shadow-sm"
             style={{
               background: "rgba(255,255,255,0.6)",
               backdropFilter: "blur(10px)",
@@ -93,7 +92,7 @@ function BranchListPage() {
               backdropFilter: "blur(10px)",
             }}
           >
-            <form onSubmit={handleSearch} className="flex gap-3">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -124,7 +123,7 @@ function BranchListPage() {
 
           {/* Table */}
           <div
-            className="rounded-2xl shadow-sm overflow-hidden"
+            className="rounded-2xl shadow-sm overflow-x-auto"
             style={{
               background: "rgba(255,255,255,0.6)",
               backdropFilter: "blur(10px)",
@@ -213,6 +212,7 @@ function BranchListPage() {
             )}
           </div>
         </div>
+
       </div>
 
       {isAdmin && showAddModal && (

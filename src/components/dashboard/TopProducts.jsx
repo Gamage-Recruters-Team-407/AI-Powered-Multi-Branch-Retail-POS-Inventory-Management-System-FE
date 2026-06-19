@@ -55,9 +55,10 @@ const TopProducts = ({ data }) => {
           padding: 20px;
           animation: fadeIn .5s ease both;
         }
-        .tp-table {}
+        .tp-table { overflow-x: auto; padding-bottom: 8px; }
         .tp-head {
           display: grid; grid-template-columns: 40px 2fr 1fr 1fr 0.8fr;
+          min-width: 500px;
           padding: 9px 12px;
           background: var(--gray-50); border-radius: 8px;
           font-size: .72rem; font-weight: 700; color: var(--gray-400);
@@ -66,6 +67,7 @@ const TopProducts = ({ data }) => {
         }
         .tp-row {
           display: grid; grid-template-columns: 40px 2fr 1fr 1fr 0.8fr;
+          min-width: 500px;
           padding: 12px 12px;
           border-radius: 8px;
           align-items: center;
@@ -95,6 +97,11 @@ const TopProducts = ({ data }) => {
         .section-sub { font-size: .78rem; color: var(--gray-400); margin-top: 2px; }
         .view-all-btn { font-size: .82rem; font-weight: 600; color: var(--blue-600); background: var(--blue-50); padding: 7px 14px; border-radius: 8px; transition: all var(--transition); border: 1px solid var(--blue-200); }
         .view-all-btn:hover { background: var(--blue-100); }
+
+        @media (max-width: 600px) {
+          .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+          .view-all-btn { width: 100%; }
+        }
       `}</style>
     </div>
   );
