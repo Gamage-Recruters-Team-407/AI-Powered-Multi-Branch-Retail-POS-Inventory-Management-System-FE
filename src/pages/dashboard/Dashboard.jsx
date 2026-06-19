@@ -156,8 +156,6 @@ const formatLKR = (amount, decimals = 0) => {
   })}`;
 };
 
-// rawVal eka 0 / null / undefined / NaN nam -> parana (already formatted) agayama return karanna
-// ehemath athi real agayak nam (0 nemei) witharak athi formatter ekak use karala aluth value eka denna
 const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
   const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
   if (isEmpty) {
@@ -165,59 +163,6 @@ const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
   }
   return formatter(rawVal);
 };
-
-// const mapStatsToDashboardData = (stats) => {
-//   if (!stats) return generateDemoData();
-
-//   const kpis = stats.kpis || {};
-//   const inventory = stats.inventory || {};
-//   const sales = stats.sales || {};
-//   const system = stats.system || {};
-
-//   return {
-//     kpi: {
-//       revenue: {
-//         total: formatLKR(kpis.revenue ?? 0),
-//         growth_percentage: kpis.salesGrowth ?? 0,
-//         trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
-//       },
-//       sales: {
-//         count: kpis.transactionCount ?? 0,
-//         growth_percentage: kpis.salesGrowth ?? 0,
-//         avg_transaction_value: formatLKR(sales.averageTransactionValue ?? 0, 2),
-//         unique_customers: system.totalCustomers ?? 0,
-//       },
-//       profit: {
-//         total: formatLKR(kpis.profit ?? 0),
-//         margin_percentage: kpis.profitMargin ?? 0,
-//       },
-//       stock_turnover: {
-//         avg_rate: `${Number(kpis.stockTurnover ?? 0).toFixed(1)}x`,
-//         efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
-//       },
-//     },
-//     inventory: {
-//       total_products: system.totalProducts ?? 0,
-//       total_stock: inventory.totalItems ?? 0,
-//       inventory_value: formatLKR(inventory.totalValue ?? 0),
-//       avg_stock_level: inventory.branchStockStatus?.length
-//         ? (
-//             inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
-//             inventory.branchStockStatus.length
-//           ).toFixed(1)
-//         : 0,
-//     },
-//     low_stock_alerts: { count: inventory.lowStockAlert?.count ?? 0 },
-//     branches: (stats.branches ?? null)?.map(b => ({
-//       ...b,
-//       revenue: typeof b.revenue === 'number'
-//         ? `Rs. ${b.revenue.toLocaleString()}`
-//         : b.revenue  // already formatted string  as-is
-//     })),
-//     top_products: sales.topProducts ?? null,
-//     sales: sales.dailySales ?? null,
-//   };
-// };
 
 const mapStatsToDashboardData = (stats, prevData) => {
   if (!stats) return prevData || generateDemoData();
@@ -281,7 +226,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  // ✅ අලුත් — roles array check
+  // roles array check
   const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
     item.roles.includes(role)
   );
@@ -998,7 +943,7 @@ case 'product-edit':
           </Suspense>
         );
       case 'ai-reorder':
-        return <AISmartReorderingModule />;
+        return <AISmartReorderingModule token={token} />;
       case 'analytics':
         return (
           <Suspense fallback={<ModuleLoading />}>
