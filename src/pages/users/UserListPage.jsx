@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
 const ROLES = ["admin", "manager", "cashier"];
 const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
+const USERS_PER_PAGE = 6; // change this to control how many rows show per page
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
@@ -15,6 +16,10 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
+  // ========== PAGINATION STATE ==========
+  const [currentPage, setCurrentPage] = useState(1);
+  // ========================================
+
   const fetchUsers = async () => {
     try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
     catch { setError("Failed to load users."); }
@@ -23,10 +28,9 @@ export default function UserListPage() {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleSearch = async (e) => {
-    const q = e.target.value; setSearch(q);
-    if (!q.trim()) { fetchUsers(); return; }
-    try { const res = await searchUsers(q); setUsers(res.data.data || res.data || []); } catch (err) { console.error("Search error:", err); fetchUsers(); }
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1); // reset to page 1 whenever the search changes
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
@@ -62,11 +66,57 @@ export default function UserListPage() {
   const roleConfig = { admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
   const getRoleStyle = (r) => roleConfig[r] || roleConfig.cashier;
 
+  // ========== SEARCH FILTER (client-side) ==========
+  const filteredUsers = users.filter(u => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const fullName = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : (u.name || "");
+    return fullName.toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
+  });
+
+  // ========== PAGINATION LOGIC ==========
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  // keep currentPage valid if the users list shrinks (e.g. after delete/search)
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * USERS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // builds a compact page list like: 1, 2, ... , 14  (matches teammate's style)
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 3) pages.push("...");
+      const start = Math.max(2, safePage - 1);
+      const end = Math.min(totalPages - 1, safePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safePage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+  // ========================================
+
   return (
-    <div style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+<div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      `}</style>
+    
 
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
+      <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
         <div>
           <h1 style={{ fontSize:"26px", fontWeight:"700", color:"#0f172a", margin:0, letterSpacing:"-0.5px" }}>User Management</h1>
           <p style={{ fontSize:"14px", color:"#64748b", margin:"6px 0 0" }}>Manage system users, roles and permissions</p>
@@ -77,7 +127,7 @@ export default function UserListPage() {
       </div>
 
       {/* Search & Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
+      <div className="user-stats-grid" style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
         <div style={{ position:"relative" }}>
           <span style={{ position:"absolute", left:"14px", top:"50%", transform:"translateY(-50%)", color:"#94a3b8", fontSize:"16px" }}>🔍</span>
           <input type="text" placeholder="Search users by name or email..." value={search} onChange={handleSearch}
@@ -98,13 +148,15 @@ export default function UserListPage() {
       )}
 
       {/* Table Card */}
-      <div style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflow:"hidden" }}>
+      <div className="user-table-wrapper" style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflowX:"auto" }}>
         {loading ? (
           <div style={{ padding:"80px", textAlign:"center", color:"#94a3b8", fontSize:"15px" }}>
             <div style={{ fontSize:"32px", marginBottom:"12px" }}>⏳</div>Loading users...
           </div>
         ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px" }}>
+          <div>
+          <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"4px" }}>
+          <table style={{ width:"100%", minWidth:"1400px", borderCollapse:"collapse", fontSize:"14px" }}>
             <thead>
               <tr style={{ background:"rgba(248,250,252,0.8)" }}>
                 {["User","Email","Phone","Role","Status","Actions"].map(h => (
@@ -119,7 +171,7 @@ export default function UserListPage() {
                   <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
                   <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
                 </td></tr>
-              ) : users.map((user, i) => (
+              ) : paginatedUsers.map((user, i) => (
                 <tr key={user._id} style={{ borderBottom:"1px solid rgba(241,245,249,0.8)", transition:"background 0.15s" }}
                   onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
                   onMouseLeave={e => e.currentTarget.style.background="transparent"}>
@@ -182,7 +234,42 @@ export default function UserListPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          <div style={{ textAlign:"center", padding:"4px 0 2px", fontSize:"11px", color:"#94a3b8" }}>
+            ← scroll to see more →
+          </div>
+          </div>
         )}
+
+        {/* ========== PAGINATION CONTROLS ========== */}
+        {!loading && users.length > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", borderTop:"1px solid rgba(226,232,240,0.8)", background:"rgba(248,250,252,0.6)" }}>
+            <div style={{ fontSize:"13px", color:"#64748b" }}>
+              Page {safePage} of {totalPages}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+              <button onClick={()=>goToPage(safePage - 1)} disabled={safePage === 1}
+                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===1?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===1?"#cbd5e1":"#475569" }}>
+                ← Prev
+              </button>
+
+              {getPageNumbers().map((p, idx) => p === "..." ? (
+                <span key={`ellipsis-${idx}`} style={{ padding:"7px 6px", fontSize:"13px", color:"#94a3b8" }}>...</span>
+              ) : (
+                <button key={p} onClick={()=>goToPage(p)}
+                  style={{ padding:"7px 13px", borderRadius:"8px", border:"1.5px solid", borderColor:p===safePage?"#2563eb":"#e2e8f0", background:p===safePage?"#2563eb":"white", cursor:"pointer", fontSize:"13px", fontWeight:"600", color:p===safePage?"white":"#475569", minWidth:"34px" }}>
+                  {p}
+                </button>
+              ))}
+
+              <button onClick={()=>goToPage(safePage + 1)} disabled={safePage === totalPages}
+                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===totalPages?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===totalPages?"#cbd5e1":"#475569" }}>
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+        {/* ========== END PAGINATION CONTROLS ========== */}
       </div>
 
       {/* Add/Edit Modal */}
@@ -202,7 +289,7 @@ export default function UserListPage() {
             )}
 
             <div style={{ display:"grid", gap:"18px" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 {[{label:"Full Name",name:"name",type:"text",required:true},{label:"Email Address",name:"email",type:"email",required:true}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label} {f.required && <span style={{ color:"#dc2626" }}>*</span>}</label>
@@ -220,7 +307,7 @@ export default function UserListPage() {
                   onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 {[{label:"Phone",name:"phone",type:"text",placeholder:"+94 77 123 4567"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
@@ -231,7 +318,7 @@ export default function UserListPage() {
                 ))}
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 <div>
                   <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Role</label>
                   <select name="role" value={form.role} onChange={handleFormChange}
@@ -262,8 +349,8 @@ export default function UserListPage() {
 
       {/* Delete Confirm */}
       {deleteConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", maxWidth:"100%", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
             <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:"24px" }}>🗑️</div>
             <h3 style={{ fontSize:"18px", fontWeight:"700", color:"#0f172a", margin:"0 0 8px" }}>Delete User</h3>
             <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.firstName || deleteConfirm.name}</strong>? This action cannot be undone.</p>
@@ -274,6 +361,16 @@ export default function UserListPage() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .user-page-container { padding: 16px !important; }
+          .user-header-flex { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+          .user-stats-grid { grid-template-columns: 1fr !important; }
+          .user-modal-grid { grid-template-columns: 1fr !important; }
+          .user-table-wrapper { border-radius: 12px !important; }
+        }
+      `}</style>
     </div>
   );
 }

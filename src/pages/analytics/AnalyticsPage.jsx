@@ -421,8 +421,8 @@ function AnalyticsPage() {
               <div style={glassCard}><SalesTrendsChart params={filters} /></div>
               <div style={glassCard}><ProfitTrendsChart params={filters} /></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-              <div style={{ ...glassCard, gridColumn: "span 2", alignSelf: "start" }}>
+            <div className="analytics-three-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+              <div className="analytics-span-reset" style={{ ...glassCard, gridColumn: "span 2", alignSelf: "start" }}>
                 <BranchPerformancePanel data={data.branchPerf} loading={loading} />
               </div>
               <div style={glassCard}>
@@ -449,6 +449,7 @@ function AnalyticsPage() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 900px) {
           .analytics-three-col { grid-template-columns: 1fr !important; }
+          .analytics-span-reset { grid-column: span 1 !important; }
         }
       `}</style>
     </div>

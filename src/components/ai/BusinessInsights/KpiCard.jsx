@@ -19,7 +19,7 @@ const KpiCard = ({ title, value, change, isPositive, neutral, darkMode }) => {
       transition: 'box-shadow 0.2s',
     }}>
       <p style={{ fontSize: '12px', color: text2, margin: 0, fontWeight: 500 }}>{title}</p>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontSize: '22px', fontWeight: 800, color: text }}>{value}</span>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '3px',
