@@ -502,9 +502,15 @@ const fetchData = useCallback(async () => {
     );
     if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
 
+    // const json = await res.json();
     const json = await res.json();
+    console.log('🔴 RAW API Response:', json.data);           // full response
+    console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);  // chart data
+    console.log('💰 KPIs:', json.data?.kpis);                 // kpi data
     setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
     setLastUpdated(new Date());
+    // setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+    // setLastUpdated(new Date());
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
   } finally {
