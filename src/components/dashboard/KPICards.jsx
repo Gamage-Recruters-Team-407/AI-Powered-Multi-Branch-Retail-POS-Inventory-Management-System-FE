@@ -89,8 +89,7 @@ const KPICards = ({ data, loading, role }) => {
   const cards = [
     {
       title: 'Total Revenue',
-      // දත්ත නැත්නම් පරණ දත්ත (පෙර තිබූ දත්ත) පෙන්වන්න
-      value: kpi.revenue?.total ?? 'Rs. 0',
+
       sub: 'This period',
       change: kpi.revenue?.growth_percentage ?? 0,
       trend: kpi.revenue?.trend || 'neutral',
@@ -100,8 +99,7 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Total Sales',
-      // count එක අනිවාර්යයෙන්ම string එකක් ලෙස පෙන්වන්න
-      value: kpi.sales?.count?.toString() ?? '0',
+
       sub: 'Transactions',
       change: kpi.sales?.growth_percentage ?? 0,
       trend: (kpi.sales?.growth_percentage ?? 0) >= 0 ? 'up' : 'down',
@@ -111,36 +109,18 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Net Profit',
-      value: kpi.profit?.total ?? 'Rs. 0',
-      sub: `${kpi.profit?.margin_percentage ?? 0}% Margin`,
+
       icon: '📈',
       color: 'purple',
       roles: ['admin'],
     },
     {
-      title: 'Avg Transaction',
-      value: kpi.sales?.avg_transaction_value ?? 'Rs. 0.00',
-      sub: `${kpi.sales?.unique_customers ?? 0} customers`,
-      icon: '👥',
-      color: 'cyan',
-      roles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      title: 'Inventory Value',
-      value: inventory.inventory_value ?? 'Rs. 0',
-      sub: `${inventory.total_products ?? 0} products`,
+
       icon: '📦',
       color: 'amber',
       roles: ['admin', 'manager'],
     },
-    {
-      title: 'Stock Turnover',
-      value: kpi.stock_turnover?.avg_rate ?? '0.0x',
-      sub: `${kpi.stock_turnover?.efficiency ?? 'N/A'} rate`,
-      icon: '🔄',
-      color: 'rose',
-      roles: ['admin', 'manager'],
-    },
+
   ];
 
   const visible = cards.filter(c => c.roles.includes(role));

@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 
-const LIMIT_OPTIONS = [5, 10, 25];
-const REPORT_FETCH_LIMIT = 5000;
+
 
 const isMongoObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ''));
 
