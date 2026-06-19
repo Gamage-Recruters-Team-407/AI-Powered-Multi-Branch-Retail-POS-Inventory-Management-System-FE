@@ -238,38 +238,52 @@ export default function BranchDetailsPage() {
                   Full details for this branch
                 </p>
               </div>
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                {[
-                  { label: "Name", value: branch.name, color: "bg-blue-500" },
-                  { label: "Code", value: branch.code || "N/A", color: "bg-indigo-500" },
-                  { label: "City", value: branch.city || "N/A", color: "bg-emerald-500" },
-                  { label: "Contact", value: branch.contactNumber || "N/A", color: "bg-amber-500" },
-                  { label: "Manager", value: getManagerName(branch.manager), color: "bg-purple-500" },
-                  { label: "Address", value: branch.address || "N/A", color: "bg-rose-500" },
-                ].map(({ label, value, color }) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-4 px-6 py-4 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/60 transition"
-                  >
-                    <span className={`w-1.5 h-8 rounded-full ${color} shrink-0`} />
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">
-                      {label}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {value}
-                    </span>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { label: "Name", value: branch.name, Icon: Store, bg: "bg-blue-50", color: "text-blue-600" },
+                    { label: "Code", value: branch.code || "N/A", Icon: Hash, bg: "bg-indigo-50", color: "text-indigo-600" },
+                    { label: "City", value: branch.city || "N/A", Icon: MapPin, bg: "bg-emerald-50", color: "text-emerald-600" },
+                    { label: "Contact", value: branch.contactNumber || "N/A", Icon: Phone, bg: "bg-amber-50", color: "text-amber-600" },
+                    { label: "Manager", value: getManagerName(branch.manager), Icon: UserCircle2, bg: "bg-purple-50", color: "text-purple-600" },
+                    { label: "Address", value: branch.address || "N/A", Icon: MapPin, bg: "bg-rose-50", color: "text-rose-600" },
+                  ].map(({ label, value, Icon, bg, color }) => (
+                    <div
+                      key={label}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 hover:bg-slate-50/60 transition"
+                    >
+                      <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          {label}
+                        </p>
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {value}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 hover:bg-slate-50/60 transition">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${branch.isActive ? "bg-green-50" : "bg-red-50"}`}
+                    >
+                      <Building2
+                        className={`w-5 h-5 ${branch.isActive ? "text-green-600" : "text-red-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        Status
+                      </p>
+                      <span
+                        className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${branch.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                      >
+                        {branch.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
                   </div>
-                ))}
-                <div className="flex items-center gap-4 px-6 py-4">
-                  <span className="w-1.5 h-8 rounded-full bg-slate-400 shrink-0" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">
-                    Status
-                  </span>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${branch.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
-                  >
-                    {branch.isActive ? "Active" : "Inactive"}
-                  </span>
                 </div>
               </div>
             </div>

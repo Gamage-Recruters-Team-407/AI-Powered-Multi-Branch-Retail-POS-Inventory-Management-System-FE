@@ -16,6 +16,7 @@ import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
+import { getAllBranchesWithPerformance } from '../../services/branchApi';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
@@ -382,14 +383,34 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 800));
-      setDashboardData(generateDemoData());
+      const demo = generateDemoData();
+
+      try {
+        const branchRes = await getAllBranchesWithPerformance();
+        const realBranches = (branchRes.data || []).map((b) => ({
+          branch_id: b._id,
+          branch_name: b.name,
+          location: b.city || 'N/A',
+          status: b.isActive ? 'active' : 'inactive',
+          staff_count: b.employeeCount,
+          products_count: b.inventoryCount,
+          total_stock: b.inventoryCount,
+          low_stock_items: b.lowStockCount,
+          revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
+          growth: 0,
+        }));
+        demo.branches = realBranches;
+      } catch (branchErr) {
+        console.error('Error fetching branch performance:', branchErr);
+      }
+
+      setDashboardData(demo);
       setLastUpdated(new Date());
     } finally {
       setLoading(false);
     }
   }, []);
-
+  
   useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
 
   const handlePreset = (preset) => {
