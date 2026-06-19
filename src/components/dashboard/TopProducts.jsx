@@ -1,11 +1,11 @@
 import React from 'react';
 
 const DEMO_PRODUCTS = [
-  { rank: 1, product_name: 'Anchor Butter 200g', category: 'Dairy', units_sold: 842, revenue: '$4,210', times_sold: 312, growth: 18.4 },
-  { rank: 2, product_name: 'Milo 400g Tin', category: 'Beverages', units_sold: 721, revenue: '$3,605', times_sold: 289, growth: 12.1 },
-  { rank: 3, product_name: 'Keells Sausages 400g', category: 'Meat', units_sold: 614, revenue: '$5,526', times_sold: 241, growth: 8.7 },
-  { rank: 4, product_name: 'Astra Margarine 250g', category: 'Dairy', units_sold: 582, revenue: '$2,328', times_sold: 198, growth: -3.2 },
-  { rank: 5, product_name: 'Ceylon Tea 500g', category: 'Beverages', units_sold: 498, revenue: '$3,486', times_sold: 187, growth: 22.6 },
+  { rank: 1, product_name: 'Anchor Butter 200g', category: 'Dairy', units_sold: 842, revenue: 'Rs.4,210', times_sold: 312, growth: 18.4 },
+  { rank: 2, product_name: 'Milo 400g Tin', category: 'Beverages', units_sold: 721, revenue: 'Rs.3,605', times_sold: 289, growth: 12.1 },
+  { rank: 3, product_name: 'Keells Sausages 400g', category: 'Meat', units_sold: 614, revenue: 'Rs.5,526', times_sold: 241, growth: 8.7 },
+  { rank: 4, product_name: 'Astra Margarine 250g', category: 'Dairy', units_sold: 582, revenue: 'Rs.2,328', times_sold: 198, growth: -3.2 },
+  { rank: 5, product_name: 'Ceylon Tea 500g', category: 'Beverages', units_sold: 498, revenue: 'Rs.3,486', times_sold: 187, growth: 22.6 },
 ];
 
 const TopProducts = ({ data }) => {

@@ -82,11 +82,11 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
   const { products } = useProducts();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex flex-col antialiased font-sans p-4 relative overflow-hidden">
+    <div className="min-h-screen   via-blue-500 to-indigo-600 flex flex-col antialiased font-sans p-4 relative overflow-hidden">
       
-      <div className="absolute top-10 right-1/4 w-36 h-36 bg-yellow-400 rounded-full blur-2xl opacity-60 pointer-events-none" />
+      <div className="absolute top-10 right-1/4 w-36 h-36 bg-green-400 rounded-full blur-2xl opacity-60 pointer-events-none" />
 
-      <div className="flex-1 flex flex-col rounded-3xl backdrop-blur-xl bg-white/20 border border-white/30 shadow-2xl overflow-hidden">
+      <div className="flex-1 flex flex-col rounded-3xl backdrop-blur-xl  border border-white/30 shadow-2xl overflow-hidden">
         
         <div className="px-6 py-4 flex justify-between items-center shrink-0 border-b border-white/20 bg-white/10">
           <div className="flex items-center gap-3">

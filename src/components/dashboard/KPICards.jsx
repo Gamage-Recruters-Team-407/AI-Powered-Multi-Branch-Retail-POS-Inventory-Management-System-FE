@@ -89,7 +89,7 @@ const KPICards = ({ data, loading, role }) => {
   const cards = [
     {
       title: 'Total Revenue',
-      value: kpi.revenue?.total || '$48,250',
+      value: kpi.revenue?.total || 'Rs.48,250',
       sub: 'This period',
       change: kpi.revenue?.growth_percentage ?? 12.4,
       trend: kpi.revenue?.trend || 'up',
@@ -99,7 +99,7 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Total Sales',
-      value: kpi.sales?.count?.toLocaleString() || '1,284',
+      value: kpi.sales?.count?.toLocaleString() || 'Rs.1,284',
       sub: 'Transactions',
       change: kpi.sales?.growth_percentage ?? 8.1,
       trend: (kpi.sales?.growth_percentage ?? 8.1) >= 0 ? 'up' : 'down',
@@ -109,34 +109,18 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Net Profit',
-      value: kpi.profit?.total || '$14,820',
+      value: kpi.profit?.total || 'Rs.14,820',
       sub: `${kpi.profit?.margin_percentage || 30.7}% Margin`,
       icon: '📈',
       color: 'purple',
       roles: ['admin'],
     },
     {
-      title: 'Avg Transaction',
-      value: kpi.sales?.avg_transaction_value || '$37.58',
-      sub: `${kpi.sales?.unique_customers || 842} customers`,
-      icon: '👥',
-      color: 'cyan',
-      roles: ['admin', 'manager', 'cashier'],
-    },
-    {
       title: 'Inventory Value',
-      value: inventory.inventory_value || '$124,600',
+      value: inventory.inventory_value || 'Rs.124,600',
       sub: `${inventory.total_products || 486} products`,
       icon: '📦',
       color: 'amber',
-      roles: ['admin', 'manager'],
-    },
-    {
-      title: 'Stock Turnover',
-      value: kpi.stock_turnover?.avg_rate || '4.2x',
-      sub: `${kpi.stock_turnover?.efficiency || 'Healthy'} rate`,
-      icon: '🔄',
-      color: 'rose',
       roles: ['admin', 'manager'],
     },
   ];

@@ -61,7 +61,10 @@ function AnalyticsPage() {
     filters.fromDate || filters.toDate || filters.branchId;
 
   // Keep pendingFilters in sync so the debounced callback always sees latest
-  pendingFilters.current = filters;
+  // Update ref in an effect to avoid modifying refs during render
+  useEffect(() => {
+    pendingFilters.current = filters;
+  }, [filters]);
 
   // getData: extract payload from a settled promise result
   const getData = (res) =>

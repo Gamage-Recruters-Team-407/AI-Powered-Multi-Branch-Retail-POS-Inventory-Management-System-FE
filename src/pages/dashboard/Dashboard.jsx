@@ -60,12 +60,12 @@ import InventoryDashboard from '../inventory/InventoryDashboard';
 // Demo data generator
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: '$48,250', growth_percentage: 12.4, trend: 'up' },
-    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: '$37.58', unique_customers: 842 },
-    profit: { total: '$14,820', margin_percentage: 30.7 },
+    revenue: { total: 'Rs.48,250', growth_percentage: 12.4, trend: 'up' },
+    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: 'Rs.37.58', unique_customers: 842 },
+    profit: { total: 'Rs.14,820', margin_percentage: 30.7 },
     stock_turnover: { avg_rate: '4.2x', efficiency: 'Healthy' },
   },
-  inventory: { total_products: 486, total_stock: 32610, inventory_value: '$124,600', avg_stock_level: 67.1 },
+  inventory: { total_products: 486, total_stock: 32610, inventory_value: 'Rs.124,600', avg_stock_level: 67.1 },
   low_stock_alerts: { count: 12 },
   branches: null,
   top_products: null,
@@ -221,18 +221,18 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Sales & Revenue queries
     if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: $48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+      return `📊 **Sales Performance Update**\n\n• Total Revenue: Rs.48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: Rs.37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
     }
 
     // Profit queries
     if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: $32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
+      return `💰 **Profit Analysis**\n\n• Total Profit: Rs.14,820\n• Profit Margin: 30.7%\n• Gross Profit: Rs.32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
     }
 
-    // Inventory queries
-    if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: $124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
-    }
+    // // Inventory queries
+    // if (msg.includes('inventory') || msg.includes('stock')) {
+    //   return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: Rs.124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+    // }
 
     // Low stock alerts
     if (msg.includes('low stock') || msg.includes('alert')) {
@@ -241,12 +241,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Branch performance
     if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: $18,240 (Top performer)\n• Kandy City Branch: $12,560 (+8.2% growth)\n• Galle Fort Branch: $9,340\n• Negombo Branch: $8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+      return `🏢 **Branch Performance**\n\n• Colombo Head Office: Rs.18,240 (Top performer)\n• Kandy City Branch: Rs.12,560 (+8.2% growth)\n• Galle Fort Branch: Rs.9,340\n• Negombo Branch: Rs.8,110\n\n📈 Colombo leads with 38% of total revenue.`;
     }
 
     // Product recommendations
     if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - $12,450\n2. Organic Coconut Oil - $8,920\n3. Ceylon Tea Gift Pack - $7,340\n4. Fresh Milk - $5,670\n5. Spice Assortment - $4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - Rs.12,450\n2. Organic Coconut Oil - Rs.8,920\n3. Ceylon Tea Gift Pack - Rs.7,340\n4. Fresh Milk - Rs.5,670\n5. Spice Assortment - Rs.4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
     }
 
     // Demand forecasting
@@ -1059,7 +1059,7 @@ case 'product-edit':
         .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .greeting-badge { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 30px; margin-bottom: 16px; font-size: 0.85rem; font-weight: 500; color: #1e293b; border: 1px solid rgba(255,255,255,0.5); }
         .time-display { color: #3b82f6; font-weight: 600; }
-        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 12px; }
+        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: lightBlue; display: flex; align-items: center; gap: 12px; }
         .title-badge { position: relative; font-size: 0.7rem; background: linear-gradient(135deg, #10b981, #059669); padding: 4px 12px; border-radius: 20px; color: white; font-weight: 600; display: flex; align-items: center; gap: 6px; overflow: hidden; }
         .title-badge::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: shimmer 3s infinite; }
         @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
@@ -1085,7 +1085,7 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
