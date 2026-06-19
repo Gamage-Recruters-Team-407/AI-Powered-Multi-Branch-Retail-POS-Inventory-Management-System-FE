@@ -8,7 +8,7 @@ const CARDS = (summary) => [
   {
     label: "Total Stock Value",
     sublabel: "Cumulative cost of all inventory",
-    value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+    value: new Intl.NumberFormat("en-US", { style: "currency", currency: "LKR", currencyDisplay: "narrowSymbol" }).format(
       summary.totalStockValue || 0
     ),
     rawValue: summary.totalStockValue || 0,

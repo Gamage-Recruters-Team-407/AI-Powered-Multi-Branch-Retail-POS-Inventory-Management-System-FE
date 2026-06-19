@@ -40,10 +40,10 @@ const BusinessInsights = ({ darkMode }) => {
 
       {!loading && data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div className="kpi-grid" style={{ marginBottom: '20px' }}>
             <KpiCard title="Total Revenue" value={`$${data.kpis.totalRevenue.toLocaleString()}`} change="+16.8%" isPositive={true} darkMode={darkMode} />
-            <KpiCard title="Orders" value={data.kpis.totalOrders} change="+3.2%" isPositive={true} darkMode={darkMode} />
             <KpiCard title="Avg Order Value" value={`$${data.kpis.averageOrderValue}`} change="-0.5%" isPositive={true} darkMode={darkMode} />
+            <KpiCard title="Orders" value={data.kpis.totalOrders} change="+3.2%" isPositive={true} darkMode={darkMode} />
             <KpiCard title="Low Stock" value={`${data.kpis.lowStockCount} items`} change="0.0%" neutral={true} darkMode={darkMode} />
             <KpiCard title="Top Product" value={data.kpis.topProduct} change="Trending" neutral={true} darkMode={darkMode} />
           </div>

@@ -239,7 +239,7 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <XCircle size={14} /> Dismiss All
+            <XCircle size={18} />
           </button>
           <button
             onClick={handleScheduleAll}
@@ -251,7 +251,7 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <Clock size={14} /> Schedule
+            <Clock size={18} />
           </button>
           <button
             onClick={handleApproveAll}
@@ -264,7 +264,7 @@ const DecisionAssistant = ({ darkMode }) => {
               transition: 'all 0.2s',
             }}
           >
-            <CheckCircle2 size={14} /> Approve All
+            <CheckCircle2 size={18} />
           </button>
         </div>
       )}
