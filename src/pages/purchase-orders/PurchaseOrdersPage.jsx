@@ -88,7 +88,7 @@ const demoSupplierScorecards = [
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
 const buttonBase = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-[14px] border-0 px-4 font-extrabold transition duration-200 hover:-translate-y-0.5'
-const panelClass = 'rounded-[28px] border border-[#d9e3f4] bg-[linear-gradient(180deg,rgba(252,253,255,0.94),rgba(244,247,255,0.97))] p-5 shadow-[0_18px_44px_rgba(50,78,138,0.08)] backdrop-blur-sm'
+const panelClass = 'rounded-[24px] border border-[#dbe4f0] bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]'
 const sectionLabel = 'm-0 text-[11px] font-black uppercase tracking-[0.14em] text-[#5b7cff]'
 const headingTwo = 'mt-1.5 text-[24px] font-black leading-tight tracking-[-0.02em] text-[#1b2340]'
 
@@ -560,24 +560,24 @@ function PurchaseOrdersPage() {
 
   return (
     <main className="min-h-svh bg-transparent p-3.5 md:p-7">
-      <section className="overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#171f47_0%,#4338ca_46%,#22d3ee_100%)] text-white shadow-[0_18px_40px_rgba(44,63,132,0.24)]">
+      <section className="overflow-hidden rounded-[24px] border border-[#aec8ff] bg-[linear-gradient(135deg,#d4e4ff_0%,#bfd6ff_45%,#a8c8ff_100%)] text-[#162448] shadow-[0_16px_36px_rgba(63,95,215,0.14)]">
         <div className="pointer-events-none absolute" />
-        <nav className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-3 border-b border-white/10 px-5 py-3.5 md:flex-row md:items-center md:px-6" aria-label="Purchase order navigation">
+        <nav className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-3 border-b border-[#aecaee] px-5 py-3.5 md:flex-row md:items-center md:px-6" aria-label="Purchase order navigation">
           <div className="flex items-center gap-3 text-sm font-extrabold">
-            <span className="inline-grid size-11 place-items-center rounded-xl bg-[#f5f7ff] text-[#5b7cff] shadow-[0_10px_20px_rgba(58,76,170,0.14)]"><FiClipboard aria-hidden="true" /></span>
+            <span className="inline-grid size-11 place-items-center rounded-xl bg-[linear-gradient(180deg,#f1f6ff_0%,#dce9ff_100%)] text-[#3155d4] shadow-[0_10px_20px_rgba(79,111,230,0.14)]"><FiClipboard aria-hidden="true" /></span>
             <div>
-              <span className="block text-[11px] uppercase tracking-[0.14em] text-white/65">Workspace</span>
-              <span className="block text-[15px] font-black tracking-[-0.02em]">Procurement Control</span>
+              <span className="block text-[11px] uppercase tracking-[0.14em] text-[#5f79b2]">Workspace</span>
+              <span className="block text-[15px] font-black tracking-[-0.02em] text-[#17254c]">Procurement Control</span>
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center justify-end gap-3 md:w-auto">
-            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] bg-white/10 px-3.5 text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] backdrop-blur hover:bg-white/16 md:w-auto')} type="button" onClick={loadPurchaseOrders}>
+            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] border border-[#aecaee] bg-[rgba(237,244,255,0.72)] px-3.5 text-[15px] text-[#35568f] shadow-none hover:bg-[rgba(244,248,255,0.9)] md:w-auto')} type="button" onClick={loadPurchaseOrders}>
               <FiRefreshCw aria-hidden="true" /> Sync
             </button>
-            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] bg-white/10 px-3.5 text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] backdrop-blur hover:bg-white/16 md:w-auto')} type="button" onClick={handleExport}>
+            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] border border-[#aecaee] bg-[rgba(237,244,255,0.72)] px-3.5 text-[15px] text-[#35568f] shadow-none hover:bg-[rgba(244,248,255,0.9)] md:w-auto')} type="button" onClick={handleExport}>
               <FiDownload aria-hidden="true" /> Export
             </button>
-            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] bg-[#f4f7ff] px-4 text-[15px] text-[#4338ca] shadow-[0_12px_24px_rgba(67,56,202,0.16)] hover:bg-[#ffffff] md:w-auto')} type="button" onClick={() => setIsCreateOpen(true)}>
+            <button className={cn(buttonBase, 'w-full min-h-9 rounded-[12px] bg-[linear-gradient(135deg,#3f67e8_0%,#2f56ce_100%)] px-4 text-[15px] text-white shadow-[0_12px_24px_rgba(63,95,215,0.22)] hover:bg-[#3453c4] md:w-auto')} type="button" onClick={() => setIsCreateOpen(true)}>
               <FiPlus aria-hidden="true" /> New PO
             </button>
           </div>
@@ -585,35 +585,35 @@ function PurchaseOrdersPage() {
 
         <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-5 px-5 py-5 md:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.7fr)] lg:py-5.5">
           <div className="max-w-[640px]">
-            <p className="m-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#e6eeff]">Purchase Order Management</p>
+            <p className="m-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#5672b2]">Purchase Order Management</p>
             <h1 className="mt-2 max-w-[560px] text-[24px] font-black leading-[1.02] tracking-[-0.04em] md:text-[34px] xl:text-[38px]">
               Turn supplier orders into one clear workspace.
             </h1>
-            <p className="mt-2.5 max-w-[540px] text-[13px] leading-6 text-[#eef5ff] md:text-[14px]">
+            <p className="mt-2.5 max-w-[540px] text-[13px] leading-6 text-[#4f6aa2] md:text-[14px]">
               Keep approvals, receiving, branch demand, and reorder details in one place with a cleaner layout.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {heroHighlights.map((item) => (
-                <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.08))] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-sm" key={item.label}>
-                  <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#edf5ff]">{item.label}</span>
-                  <strong className="mt-1.5 block text-[18px] font-black leading-none text-white md:text-[20px]">{item.value}</strong>
+                <div className="rounded-[16px] border border-[#aac5f5] bg-[linear-gradient(180deg,rgba(240,246,255,0.82)_0%,rgba(215,229,255,0.88)_100%)] px-4 py-3 shadow-[0_10px_24px_rgba(79,111,230,0.1)] backdrop-blur-sm" key={item.label}>
+                  <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#5e78ad]">{item.label}</span>
+                  <strong className="mt-1.5 block text-[18px] font-black leading-none text-[#17254c] md:text-[20px]">{item.value}</strong>
                 </div>
               ))}
             </div>
           </div>
           <div className="grid gap-3 self-end">
-            <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] backdrop-blur-sm" aria-label="Current workflow summary">
-              <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#eef5ff]">Operations snapshot</span>
-              <strong className="mt-2 block max-w-[180px] text-[18px] font-black leading-[1.08] text-white md:text-[20px]">
+            <div className="rounded-[20px] border border-[#aac6f6] bg-[linear-gradient(180deg,rgba(240,246,255,0.9)_0%,rgba(214,228,255,0.92)_100%)] p-4 shadow-[0_12px_28px_rgba(79,111,230,0.1)] backdrop-blur-sm" aria-label="Current workflow summary">
+              <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#5f7aad]">Operations snapshot</span>
+              <strong className="mt-2 block max-w-[180px] text-[18px] font-black leading-[1.08] text-[#17254c] md:text-[20px]">
                 {purchaseOrders.filter((order) => order.status === 'Pending').length} orders need attention
               </strong>
-              <small className="mt-2 block text-[12px] leading-5 text-[#eef6ff]">
+              <small className="mt-2 block text-[12px] leading-5 text-[#4f6b9e]">
                 {activeBranchCount || 0} active branches are contributing to the current order queue.
               </small>
             </div>
-            <div className="rounded-[20px] bg-[linear-gradient(135deg,#f5f7ff_0%,#f5feff_100%)] p-4 text-[#26315a] shadow-[0_12px_26px_rgba(73,88,191,0.12)]">
-              <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#4f46e5]">System status</span>
-              <small className="mt-2 block text-[12px] font-bold leading-5 text-[#5f6f9f]">{apiMessage}</small>
+            <div className="rounded-[20px] border border-[#a7c4f6] bg-[linear-gradient(135deg,rgba(222,236,255,0.95)_0%,rgba(198,220,255,0.9)_100%)] p-4 text-[#26315a] shadow-[0_12px_28px_rgba(63,95,215,0.11)]">
+              <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#3059d2]">System status</span>
+              <small className="mt-2 block text-[12px] font-bold leading-5 text-[#4f6899]">{apiMessage}</small>
             </div>
           </div>
         </div>
@@ -702,18 +702,18 @@ function PurchaseOrdersPage() {
               <p className={sectionLabel}>Live Order Register</p>
               <h2 className={headingTwo}>Purchase Orders</h2>
             </div>
-            <button className={cn(buttonBase, 'min-h-10 bg-[#2f7d6b] text-white shadow-[0_12px_28px_rgba(47,125,107,0.22)]')} type="button" onClick={() => setIsCreateOpen(true)}>
+            <button className={cn(buttonBase, 'min-h-10 bg-[#3f5fd7] text-white shadow-[0_12px_28px_rgba(63,95,215,0.16)]')} type="button" onClick={() => setIsCreateOpen(true)}>
               <FiPlus aria-hidden="true" /> Create PO
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-[#dce7df] bg-white">
+          <div className="overflow-hidden rounded-[20px] border border-[#dce5f2] bg-white">
             <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] border-collapse">
-              <thead className="bg-[#f3f8f4]">
+              <thead className="bg-[#f5f8fe]">
                 <tr>
                   {['PO', 'Supplier', 'Branch', 'ETA', 'Amount', 'Status', 'Priority', 'Actions'].map((header) => (
-                    <th className="border-b border-[#e1ebe4] px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#728679] whitespace-nowrap" key={header}>{header}</th>
+                    <th className="border-b border-[#e4ebf5] px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#7d90b3] whitespace-nowrap" key={header}>{header}</th>
                   ))}
                 </tr>
               </thead>
@@ -721,19 +721,19 @@ function PurchaseOrdersPage() {
                 {filteredOrders.map((order) => (
                   <tr
                     key={order.id ?? order.po}
-                    className={cn('cursor-pointer transition hover:bg-[#f5faf6]', selectedOrder?.po === order.po && 'bg-[#edf7f0]')}
+                    className={cn('cursor-pointer transition hover:bg-[#f8faff]', selectedOrder?.po === order.po && 'bg-[#eef3ff]')}
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-black text-[#1f8a70] whitespace-nowrap">{order.po}<small className="mt-1 block text-xs font-bold text-[#819688]">{order.items} items</small></td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#22342a] whitespace-nowrap">{order.supplier}<small className="mt-1 block text-xs font-bold text-[#819688]">{order.category}</small></td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#22342a] whitespace-nowrap">{order.branch}<small className="mt-1 block text-xs font-bold text-[#819688]">{order.owner}</small></td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#52675b] whitespace-nowrap">{order.expectedDate}</td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#52675b] whitespace-nowrap">{order.amount}</td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#52675b] whitespace-nowrap"><span className={cn('inline-flex min-h-[32px] min-w-[96px] items-center justify-center rounded-full px-3 text-xs font-black', statusBadgeClasses[order.status])}>{order.status}</span></td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#52675b] whitespace-nowrap"><span className={cn('inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-black', priorityBadgeClasses[order.priority])}>{order.priority}</span></td>
-                    <td className="border-b border-[#e8efe9] px-4 py-4 text-sm font-bold text-[#52675b] whitespace-nowrap">
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-black text-[#3f5fd7] whitespace-nowrap">{order.po}<small className="mt-1 block text-xs font-bold text-[#8ea0bf]">{order.items} items</small></td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#1b2340] whitespace-nowrap">{order.supplier}<small className="mt-1 block text-xs font-bold text-[#8ea0bf]">{order.category}</small></td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#1b2340] whitespace-nowrap">{order.branch}<small className="mt-1 block text-xs font-bold text-[#8ea0bf]">{order.owner}</small></td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#5b6f93] whitespace-nowrap">{order.expectedDate}</td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#5b6f93] whitespace-nowrap">{order.amount}</td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#5b6f93] whitespace-nowrap"><span className={cn('inline-flex min-h-[32px] min-w-[96px] items-center justify-center rounded-full px-3 text-xs font-black', statusBadgeClasses[order.status])}>{order.status}</span></td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#5b6f93] whitespace-nowrap"><span className={cn('inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-black', priorityBadgeClasses[order.priority])}>{order.priority}</span></td>
+                    <td className="border-b border-[#e8edf5] px-4 py-4 text-sm font-bold text-[#5b6f93] whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <button className={cn(buttonBase, 'min-h-[34px] bg-[#eef6f0] px-2.5 text-xs text-[#325546]')} type="button" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.po}`}>
+                        <button className={cn(buttonBase, 'min-h-[34px] bg-[#eef3ff] px-2.5 text-xs text-[#48607e]')} type="button" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.po}`}>
                           <FiEye aria-hidden="true" /> View
                         </button>
                         <button className={cn(buttonBase, 'min-h-[34px] bg-[#e6f8ef] px-2.5 text-xs text-[#075e42]')} type="button" onClick={() => updateOrderStatus(order, 'Approved')} aria-label={`Approve ${order.po}`}>
@@ -748,7 +748,7 @@ function PurchaseOrdersPage() {
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td className="px-4 py-10 text-center text-sm font-bold text-[#7b9184]" colSpan={8}>
+                    <td className="px-4 py-10 text-center text-sm font-bold text-[#8ea0bf]" colSpan={8}>
                       No purchase orders found in MongoDB.
                     </td>
                   </tr>
@@ -770,27 +770,27 @@ function PurchaseOrdersPage() {
             </div>
             {selectedOrder && (
               <>
-                <div className="mb-4 text-[40px] font-black leading-none tracking-[-0.04em] text-[#22342a]">{selectedOrder.amount}</div>
+                <div className="mb-4 text-[40px] font-black leading-none tracking-[-0.04em] text-[#1b2340]">{selectedOrder.amount}</div>
                 <div className="mb-4 flex flex-wrap gap-2.5">
                   <span className={cn('inline-flex min-h-[34px] items-center justify-center rounded-full px-3 text-xs font-black', statusBadgeClasses[selectedOrder.status])}>{selectedOrder.status}</span>
                   <span className={cn('inline-flex min-h-[34px] items-center justify-center rounded-full px-3 text-xs font-black', priorityBadgeClasses[selectedOrder.priority])}>{selectedOrder.priority} priority</span>
                 </div>
                 <div className="mb-4 grid gap-2.5 sm:grid-cols-2">
                   {selectedOrderSummary.map(({ label, value, icon: Icon }) => (
-                    <div className="rounded-[18px] border border-[#dfe9e2] bg-[#f7faf8] p-3" key={label}>
-                      <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#728679]">
-                        <Icon aria-hidden="true" className="text-[#1f8a70]" />
+                    <div className="rounded-[18px] border border-[#e2e9f5] bg-[#f8fbff] p-3" key={label}>
+                      <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#7d90b3]">
+                        <Icon aria-hidden="true" className="text-[#4f6fe6]" />
                         {label}
                       </span>
-                      <strong className="mt-2 block text-sm font-black text-[#22342a]">{value}</strong>
+                      <strong className="mt-2 block text-sm font-black text-[#1b2340]">{value}</strong>
                     </div>
                   ))}
                 </div>
                 <dl className="m-0 grid gap-3">
-                  <div className="flex items-start justify-between gap-4 border-b border-[#e6eee8] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#728679]">Supplier</dt><dd className="m-0 text-right text-sm font-black text-[#22342a]">{selectedOrder.supplier}</dd></div>
-                  <div className="flex items-start justify-between gap-4 border-b border-[#e6eee8] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#728679]">Branch</dt><dd className="m-0 text-right text-sm font-black text-[#22342a]">{selectedOrder.branch}</dd></div>
-                  <div className="flex items-start justify-between gap-4 border-b border-[#e6eee8] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#728679]">Expected Delivery</dt><dd className="m-0 text-right text-sm font-black text-[#22342a]">{selectedOrder.expectedDate}</dd></div>
-                  <div className="flex items-start justify-between gap-4 border-b border-[#e6eee8] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#728679]">Owner</dt><dd className="m-0 text-right text-sm font-black text-[#22342a]">{selectedOrder.owner}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e8edf5] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7d90b3]">Supplier</dt><dd className="m-0 text-right text-sm font-black text-[#1b2340]">{selectedOrder.supplier}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e8edf5] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7d90b3]">Branch</dt><dd className="m-0 text-right text-sm font-black text-[#1b2340]">{selectedOrder.branch}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e8edf5] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7d90b3]">Expected Delivery</dt><dd className="m-0 text-right text-sm font-black text-[#1b2340]">{selectedOrder.expectedDate}</dd></div>
+                  <div className="flex items-start justify-between gap-4 border-b border-[#e8edf5] pb-3"><dt className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7d90b3]">Owner</dt><dd className="m-0 text-right text-sm font-black text-[#1b2340]">{selectedOrder.owner}</dd></div>
                 </dl>
                 <div className="mt-4 flex gap-2.5">
                   <button className={cn(buttonBase, 'min-h-[38px] flex-1 bg-[#e6f8ef] px-2.5 text-xs text-[#075e42]')} type="button" onClick={() => updateOrderStatus(selectedOrder, 'Approved')}>
@@ -803,7 +803,7 @@ function PurchaseOrdersPage() {
               </>
             )}
             {!selectedOrder && (
-              <div className="rounded-[20px] border border-dashed border-[#d7e4dc] bg-[#f8fbf9] p-5 text-sm font-bold leading-6 text-[#7b9184]">
+              <div className="rounded-[20px] border border-dashed border-[#dbe5f2] bg-[#f8fbff] p-5 text-sm font-bold leading-6 text-[#8ea0bf]">
                 Select a purchase order from the register to see supplier, branch, delivery, and approval details here.
               </div>
             )}
@@ -819,16 +819,16 @@ function PurchaseOrdersPage() {
             </div>
             <div className="grid gap-3">
               {reorderRecommendations.length > 0 ? reorderRecommendations.map((item) => (
-                <div className="rounded-[20px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#ffffff_0%,#f7faf8_100%)] p-4" key={item.item}>
+                <div className="rounded-[20px] border border-[#e2e9f5] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4" key={item.item}>
                   <div className="flex items-start justify-between gap-3">
-                    <strong className="block font-black text-[#22342a]">{item.item}</strong>
+                    <strong className="block font-black text-[#1b2340]">{item.item}</strong>
                     <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.08em]', urgencyBadgeClasses[item.urgency] || urgencyBadgeClasses.MEDIUM)}>{item.urgency}</span>
                   </div>
                   <span className="mt-2 block text-[13px] font-black text-[#a36b14]">{item.branch} stock: {item.stock} units</span>
-                  <small className="mt-1.5 block leading-snug text-[#617568]">Suggest {item.reorder} units from {item.supplier} - {item.confidence} confidence</small>
+                  <small className="mt-1.5 block leading-snug text-[#67789c]">Suggest {item.reorder} units from {item.supplier} - {item.confidence} confidence</small>
                 </div>
               )) : (
-                <div className="rounded-[20px] border border-dashed border-[#d7e4dc] bg-[#f8fbf9] p-4 text-sm font-bold text-[#7b9184]">
+                <div className="rounded-[20px] border border-dashed border-[#dbe5f2] bg-[#f8fbff] p-4 text-sm font-bold text-[#8ea0bf]">
                   No live reorder suggestions available from MongoDB right now.
                 </div>
               )}
@@ -838,7 +838,7 @@ function PurchaseOrdersPage() {
       </section>
 
       <section className="mx-auto mb-4 grid w-full max-w-[1440px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)]">
-        <article className={cn(panelClass, 'bg-[linear-gradient(180deg,rgba(12,25,46,0.96),rgba(17,34,60,0.98))]')}>
+        <article className={cn(panelClass, 'bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]')}>
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className={sectionLabel}>Supplier-linked Purchases</p>
@@ -848,13 +848,13 @@ function PurchaseOrdersPage() {
           </div>
           <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
             {supplierScorecards.length > 0 ? supplierScorecards.map((supplier) => (
-              <div className="rounded-[20px] border border-[#dfe9e2] bg-[#f7faf8] p-4" key={supplier.name}>
-                <span className="block font-black text-[#22342a]">{supplier.name}</span>
-                <strong className="mt-1.5 block text-sm font-bold text-[#1f8a70]">{supplier.score}% {supplier.metric}</strong>
-                <small className="mt-1 block leading-snug text-[#617568]">{supplier.purchaseOrders} active purchase orders</small>
+              <div className="rounded-[20px] border border-[#e2e9f5] bg-[#f8fbff] p-4" key={supplier.name}>
+                <span className="block font-black text-[#1b2340]">{supplier.name}</span>
+                <strong className="mt-1.5 block text-sm font-bold text-[#4f6fe6]">{supplier.score}% {supplier.metric}</strong>
+                <small className="mt-1 block leading-snug text-[#67789c]">{supplier.purchaseOrders} active purchase orders</small>
               </div>
             )) : (
-              <div className="rounded-[20px] border border-dashed border-[#d7e4dc] bg-[#f8fbf9] p-4 text-sm font-bold text-[#7b9184]">
+              <div className="rounded-[20px] border border-dashed border-[#dbe5f2] bg-[#f8fbff] p-4 text-sm font-bold text-[#8ea0bf]">
                 No live supplier scorecards available from MongoDB right now.
               </div>
             )}
@@ -871,11 +871,11 @@ function PurchaseOrdersPage() {
           </div>
           <div className="grid gap-3.5">
             {workflowSteps.map((step) => (
-              <div className="grid grid-cols-[42px_minmax(0,1fr)] items-start gap-3 rounded-[18px] border border-[#dfe9e2] bg-[#f7faf8] p-3" key={step.title}>
-                <span className={cn('grid size-[42px] place-items-center rounded-2xl font-black', step.active ? 'bg-[#2f7d6b] text-white' : 'bg-[#ebf4ee] text-[#74897d]')}>{step.number}</span>
+              <div className="grid grid-cols-[42px_minmax(0,1fr)] items-start gap-3 rounded-[18px] border border-[#e2e9f5] bg-[#f8fbff] p-3" key={step.title}>
+                <span className={cn('grid size-[42px] place-items-center rounded-2xl font-black', step.active ? 'bg-[#3f5fd7] text-white' : 'bg-[#eef3ff] text-[#7d90b3]')}>{step.number}</span>
                 <div>
-                  <strong className="block text-[15px] font-bold text-[#22342a]">{step.title}</strong>
-                  <small className="mt-1 block leading-snug text-[#617568]">{step.detail}</small>
+                  <strong className="block text-[15px] font-bold text-[#1b2340]">{step.title}</strong>
+                  <small className="mt-1 block leading-snug text-[#67789c]">{step.detail}</small>
                 </div>
               </div>
             ))}
@@ -884,32 +884,34 @@ function PurchaseOrdersPage() {
       </section>
 
       {isCreateOpen && (
-        <div className="fixed inset-0 z-20 grid place-items-center bg-[rgba(11,30,58,0.42)] p-5 backdrop-blur-xl" role="presentation">
-          <section className="w-full max-w-[560px] rounded-[20px] border border-[#d9e6df] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf9_100%)] p-6 shadow-[0_28px_80px_rgba(41,71,56,0.18)]" role="dialog" aria-modal="true" aria-labelledby="create-po-title">
-            <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-20 grid place-items-center bg-[rgba(15,23,42,0.32)] p-4 backdrop-blur-md" role="presentation">
+          <section className="w-full max-w-[760px] max-h-[90vh] overflow-y-auto rounded-[24px] border border-[#dbe5f2] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-5 shadow-[0_24px_70px_rgba(15,23,42,0.16)] md:p-6" role="dialog" aria-modal="true" aria-labelledby="create-po-title">
+            <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <p className={sectionLabel}>New Supplier Order</p>
                 <h2 className={headingTwo} id="create-po-title">Create Purchase Order</h2>
+                <p className="mt-1 text-sm font-semibold text-[#6a7d9f]">Keep the order details compact and clear before saving to the system.</p>
               </div>
-              <button className="inline-grid size-10 place-items-center rounded-xl border-0 bg-[#edf5f0] text-[#607468]" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
+              <button className="inline-grid size-10 place-items-center rounded-xl border border-[#dce5f2] bg-white text-[#60779b]" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
                 <FiXCircle aria-hidden="true" />
               </button>
             </div>
 
             <form className="grid gap-4" onSubmit={handleCreateOrder}>
-              <div className="rounded-[18px] border border-[#dfe9e2] bg-[#f7faf8] p-4">
-                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#1f8a70]">Assignment</p>
-                <div className="grid gap-4">
-                  <label className="grid gap-2 text-[13px] font-black text-[#d9e7fb]">Supplier
-                    <select className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" value={form.supplierId} onChange={(event) => setForm({ ...form, supplierId: event.target.value })} required>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[20px] border border-[#e2e9f5] bg-[#f8fbff] p-4">
+                  <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#4f6fe6]">Assignment</p>
+                  <div className="grid gap-4">
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Supplier
+                    <select className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" value={form.supplierId} onChange={(event) => setForm({ ...form, supplierId: event.target.value })} required>
                       <option value="">Select MongoDB supplier</option>
                       {supplierOptions.map((supplier) => (
                         <option key={supplier.id} value={supplier.id}>{supplier.label}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="grid gap-2 text-[13px] font-black text-[#d9e7fb]">Branch
-                    <select className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })} required>
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Branch
+                    <select className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })} required>
                       <option value="">Select MongoDB branch</option>
                       {branchOptions.map((branch) => (
                         <option key={branch.id} value={branch.id}>{branch.label}</option>
@@ -919,36 +921,40 @@ function PurchaseOrdersPage() {
                 </div>
               </div>
 
-              <div className="rounded-[18px] border border-[#dfe9e2] bg-[#f7faf8] p-4">
-                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#1f8a70]">Schedule and scope</p>
-                <div className="grid gap-4">
-                  <label className="grid gap-2 text-[13px] font-black text-[#31463b]">Category<input className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition placeholder:text-[#8ba095] focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Mixed Stock" /></label>
-                  <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-                    <label className="grid gap-2 text-[13px] font-black text-[#31463b]">Order Date<input className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label>
-                    <label className="grid gap-2 text-[13px] font-black text-[#31463b]">Expected Date<input className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" type="date" value={form.expectedDate} onChange={(event) => setForm({ ...form, expectedDate: event.target.value })} /></label>
+                <div className="rounded-[20px] border border-[#e2e9f5] bg-[#f8fbff] p-4">
+                  <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#4f6fe6]">Commercial details</p>
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Total Amount<input className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition placeholder:text-[#9aaccb] focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" type="number" min="1" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="12500.00" required /></label>
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Item Count<input className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" type="number" min="1" value={form.items} onChange={(event) => setForm({ ...form, items: event.target.value })} required /></label>
                   </div>
-                </div>
-              </div>
-
-              <div className="rounded-[18px] border border-[#dfe9e2] bg-[#f7faf8] p-4">
-                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#1f8a70]">Commercial details</p>
-                <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-                  <label className="grid gap-2 text-[13px] font-black text-[#31463b]">Total Amount<input className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition placeholder:text-[#8ba095] focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" type="number" min="1" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="12500.00" required /></label>
-                  <label className="grid gap-2 text-[13px] font-black text-[#31463b]">Item Count<input className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" type="number" min="1" value={form.items} onChange={(event) => setForm({ ...form, items: event.target.value })} required /></label>
-                </div>
-                <label className="mt-4 grid gap-2 text-[13px] font-black text-[#31463b]">
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">
                   Priority
-                  <select className="min-h-[46px] w-full rounded-xl border border-[#d6e4dc] bg-white px-3.5 text-[#22342a] outline-none transition focus:border-[#2f7d6b] focus:shadow-[0_0_0_4px_rgba(47,125,107,0.14)]" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
+                  <select className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
                     <option>Normal</option>
                     <option>Low</option>
                     <option>Medium</option>
                     <option>High</option>
                   </select>
                 </label>
+                  </div>
+                </div>
               </div>
-              <div className="mt-1.5 flex flex-col-reverse justify-end gap-3 md:flex-row">
-                <button className="min-h-10 rounded-[10px] border-0 bg-[#edf5f0] px-4 font-black text-[#496055]" type="button" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-                <button className={cn(buttonBase, 'bg-[#2f7d6b] text-white shadow-[0_12px_24px_rgba(47,125,107,0.22)]')} type="submit"><FiPlus aria-hidden="true" /> Create Purchase Order</button>
+
+              <div className="rounded-[20px] border border-[#e2e9f5] bg-[#f8fbff] p-4">
+                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#4f6fe6]">Schedule and scope</p>
+                <div className="grid gap-4">
+                  <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Category<input className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition placeholder:text-[#9aaccb] focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Mixed Stock" /></label>
+                  <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Order Date<input className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label>
+                    <label className="grid gap-2 text-[13px] font-black text-[#30435f]">Expected Date<input className="min-h-[48px] w-full rounded-xl border border-[#dbe5f2] bg-white px-3.5 text-[#1b2340] outline-none transition focus:border-[#4f6fe6] focus:shadow-[0_0_0_4px_rgba(79,111,230,0.14)]" type="date" value={form.expectedDate} onChange={(event) => setForm({ ...form, expectedDate: event.target.value })} /></label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#e6edf8] pt-2 md:flex-row">
+                <button className="min-h-11 rounded-[12px] border border-[#dce5f2] bg-white px-5 font-black text-[#586f94]" type="button" onClick={() => setIsCreateOpen(false)}>Cancel</button>
+                <button className={cn(buttonBase, 'min-h-11 bg-[#3f5fd7] px-5 text-white shadow-[0_12px_24px_rgba(63,95,215,0.18)]')} type="submit"><FiPlus aria-hidden="true" /> Create Purchase Order</button>
               </div>
             </form>
           </section>
