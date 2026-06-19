@@ -325,6 +325,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   };
 
+  const handleViewAllInventory = () => {
+    sessionStorage.setItem('scroll_to_inventory_table', 'true');
+    showModule('inventory-mgmt');
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [visibleModule]);
@@ -563,7 +568,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
                 )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} onViewAll={handleViewAllInventory} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>
