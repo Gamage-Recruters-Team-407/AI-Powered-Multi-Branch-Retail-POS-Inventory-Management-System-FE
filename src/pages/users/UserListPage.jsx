@@ -106,16 +106,17 @@ export default function UserListPage() {
   // ========================================
 
   return (
-    <div style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+<div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { height: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
       `}</style>
+    
 
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
+      <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
         <div>
           <h1 style={{ fontSize:"26px", fontWeight:"700", color:"#0f172a", margin:0, letterSpacing:"-0.5px" }}>User Management</h1>
           <p style={{ fontSize:"14px", color:"#64748b", margin:"6px 0 0" }}>Manage system users, roles and permissions</p>
@@ -126,7 +127,7 @@ export default function UserListPage() {
       </div>
 
       {/* Search & Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
+      <div className="user-stats-grid" style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
         <div style={{ position:"relative" }}>
           <span style={{ position:"absolute", left:"14px", top:"50%", transform:"translateY(-50%)", color:"#94a3b8", fontSize:"16px" }}>🔍</span>
           <input type="text" placeholder="Search users by name or email..." value={search} onChange={handleSearch}
@@ -147,7 +148,7 @@ export default function UserListPage() {
       )}
 
       {/* Table Card */}
-      <div style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflow:"hidden" }}>
+      <div className="user-table-wrapper" style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflowX:"auto" }}>
         {loading ? (
           <div style={{ padding:"80px", textAlign:"center", color:"#94a3b8", fontSize:"15px" }}>
             <div style={{ fontSize:"32px", marginBottom:"12px" }}>⏳</div>Loading users...
@@ -288,7 +289,7 @@ export default function UserListPage() {
             )}
 
             <div style={{ display:"grid", gap:"18px" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 {[{label:"Full Name",name:"name",type:"text",required:true},{label:"Email Address",name:"email",type:"email",required:true}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label} {f.required && <span style={{ color:"#dc2626" }}>*</span>}</label>
@@ -306,7 +307,7 @@ export default function UserListPage() {
                   onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 {[{label:"Phone",name:"phone",type:"text",placeholder:"+94 77 123 4567"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
@@ -317,7 +318,7 @@ export default function UserListPage() {
                 ))}
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
                 <div>
                   <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Role</label>
                   <select name="role" value={form.role} onChange={handleFormChange}
@@ -348,8 +349,8 @@ export default function UserListPage() {
 
       {/* Delete Confirm */}
       {deleteConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", maxWidth:"100%", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
             <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:"24px" }}>🗑️</div>
             <h3 style={{ fontSize:"18px", fontWeight:"700", color:"#0f172a", margin:"0 0 8px" }}>Delete User</h3>
             <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.firstName || deleteConfirm.name}</strong>? This action cannot be undone.</p>
@@ -360,6 +361,16 @@ export default function UserListPage() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .user-page-container { padding: 16px !important; }
+          .user-header-flex { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+          .user-stats-grid { grid-template-columns: 1fr !important; }
+          .user-modal-grid { grid-template-columns: 1fr !important; }
+          .user-table-wrapper { border-radius: 12px !important; }
+        }
+      `}</style>
     </div>
   );
 }

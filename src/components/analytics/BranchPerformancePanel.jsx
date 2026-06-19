@@ -96,7 +96,7 @@ function BranchPerformancePanel({ data, loading }) {
         </BarChart>
       </ResponsiveContainer>
 
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {branches.slice(0, 6).map((b, i) => (
           <div key={b._id || i} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <div className="flex items-center justify-between">
@@ -125,7 +125,7 @@ function BranchPerformancePanel({ data, loading }) {
       </div>
 
       {comparisons.length > 0 && (
-        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Branch Comparisons</p>
           <div className="space-y-2">
             {comparisons.slice(0, 3).map((c, i) => (
