@@ -27,9 +27,9 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
     setTimeout(onClose, 280);
   };
 
-  // Calculate points: 1 point per Rs. 1,000
+  // ✅ FIXED: Calculate points with decimals: 1 point per Rs. 1,000
   const numericAmount = parseFloat(amount) || 0;
-  const calculatedPoints = Math.floor(numericAmount / 1000);
+  const calculatedPoints = numericAmount / 1000;
   const currentPoints = customer.loyaltyPoints || 0;
   const projectedPoints = currentPoints + calculatedPoints;
 
@@ -78,11 +78,6 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
       return;
     }
 
-    if (calculatedPoints === 0) {
-      setError("Purchase amount must be at least Rs. 1,000 to earn points");
-      return;
-    }
-
     setLoading(true);
     try {
       await addLoyaltyPoints(customer._id, numericAmount);
@@ -103,7 +98,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
   };
 
   // Quick amount buttons
-  const quickAmounts = [1000, 5000, 10000, 25000, 50000, 100000];
+  const quickAmounts = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000];
 
   const modal = (
     <>
@@ -141,7 +136,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
               </div>
               <h2 className="alp-success-title">Points Awarded!</h2>
               <p className="alp-success-sub">
-                <strong style={{ color: "#7e22ce" }}>⭐ {awardedPoints.toLocaleString()}</strong> loyalty points
+                <strong style={{ color: "#7e22ce" }}>⭐ {awardedPoints.toFixed(1)}</strong> loyalty points
                 have been added to <strong>{customer.firstName} {customer.lastName}</strong>'s account.
               </p>
               <div className="alp-success-summary">
@@ -151,11 +146,11 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                 </div>
                 <div className="alp-success-row">
                   <span>Points Added</span>
-                  <span style={{ color: "#10b981" }}>+{awardedPoints.toLocaleString()}</span>
+                  <span style={{ color: "#10b981" }}>+{awardedPoints.toFixed(1)}</span>
                 </div>
                 <div className="alp-success-row total">
                   <span>New Balance</span>
-                  <span>{projectedPoints.toLocaleString()}</span>
+                  <span>{projectedPoints.toFixed(1)}</span>
                 </div>
                 <div className="alp-success-row">
                   <span>Total Purchases</span>
@@ -218,7 +213,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                       id="amount"
                       type="number"
                       min="0"
-                      step="100"
+                      step="1"
                       value={amount}
                       onChange={(e) => { setAmount(e.target.value); setError(""); }}
                       placeholder="Enter purchase amount"
@@ -257,12 +252,12 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                     <div className="alp-preview-row highlight">
                       <span className="alp-preview-lbl">⭐ Points to Award</span>
                       <span className="alp-preview-val points">
-                        {calculatedPoints > 0 ? `+${calculatedPoints.toLocaleString()}` : "0"}
+                        {calculatedPoints > 0 ? `+${calculatedPoints.toFixed(1)}` : "0"}
                       </span>
                     </div>
                     <div className="alp-preview-row">
                       <span className="alp-preview-lbl">New Points Balance</span>
-                      <span className="alp-preview-val balance">{projectedPoints.toLocaleString()}</span>
+                      <span className="alp-preview-val balance">{projectedPoints.toFixed(1)}</span>
                     </div>
                     <div className="alp-preview-row">
                       <span className="alp-preview-lbl">New Total Purchases</span>
@@ -322,7 +317,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                   <button type="button" className="alp-btn-cancel" onClick={handleClose} disabled={loading}>
                     Cancel
                   </button>
-                  <button type="submit" className="alp-btn-submit" disabled={loading || calculatedPoints === 0}>
+                  <button type="submit" className="alp-btn-submit" disabled={loading || numericAmount <= 0}>
                     {loading ? (
                       <><span className="alp-spin" /> Awarding…</>
                     ) : (
@@ -330,7 +325,7 @@ export default function AddLoyaltyPointsModal({ customer, onClose, onSuccess }) 
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                         </svg>
-                        Award {calculatedPoints > 0 ? `${calculatedPoints.toLocaleString()} Points` : "Points"}
+                        Award {calculatedPoints > 0 ? `${calculatedPoints.toFixed(1)} Points` : "Points"}
                       </>
                     )}
                   </button>

@@ -88,7 +88,7 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
 
       <div className="flex-1 flex flex-col rounded-3xl backdrop-blur-xl  border border-white/30 shadow-2xl overflow-hidden">
         
-        <div className="px-6 py-4 flex justify-between items-center shrink-0 border-b border-white/20 bg-white/10">
+        <div className="px-4 lg:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 shrink-0 border-b border-white/20 bg-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/30 shadow-inner">
               <ShoppingBag size={20} />
@@ -112,8 +112,8 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
         </div>
 
       
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden p-5 gap-4">
+        <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden p-3 lg:p-5 gap-4 min-h-[500px] lg:min-h-0">
             <div className="backdrop-blur-md bg-white/40 p-2 rounded-2xl border border-white/20 shadow-sm">
               <BarcodeScanner products={products} onFound={addToCart} />
             </div>
@@ -122,7 +122,7 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
             </div>
           </div>
 
-          <div className="w-[380px] md:w-[420px] backdrop-blur-md bg-white/60 border-l border-white/30 flex flex-col shadow-2xl">
+          <div className="w-full lg:w-[380px] xl:w-[420px] backdrop-blur-md bg-white/60 border-t lg:border-t-0 lg:border-l border-white/30 flex flex-col shadow-2xl shrink-0">
             <Cart
               cart={cart}
               subtotal={subtotal}

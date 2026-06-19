@@ -56,7 +56,7 @@ function BranchRankingsTable({ data, loading }) {
 
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Trophy size={18} className="text-amber-500" />
           <div>

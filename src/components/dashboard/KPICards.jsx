@@ -89,40 +89,38 @@ const KPICards = ({ data, loading, role }) => {
   const cards = [
     {
       title: 'Total Revenue',
-      value: kpi.revenue?.total || 'Rs.48,250',
+
       sub: 'This period',
-      change: kpi.revenue?.growth_percentage ?? 12.4,
-      trend: kpi.revenue?.trend || 'up',
+      change: kpi.revenue?.growth_percentage ?? 0,
+      trend: kpi.revenue?.trend || 'neutral',
       icon: '💰',
       color: 'blue',
       roles: ['admin', 'manager'],
     },
     {
       title: 'Total Sales',
-      value: kpi.sales?.count?.toLocaleString() || 'Rs.1,284',
+
       sub: 'Transactions',
-      change: kpi.sales?.growth_percentage ?? 8.1,
-      trend: (kpi.sales?.growth_percentage ?? 8.1) >= 0 ? 'up' : 'down',
+      change: kpi.sales?.growth_percentage ?? 0,
+      trend: (kpi.sales?.growth_percentage ?? 0) >= 0 ? 'up' : 'down',
       icon: '🛍️',
       color: 'green',
       roles: ['admin', 'manager', 'cashier'],
     },
     {
       title: 'Net Profit',
-      value: kpi.profit?.total || 'Rs.14,820',
-      sub: `${kpi.profit?.margin_percentage || 30.7}% Margin`,
+
       icon: '📈',
       color: 'purple',
       roles: ['admin'],
     },
     {
-      title: 'Inventory Value',
-      value: inventory.inventory_value || 'Rs.124,600',
-      sub: `${inventory.total_products || 486} products`,
+
       icon: '📦',
       color: 'amber',
       roles: ['admin', 'manager'],
     },
+
   ];
 
   const visible = cards.filter(c => c.roles.includes(role));
@@ -130,7 +128,7 @@ const KPICards = ({ data, loading, role }) => {
   return (
     <div className="kpi-grid">
       {visible.map((card, i) => (
-        <KPICard key={i} {...card} loading={loading} />
+        <KPICard key={card.title} {...card} loading={loading} />
       ))}
       <style>{`
         .kpi-grid {

@@ -50,12 +50,12 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#050d1f" }}>
+    <div className="login-container" style={{ minHeight:"100vh", background:"#050d1f" }}>
 
       {/* ── Left Panel ── */}
-      <div style={{
-        width: "82%", padding: "56px 52px",
-        display: "flex", flexDirection: "column",
+      <div className="login-left" style={{
+        padding: "56px 52px",
+        flexDirection: "column",
         justifyContent: "space-between",
         position: "relative", overflow: "hidden",
         background: "#050d1f",
@@ -169,11 +169,10 @@ const Login = () => {
       </div>
 
       {/* ── Right Panel ── */}
-      <div style={{
-        width: "58%", background:"#070f21",
-        display:"flex", alignItems:"center", justifyContent:"center",
+      <div className="login-right" style={{
+        background:"#070f21",
+        alignItems:"center", justifyContent:"center",
         padding:"40px 60px",
-        borderLeft:"1px solid rgba(255,255,255,.05)",
       }}>
         <div style={{ width:"100%", maxWidth:480 }}>
 
@@ -310,8 +309,7 @@ const Login = () => {
 </div>
 
 {/* Feature highlight cards */}
-<div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
-              gap:8, marginBottom:18 }}>
+<div className="login-features" style={{ gap:8, marginBottom:18 }}>
   {[
     { icon:"ti-rocket",       label:"Fast Setup",     sub:"Live in minutes"      },
     { icon:"ti-chart-line",   label:"Analytics",      sub:"Real-time insights"   },
@@ -363,7 +361,19 @@ const Login = () => {
         </div>
       </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .login-container { display: flex; }
+        .login-left { width: 42%; display: flex; }
+        .login-right { width: 58%; display: flex; border-left: 1px solid rgba(255,255,255,.05); }
+        .login-features { display: grid; grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 900px) {
+          .login-container { flex-direction: column; }
+          .login-left { width: 100%; padding: 40px 20px !important; min-height: auto; }
+          .login-right { width: 100%; padding: 40px 20px !important; border-left: none; border-top: 1px solid rgba(255,255,255,.05); }
+          .login-features { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 };
