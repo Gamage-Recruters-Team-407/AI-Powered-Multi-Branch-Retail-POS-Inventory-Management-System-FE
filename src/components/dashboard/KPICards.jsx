@@ -1,3 +1,5 @@
+// components/dashboard/KPICards.jsx
+
 import React from 'react';
 
 const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loading }) => {
@@ -9,7 +11,7 @@ const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loadi
     rose: { bg: '#ffe4e6', icon: '#e11d48', border: '#fda4af', text: '#881337' },
     cyan: { bg: '#cffafe', icon: '#0891b2', border: '#67e8f9', text: '#164e63' },
   };
-  const c = colors[color];
+  const c = colors[color] || colors.blue;
 
   if (loading) {
     return (
@@ -32,21 +34,21 @@ const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loadi
           <span className="kpi-icon" style={{ color: c.icon }}>{icon}</span>
         </div>
       </div>
-      <div className="kpi-value">{value}</div>
-      {change !== undefined && (
+      <div className="kpi-value">{value || 'Rs. 0'}</div>
+      {change !== undefined && change !== null && (
         <div className={`kpi-change ${trend === 'up' ? 'up' : trend === 'down' ? 'down' : 'neutral'}`}>
           <span className="change-arrow">{trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}</span>
-          <span>{Math.abs(change)}%</span>
+          <span>{Math.abs(Number(change) || 0)}%</span>
           <span className="change-label">vs last period</span>
         </div>
       )}
       <style>{`
         .kpi-card {
           background: white;
-          border-radius: var(--radius);
+          border-radius: var(--radius, 16px);
           padding: 20px;
-          border: 1.5px solid var(--card-border, var(--gray-200));
-          transition: all var(--transition);
+          border: 1.5px solid var(--card-border, var(--gray-200, #e2e8f0));
+          transition: all var(--transition, 0.2s);
           animation: fadeIn .4s ease both;
           position: relative;
           overflow: hidden;
@@ -55,28 +57,52 @@ const KPICard = ({ title, value, sub, change, trend, icon, color = 'blue', loadi
           content: '';
           position: absolute; top: 0; left: 0; right: 0;
           height: 3px;
-          background: linear-gradient(90deg, var(--card-border, var(--blue-300)), transparent);
+          background: linear-gradient(90deg, var(--card-border, var(--blue-300, #93c5fd)), transparent);
         }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-        .kpi-card.skeleton { background: var(--gray-100); border: none; }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1)); }
+        .kpi-card.skeleton { background: var(--gray-100, #f1f5f9); border: none; }
+        .kpi-card.skeleton::before { display: none; }
         .skel-line {
-          background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+          background: linear-gradient(90deg, var(--gray-200, #e2e8f0) 25%, var(--gray-100, #f1f5f9) 50%, var(--gray-200, #e2e8f0) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.4s infinite;
           border-radius: 6px;
         }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
         .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .kpi-title { font-size: .8rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; }
-        .kpi-sub { font-size: .72rem; color: var(--gray-400); margin-top: 2px; }
-        .kpi-icon-wrap { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .kpi-title { font-size: .8rem; font-weight: 600; color: var(--gray-500, #64748b); text-transform: uppercase; letter-spacing: .05em; }
+        .kpi-sub { font-size: .72rem; color: var(--gray-400, #94a3b8); margin-top: 2px; }
+        .kpi-icon-wrap { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .kpi-icon { font-size: 1.3rem; }
-        .kpi-value { font-size: 1.7rem; font-weight: 800; color: var(--gray-900); font-family: 'Syne', sans-serif; line-height: 1; }
-        .kpi-change { display: flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 600; margin-top: 10px; }
-        .kpi-change.up { color: var(--success); }
-        .kpi-change.down { color: var(--danger); }
-        .kpi-change.neutral { color: var(--gray-500); }
+        .kpi-value { 
+          font-size: 1.7rem; 
+          font-weight: 800; 
+          color: var(--gray-900, #0f172a); 
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+          line-height: 1.2;
+          margin: 4px 0;
+        }
+        .kpi-change { 
+          display: flex; 
+          align-items: center; 
+          gap: 4px; 
+          font-size: .78rem; 
+          font-weight: 600; 
+          margin-top: 10px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .kpi-change.up { color: var(--success, #10b981); }
+        .kpi-change.down { color: var(--danger, #ef4444); }
+        .kpi-change.neutral { color: var(--gray-500, #64748b); }
         .change-arrow { font-size: .9rem; }
-        .change-label { font-weight: 400; color: var(--gray-400); margin-left: 2px; }
+        .change-label { font-weight: 400; color: var(--gray-400, #94a3b8); margin-left: 2px; }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
     </div>
   );
@@ -89,8 +115,7 @@ const KPICards = ({ data, loading, role }) => {
   const cards = [
     {
       title: 'Total Revenue',
-      // දත්ත නැත්නම් පරණ දත්ත (පෙර තිබූ දත්ත) පෙන්වන්න
-      value: kpi.revenue?.total ?? 'Rs. 0',
+      value: kpi.revenue?.total || 'Rs. 0',
       sub: 'This period',
       change: kpi.revenue?.growth_percentage ?? 0,
       trend: kpi.revenue?.trend || 'neutral',
@@ -100,8 +125,7 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Total Sales',
-      // count එක අනිවාර්යයෙන්ම string එකක් ලෙස පෙන්වන්න
-      value: kpi.sales?.count?.toString() ?? '0',
+      value: kpi.sales?.count ?? 0,
       sub: 'Transactions',
       change: kpi.sales?.growth_percentage ?? 0,
       trend: (kpi.sales?.growth_percentage ?? 0) >= 0 ? 'up' : 'down',
@@ -111,34 +135,22 @@ const KPICards = ({ data, loading, role }) => {
     },
     {
       title: 'Net Profit',
-      value: kpi.profit?.total ?? 'Rs. 0',
-      sub: `${kpi.profit?.margin_percentage ?? 0}% Margin`,
+      value: kpi.profit?.total || 'Rs. 0',
+      sub: 'This period',
+      change: kpi.profit?.margin_percentage ?? 0,
+      trend: (kpi.profit?.margin_percentage ?? 0) >= 0 ? 'up' : 'down',
       icon: '📈',
       color: 'purple',
       roles: ['admin'],
     },
     {
-      title: 'Avg Transaction',
-      value: kpi.sales?.avg_transaction_value ?? 'Rs. 0.00',
-      sub: `${kpi.sales?.unique_customers ?? 0} customers`,
-      icon: '👥',
-      color: 'cyan',
-      roles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      title: 'Inventory Value',
-      value: inventory.inventory_value ?? 'Rs. 0',
-      sub: `${inventory.total_products ?? 0} products`,
+      title: 'Stock Turnover',
+      value: kpi.stock_turnover?.avg_rate || '0.0x',
+      sub: 'Efficiency',
+      change: 0,
+      trend: 'neutral',
       icon: '📦',
       color: 'amber',
-      roles: ['admin', 'manager'],
-    },
-    {
-      title: 'Stock Turnover',
-      value: kpi.stock_turnover?.avg_rate ?? '0.0x',
-      sub: `${kpi.stock_turnover?.efficiency ?? 'N/A'} rate`,
-      icon: '🔄',
-      color: 'rose',
       roles: ['admin', 'manager'],
     },
   ];
@@ -148,13 +160,18 @@ const KPICards = ({ data, loading, role }) => {
   return (
     <div className="kpi-grid">
       {visible.map((card, i) => (
-        <KPICard key={card.title} {...card} loading={loading} />
+        <KPICard key={card.title + i} {...card} loading={loading} />
       ))}
       <style>{`
         .kpi-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 16px;
+        }
+        @media (max-width: 640px) {
+          .kpi-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
