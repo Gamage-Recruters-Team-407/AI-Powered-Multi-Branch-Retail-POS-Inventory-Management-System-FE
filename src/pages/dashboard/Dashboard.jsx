@@ -16,6 +16,7 @@ import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
+import * as inventoryService from '../../services/inventoryService';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
@@ -412,6 +413,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   };
 
+  const handleViewAllInventory = () => {
+    sessionStorage.setItem('scroll_to_inventory_table', 'true');
+    showModule('inventory-mgmt');
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [visibleModule]);
@@ -484,7 +490,29 @@ const fetchData = useCallback(async () => {
     console.log('🔴 RAW API Response:', json.data);
     console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);
     console.log('💰 KPIs:', json.data?.kpis);
-    setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+
+    // Fetch inventory summary to match the inventory page's total stock value exactly
+    let liveStockValue = null;
+    try {
+      const summaryRes = await inventoryService.getInventorySummary();
+      if (summaryRes && summaryRes.success) {
+        liveStockValue = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "LKR",
+          currencyDisplay: "narrowSymbol"
+        }).format(summaryRes.data.totalStockValue || 0);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch inventory summary in dashboard:', err);
+    }
+
+    setDashboardData(prev => {
+      const mapped = mapStatsToDashboardData(json.data, prev);
+      if (liveStockValue !== null) {
+        mapped.inventory.inventory_value = liveStockValue;
+      }
+      return mapped;
+    });
     setLastUpdated(new Date());
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
@@ -666,7 +694,7 @@ const fetchData = useCallback(async () => {
                   <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
                 )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} onViewAll={handleViewAllInventory} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>

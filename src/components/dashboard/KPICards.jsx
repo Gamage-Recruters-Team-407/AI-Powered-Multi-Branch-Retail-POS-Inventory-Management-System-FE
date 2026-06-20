@@ -153,6 +153,15 @@ const KPICards = ({ data, loading, role }) => {
       color: 'amber',
       roles: ['admin', 'manager'],
     },
+    {
+      title: 'Total Stock Value',
+      value: inventory.inventory_value || 'Rs. 0',
+      sub: 'Cumulative cost',
+      trend: 'neutral',
+      icon: '🪙',
+      color: 'cyan',
+      roles: ['admin', 'manager'],
+    },
   ];
 
   const visible = cards.filter(c => c.roles.includes(role));
