@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 
-
+const REPORT_FETCH_LIMIT = 50;
+const LIMIT_OPTIONS = [5, 10, 20, 50];
 
 const isMongoObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ''));
 
@@ -146,6 +147,7 @@ const TopProducts = ({ data, dateRange, selectedBranch }) => {
     }
   }, []);
 
+  // ✅ FIX: Use dateRange object as dependency instead of individual properties
   const buildParams = useCallback(
     (extraParams = {}) => {
       const params = { ...extraParams };
@@ -165,7 +167,7 @@ const TopProducts = ({ data, dateRange, selectedBranch }) => {
 
       return params;
     },
-    [dateRange?.startDate, dateRange?.endDate, selectedBranch]
+    [dateRange, selectedBranch] // ✅ Changed from individual properties to full object
   );
 
   const fetchReportPage = useCallback(
