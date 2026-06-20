@@ -16,6 +16,7 @@ import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
+import * as inventoryService from '../../services/inventoryService';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
@@ -58,19 +59,41 @@ const ModuleLoading = () => (
 import { InventoryProvider } from '../../context/InventoryContext';
 import InventoryDashboard from '../inventory/InventoryDashboard';
 
-// Demo data generator
+// Demo data generator - FIXED
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: 'Rs. 0', growth_percentage: 0, trend: 'up' },
-    sales: { count: 0, growth_percentage: 0, avg_transaction_value: 'Rs. 0.00', unique_customers: 0 },
-    profit: { total: 'Rs. 0', margin_percentage: 0 },
-    stock_turnover: { avg_rate: '0.0x', efficiency: 'Loading...' },
+    revenue: {
+      total: 'Rs. 0',
+      growth_percentage: 0,
+      trend: 'up'
+    },
+    sales: {
+      count: 0,
+      growth_percentage: 0,
+      avg_transaction_value: 'Rs. 0.00',
+      unique_customers: 0
+    },
+    profit: {
+      total: 'Rs. 0',
+      margin_percentage: 0
+    },
+    stock_turnover: {
+      avg_rate: '0.0x',
+      efficiency: 'Needs Attention'
+    }
   },
-  inventory: { total_products: 0, total_stock: 0, inventory_value: 'Rs. 0', avg_stock_level: 0 },
-  low_stock_alerts: { count: 0 },
+  inventory: {
+    total_products: 0,
+    total_stock: 0,
+    inventory_value: 'Rs. 0',
+    avg_stock_level: 0
+  },
+  low_stock_alerts: {
+    count: 0
+  },
   branches: null,
   top_products: null,
-  sales: null,
+  sales: null
 });
 
 
@@ -286,23 +309,18 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   }, [chatMessages]);
 
-  // AI Chatbot response generator
+  // AI Chatbot response generator - FIXED: Added missing braces
   const generateAIResponse = (userMessage) => {
     const msg = userMessage.toLowerCase();
 
     // Sales & Revenue queries
     if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: Rs.48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+      return `📊 **Sales & Revenue Report**\n\nTotal Revenue: Rs. 48,250\nTotal Sales: 842 transactions\nAverage Transaction: Rs. 57.30\nGrowth: +12.4% vs last period\n\n💡 Top performing day: Saturday (Rs. 8,450)`;
     }
 
     // Profit queries
     if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: Rs.32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
-    }
-
-    // Inventory queries
-    if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: Rs.124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+      return `💰 **Profit Analysis**\n\nGross Profit: Rs. 14,800\nProfit Margin: 30.7%\nNet Profit: Rs. 11,200\n\n📈 Best performing category: Electronics (45% margin)\n🔻 Lowest margin: Groceries (18% margin)`;
     }
 
     // Low stock alerts
@@ -312,12 +330,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Branch performance
     if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: Rs.18,240 (Top performer)\n• Kandy City Branch: Rs.12,560 (+8.2% growth)\n• Galle Fort Branch: Rs.9,340\n• Negombo Branch: RS.8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+      return `🏪 **Branch Performance**\n\n1. Colombo Head Office: Rs. 18,450 (↑8.2%)\n2. Kandy City Branch: Rs. 12,800 (↑5.1%)\n3. Galle Fort Branch: Rs. 9,200 (↑3.7%)\n4. Negombo Branch: Rs. 7,800 (↑2.9%)\n\n🏆 Best performing: Colombo Head Office`;
     }
 
     // Product recommendations
     if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - Rs.12,450\n2. Organic Coconut Oil - Rs.8,920\n3. Ceylon Tea Gift Pack - Rs.7,340\n4. Fresh Milk - Rs.5,670\n5. Spice Assortment - Rs.4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+      return `⭐ **Top Products**\n\n1. Premium Basmati Rice - Rs. 8,450 revenue\n2. Organic Coconut Oil - Rs. 6,200 revenue\n3. Ceylon Tea Gift Pack - Rs. 5,800 revenue\n4. Fresh Milk (1L) - Rs. 4,900 revenue\n\n🎯 AI Recommendation: Promote Premium Basmati Rice with bundle offers.`;
     }
 
     // Demand forecasting
@@ -395,6 +413,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   };
 
+  const handleViewAllInventory = () => {
+    sessionStorage.setItem('scroll_to_inventory_table', 'true');
+    showModule('inventory-mgmt');
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [visibleModule]);
@@ -442,51 +465,6 @@ useEffect(() => {
   socketService.on('connect', () => setWsConnected(true));
   socketService.on('disconnect', () => setWsConnected(false));
 
-// socketService.on('dashboard-update', (data) => {
-//   setDashboardData(prev => {
-//     const updated = { ...prev };
-
-//     if (data.kpi) {
-//       updated.kpi = {
-//         ...prev.kpi,
-//         ...data.kpi,
-//         revenue: data.kpi.revenue ? {
-//           ...prev.kpi?.revenue,
-//           ...data.kpi.revenue,
-//           total: resolveValue(data.kpi.revenue.total, prev.kpi?.revenue?.total, formatLKR),
-//         } : prev.kpi?.revenue,
-//         profit: data.kpi.profit ? {
-//           ...prev.kpi?.profit,
-//           ...data.kpi.profit,
-//           total: resolveValue(data.kpi.profit.total, prev.kpi?.profit?.total, formatLKR),
-//         } : prev.kpi?.profit,
-//         sales: data.kpi.sales ? {
-//           ...prev.kpi?.sales,
-//           ...data.kpi.sales,
-//           count: resolveValue(data.kpi.sales.count, prev.kpi?.sales?.count),
-//           avg_transaction_value: resolveValue(data.kpi.sales.avg_transaction_value, prev.kpi?.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
-//         } : prev.kpi?.sales,
-//       };
-//     }
-
-//     if (data.inventory) {
-//       updated.inventory = {
-//         ...prev.inventory,
-//         ...data.inventory,
-//         inventory_value: resolveValue(data.inventory.inventory_value, prev.inventory?.inventory_value, formatLKR),
-//       };
-//     }
-
-//     return updated;
-//   });
-
-//   setLastUpdated(new Date());
-
-//   if (data.liveTransaction) {
-//     setLiveTransaction(data.liveTransaction);
-//   }
-// });
-
   return () => socketService.disconnect();
 }, [token]);
 
@@ -500,7 +478,7 @@ const fetchData = useCallback(async () => {
     if (selectedBranch !== 'all') params.append('branchId', selectedBranch);
 
     const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000')
-      .replace(/\/api\/?$/, '');  // trailing /api strip 
+      .replace(/\/api\/?$/, '');
 
     const res = await fetch(
       `${BASE}/api/dashboard/stats?${params.toString()}`,
@@ -508,22 +486,40 @@ const fetchData = useCallback(async () => {
     );
     if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
 
-    // const json = await res.json();
     const json = await res.json();
-    console.log('🔴 RAW API Response:', json.data);           // full response
-    console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);  // chart data
-    console.log('💰 KPIs:', json.data?.kpis);                 // kpi data
-    setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+    console.log('🔴 RAW API Response:', json.data);
+    console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);
+    console.log('💰 KPIs:', json.data?.kpis);
+
+    // Fetch inventory summary to match the inventory page's total stock value exactly
+    let liveStockValue = null;
+    try {
+      const summaryRes = await inventoryService.getInventorySummary();
+      if (summaryRes && summaryRes.success) {
+        liveStockValue = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "LKR",
+          currencyDisplay: "narrowSymbol"
+        }).format(summaryRes.data.totalStockValue || 0);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch inventory summary in dashboard:', err);
+    }
+
+    setDashboardData(prev => {
+      const mapped = mapStatsToDashboardData(json.data, prev);
+      if (liveStockValue !== null) {
+        mapped.inventory.inventory_value = liveStockValue;
+      }
+      return mapped;
+    });
     setLastUpdated(new Date());
-    // setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
-    // setLastUpdated(new Date());
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
   } finally {
     setLoading(false);
   }
 }, [selectedBranch, dateRange, token]);
-  // useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
 
  useEffect(() => { fetchData(); }, [selectedBranch, dateRange, fetchData]);
 
@@ -698,7 +694,7 @@ const fetchData = useCallback(async () => {
                   <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
                 )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} onViewAll={handleViewAllInventory} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>
@@ -721,15 +717,17 @@ const fetchData = useCallback(async () => {
 
             <section className="dash-section">
               <div className="tp-live-grid">
-                <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts data={dashboardData} /></div>
+                <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts
+  data={dashboardData}
+  dateRange={dateRange}
+  selectedBranch={selectedBranch}
+/></div>
                 <div className="live-feed-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🔴</span><h2 className="section-title">Live Activity</h2>{wsConnected && <span className="live-badge">LIVE</span>}</div></div><LiveFeed wsConnected={wsConnected} liveTransaction={liveTransaction} /></div>
               </div>
             </section>
           </>
         );
 
-      // case 'auth':
-      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
@@ -753,9 +751,6 @@ const fetchData = useCallback(async () => {
             <EmployeesPage />
           </Suspense>
         );
-      /* case 'customer-mgmt':
-        return <ModuleDetail title="Customer Management" icon="👤" page={2} description="Manage customer data and transactions. Track loyalty rewards and points. Store customer purchase histories. Generate customer insights. Handle customer-related CRUD operations." features={['Customer Profiles', 'Purchase History', 'Loyalty Points', 'Customer Search & Filtering', 'Customer Analytics']} />; */
-
       case 'customer-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -891,17 +886,6 @@ case 'product-edit':
             <PurchaseOrdersPage />
           </Suspense>
         );
-      // case 'pos-sales':
-      //   return <ModuleDetail title="POS Sales & Billing" icon="🛒" page={3} description="Handle sales transactions. Process payments securely. Update inventory automatically. Store transaction records. Generate sales summaries." features={['Cashier POS Screens', 'Barcode Scanning', 'Shopping Cart Management', 'Digital Receipts', 'Multiple Payment Methods']} />;
-      // case 'pos-sales':
-      //   navigate('/pos');
-      // return null;
-  //     case 'pos-sales':
-  // return (
-  //   <Suspense fallback={<ModuleLoading />}>
-  //     <POSPage />
-  //   </Suspense>
-  // );
   case 'pos-sales':
   if (posView === 'checkout') return (
     <Suspense fallback={<ModuleLoading />}>
@@ -1072,6 +1056,7 @@ case 'product-edit':
       {/* Floating AI Chatbot — only on Dashboard & Business Overview */}
       {visibleModule === 'dashboard' && <Chatbot />}
 
+      {/* Rest of the styles remain the same... */}
       <style>{`
         :root {
           /* Default Theme (Morning) */
@@ -1210,7 +1195,7 @@ case 'product-edit':
         .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .greeting-badge { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 30px; margin-bottom: 16px; font-size: 0.85rem; font-weight: 500; color: #1e293b; border: 1px solid rgba(255,255,255,0.5); }
         .time-display { color: #3b82f6; font-weight: 600; }
-        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 12px; }
+        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: lightBlue; display: flex; align-items: center; gap: 12px; }
         .title-badge { position: relative; font-size: 0.7rem; background: linear-gradient(135deg, #10b981, #059669); padding: 4px 12px; border-radius: 20px; color: white; font-weight: 600; display: flex; align-items: center; gap: 6px; overflow: hidden; }
         .title-badge::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: shimmer 3s infinite; }
         @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
@@ -1236,7 +1221,7 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
@@ -1491,7 +1476,7 @@ const AIDemandForecastModule = () => (
   </div>
 );
 
-// AI Smart Reordering Module
+// AI Smart Reordering Module - FIXED
 const AISmartReorderingModule = () => {
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -1501,10 +1486,7 @@ const AISmartReorderingModule = () => {
   const [procurementAlerts, setProcurementAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchRecommendations();
-  }, [selectedBranch, selectedPeriod]);
-
+  // ✅ Moved fetchRecommendations BEFORE useEffect
   const fetchRecommendations = async () => {
     setLoading(true);
     try {
@@ -1547,6 +1529,11 @@ const AISmartReorderingModule = () => {
       setLoading(false);
     }
   };
+
+  // ✅ useEffect now comes AFTER fetchRecommendations is declared
+  useEffect(() => {
+    fetchRecommendations();
+  }, [selectedBranch, selectedPeriod]);
 
   const handleApprove = async (recommendation) => {
     if (recommendation.approved) return;
@@ -1724,14 +1711,18 @@ const AISmartReorderingModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {approvalHistory.map(entry => (
-                  <tr key={entry.id}>
-                    <td>{entry.item}</td>
-                    <td>{entry.quantity}</td>
-                    <td>{entry.branch}</td>
-                    <td>{entry.timestamp}</td>
-                  </tr>
-                ))}
+                {approvalHistory.length === 0 ? (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No approval history yet</td></tr>
+                ) : (
+                  approvalHistory.map(entry => (
+                    <tr key={entry.id}>
+                      <td>{entry.item}</td>
+                      <td>{entry.quantity}</td>
+                      <td>{entry.branch}</td>
+                      <td>{entry.timestamp}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
