@@ -16,6 +16,7 @@ import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
+import * as inventoryService from '../../services/inventoryService';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
@@ -489,7 +490,29 @@ const fetchData = useCallback(async () => {
     console.log('🔴 RAW API Response:', json.data);
     console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);
     console.log('💰 KPIs:', json.data?.kpis);
-    setDashboardData(prev => mapStatsToDashboardData(json.data, prev));
+
+    // Fetch inventory summary to match the inventory page's total stock value exactly
+    let liveStockValue = null;
+    try {
+      const summaryRes = await inventoryService.getInventorySummary();
+      if (summaryRes && summaryRes.success) {
+        liveStockValue = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "LKR",
+          currencyDisplay: "narrowSymbol"
+        }).format(summaryRes.data.totalStockValue || 0);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch inventory summary in dashboard:', err);
+    }
+
+    setDashboardData(prev => {
+      const mapped = mapStatsToDashboardData(json.data, prev);
+      if (liveStockValue !== null) {
+        mapped.inventory.inventory_value = liveStockValue;
+      }
+      return mapped;
+    });
     setLastUpdated(new Date());
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
