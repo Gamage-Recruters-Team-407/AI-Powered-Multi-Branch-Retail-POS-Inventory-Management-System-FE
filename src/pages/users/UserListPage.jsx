@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
 const ROLES = ["admin", "manager", "cashier"];
 const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
+const USERS_PER_PAGE = 6; // change this to control how many rows show per page
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
@@ -15,6 +16,10 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
+  // ========== PAGINATION STATE ==========
+  const [currentPage, setCurrentPage] = useState(1);
+  // ========================================
+
   const fetchUsers = async () => {
     try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
     catch { setError("Failed to load users."); }
@@ -23,10 +28,9 @@ export default function UserListPage() {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleSearch = async (e) => {
-    const q = e.target.value; setSearch(q);
-    if (!q.trim()) { fetchUsers(); return; }
-    try { const res = await searchUsers(q); setUsers(res.data.data || res.data || []); } catch (err) { console.error("Search error:", err); fetchUsers(); }
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1); // reset to page 1 whenever the search changes
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
@@ -62,8 +66,54 @@ export default function UserListPage() {
   const roleConfig = { admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
   const getRoleStyle = (r) => roleConfig[r] || roleConfig.cashier;
 
+  // ========== SEARCH FILTER (client-side) ==========
+  const filteredUsers = users.filter(u => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const fullName = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : (u.name || "");
+    return fullName.toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
+  });
+
+  // ========== PAGINATION LOGIC ==========
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  // keep currentPage valid if the users list shrinks (e.g. after delete/search)
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * USERS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // builds a compact page list like: 1, 2, ... , 14  (matches teammate's style)
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 3) pages.push("...");
+      const start = Math.max(2, safePage - 1);
+      const end = Math.min(totalPages - 1, safePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safePage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+  // ========================================
+
   return (
-    <div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+<div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      `}</style>
+    
 
       {/* Header */}
       <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
@@ -104,7 +154,9 @@ export default function UserListPage() {
             <div style={{ fontSize:"32px", marginBottom:"12px" }}>⏳</div>Loading users...
           </div>
         ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px" }}>
+          <div>
+          <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"4px" }}>
+          <table style={{ width:"100%", minWidth:"1400px", borderCollapse:"collapse", fontSize:"14px" }}>
             <thead>
               <tr style={{ background:"rgba(248,250,252,0.8)" }}>
                 {["User","Email","Phone","Role","Status","Actions"].map(h => (
@@ -119,7 +171,7 @@ export default function UserListPage() {
                   <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
                   <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
                 </td></tr>
-              ) : users.map((user, i) => (
+              ) : paginatedUsers.map((user, i) => (
                 <tr key={user._id} style={{ borderBottom:"1px solid rgba(241,245,249,0.8)", transition:"background 0.15s" }}
                   onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
                   onMouseLeave={e => e.currentTarget.style.background="transparent"}>
@@ -182,7 +234,42 @@ export default function UserListPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          <div style={{ textAlign:"center", padding:"4px 0 2px", fontSize:"11px", color:"#94a3b8" }}>
+            ← scroll to see more →
+          </div>
+          </div>
         )}
+
+        {/* ========== PAGINATION CONTROLS ========== */}
+        {!loading && users.length > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", borderTop:"1px solid rgba(226,232,240,0.8)", background:"rgba(248,250,252,0.6)" }}>
+            <div style={{ fontSize:"13px", color:"#64748b" }}>
+              Page {safePage} of {totalPages}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+              <button onClick={()=>goToPage(safePage - 1)} disabled={safePage === 1}
+                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===1?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===1?"#cbd5e1":"#475569" }}>
+                ← Prev
+              </button>
+
+              {getPageNumbers().map((p, idx) => p === "..." ? (
+                <span key={`ellipsis-${idx}`} style={{ padding:"7px 6px", fontSize:"13px", color:"#94a3b8" }}>...</span>
+              ) : (
+                <button key={p} onClick={()=>goToPage(p)}
+                  style={{ padding:"7px 13px", borderRadius:"8px", border:"1.5px solid", borderColor:p===safePage?"#2563eb":"#e2e8f0", background:p===safePage?"#2563eb":"white", cursor:"pointer", fontSize:"13px", fontWeight:"600", color:p===safePage?"white":"#475569", minWidth:"34px" }}>
+                  {p}
+                </button>
+              ))}
+
+              <button onClick={()=>goToPage(safePage + 1)} disabled={safePage === totalPages}
+                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===totalPages?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===totalPages?"#cbd5e1":"#475569" }}>
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+        {/* ========== END PAGINATION CONTROLS ========== */}
       </div>
 
       {/* Add/Edit Modal */}
