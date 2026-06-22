@@ -685,7 +685,7 @@ const fetchData = useCallback(async () => {
             </div>
 
             <div className="dash-section">
-              <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🏪</span><h2 className="section-title">Branch Performance</h2></div><button className="view-all-btn">View All Branches →</button></div>
+              <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🏪</span><h2 className="section-title">Branch Performance</h2></div><button className="view-all-btn" onClick={() => showModule('branch-mgmt')}>View All Branches →</button></div>
               <BranchPerformance data={dashboardData} />
             </div>
 
