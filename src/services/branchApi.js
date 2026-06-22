@@ -67,6 +67,11 @@ export const getBranchPerformance = (id) => {
   return branchApi.get(`/${id}/performance`);
 };
 
+// Get all branches with performance stats (for dashboard)
+export const getAllBranchesWithPerformance = () => {
+  return branchApi.get("/performance/all");
+};
+
 // Branch settings
 export const updateBranchSettings = (id, data) => {
   return branchApi.put(`/${id}/settings`, data);

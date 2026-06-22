@@ -156,9 +156,10 @@ function BranchListPage() {
                   {branches
                     .filter((b) => {
                       if (!isAdmin) {
-                        const branchId =
-                          user?.branchId || user?.branch?._id || user?.branch;
-                        return b._id === branchId;
+                        const managerId = user?._id;
+                        // Check against populated manager object or plain ObjectId
+                        const branchManagerId = b.manager?._id || b.manager;
+                        return String(branchManagerId) === String(managerId);
                       }
                       return true;
                     })

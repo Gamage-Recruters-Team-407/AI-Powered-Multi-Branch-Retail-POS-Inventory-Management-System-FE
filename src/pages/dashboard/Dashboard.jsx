@@ -16,6 +16,7 @@ import Chatbot from '../../components/ai/Chatbot/Chatbot';
 import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
+import { getAllBranchesWithPerformance } from '../../services/branchApi';
 import * as inventoryService from '../../services/inventoryService';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
@@ -491,37 +492,37 @@ const fetchData = useCallback(async () => {
     console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);
     console.log('💰 KPIs:', json.data?.kpis);
 
-    // Fetch inventory summary to match the inventory page's total stock value exactly
-    let liveStockValue = null;
+    const demo = generateDemoData();
+
     try {
-      const summaryRes = await inventoryService.getInventorySummary();
-      if (summaryRes && summaryRes.success) {
-        liveStockValue = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "LKR",
-          currencyDisplay: "narrowSymbol"
-        }).format(summaryRes.data.totalStockValue || 0);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch inventory summary in dashboard:', err);
+      const branchRes = await getAllBranchesWithPerformance();
+      const realBranches = (branchRes.data || []).map((b) => ({
+        branch_id: b._id,
+        branch_name: b.name,
+        location: b.city || 'N/A',
+        status: b.isActive ? 'active' : 'inactive',
+        staff_count: b.employeeCount,
+        products_count: b.inventoryCount,
+        total_stock: b.inventoryCount,
+        low_stock_items: b.lowStockCount,
+        revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
+        growth: 0,
+      }));
+      demo.branches = realBranches;
+    } catch (branchErr) {
+      console.error('Error fetching branch performance:', branchErr);
     }
 
-    setDashboardData(prev => {
-      const mapped = mapStatsToDashboardData(json.data, prev);
-      if (liveStockValue !== null) {
-        mapped.inventory.inventory_value = liveStockValue;
-      }
-      return mapped;
-    });
+    setDashboardData(demo);
     setLastUpdated(new Date());
   } catch (err) {
-    console.error('Failed to load dashboard data:', err);
+    console.error('Error fetching dashboard data:', err);
   } finally {
     setLoading(false);
   }
-}, [selectedBranch, dateRange, token]);
-
- useEffect(() => { fetchData(); }, [selectedBranch, dateRange, fetchData]);
+}, [dateRange, selectedBranch, token]);
+  
+  useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
 
   const handlePreset = (preset) => {
     setDatePreset(preset);
