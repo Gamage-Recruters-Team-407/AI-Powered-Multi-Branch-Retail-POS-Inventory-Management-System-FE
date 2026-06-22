@@ -194,7 +194,7 @@ const SalesHistoryPage = ({ onBack }) => {
           startDate,
           endDate,
         }),
-        getSalesSummary(period),
+       getSalesSummary(period, startDate, endDate),
       ]);
       setSales(sRes.data.data);
       setPagination(sRes.data.pagination || {});

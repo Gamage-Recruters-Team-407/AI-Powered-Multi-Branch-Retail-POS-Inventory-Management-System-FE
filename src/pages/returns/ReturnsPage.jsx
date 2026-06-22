@@ -443,10 +443,19 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         .returns-theme-override a:not([style*="color"]) {
           color: #475569 !important;
         }
+        @media (max-width: 768px) {
+          .returns-grid { grid-template-columns: 1fr !important; }
+          .returns-header { flex-direction: column; gap: 16px; }
+        }
       `}</style>
       
-      {/* Header Info */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Returns App Header */}
+      <div className="returns-header" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '24px'
+      }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', color: 'var(--text-primary)' }}>Returns & Refund Workspace</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Log returns, inspect conditions, auto-verify warranties, and authorize customer payouts.</p>
@@ -473,7 +482,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px', marginBottom: '8px' }}>
+      <div className="returns-tabs" style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         <button 
           onClick={() => setActiveTab('dashboard')} 
           style={{
@@ -581,13 +590,13 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       )}
 
       {activeTab === 'new_return' && (
-        <div style={{ display: 'grid', gridTemplateColumns: activeInvoice ? '1fr 340px' : '1fr', gap: '24px' }}>
+        <div className="returns-grid" style={{ display: 'grid', gridTemplateColumns: activeInvoice ? '1fr 340px' : '1fr', gap: '24px' }}>
           
           {/* Main workspace pane */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="glass-card" style={{ padding: '24px' }}>
               <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>Find Sale Transaction</h3>
-              <form onSubmit={handleInvoiceSearch} style={{ display: 'flex', gap: '12px' }}>
+              <form className="returns-search-form" onSubmit={handleInvoiceSearch} style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input 
@@ -680,7 +689,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
                     const selectedReturnQty = returnItems[item.id] || 0;
 
                     return (
-                      <div key={item.id} style={{
+                      <div className="returns-item-row" key={item.id} style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -696,7 +705,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="returns-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           {maxQtyToReturn > 0 ? (
                             <>
                               <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Qty to Return:</label>
@@ -903,10 +912,10 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
           </div>
 
           {/* Grid Layout containing Log and Selected Details Side-by-Side */}
-          <div style={{ display: 'grid', gridTemplateColumns: selectedReturnForDetails ? '1fr 360px' : '1fr', gap: '20px' }}>
+          <div className="returns-grid" style={{ display: 'grid', gridTemplateColumns: selectedReturnForDetails ? '1fr 360px' : '1fr', gap: '20px' }}>
             
             {/* Returns Table */}
-            <div className="glass-card" style={{ overflow: 'hidden' }}>
+            <div className="glass-card return-history-table-container" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -1115,6 +1124,38 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         onClose={() => setIsReceiptOpen(false)}
         returnItem={receiptData}
       />
+      <style>{`
+        @media (max-width: 768px) {
+          .returns-header {
+            flex-direction: column !important;
+            gap: 16px !important;
+          }
+          .returns-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .returns-search-form {
+            flex-direction: column !important;
+          }
+          .returns-item-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          .returns-item-actions {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .returns-tabs {
+            scrollbar-width: none;
+          }
+          .returns-tabs::-webkit-scrollbar {
+            display: none;
+          }
+          .return-history-table-container {
+            overflow-x: auto !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

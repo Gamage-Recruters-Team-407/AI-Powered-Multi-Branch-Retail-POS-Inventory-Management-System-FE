@@ -56,8 +56,17 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f1f5f9' }}>
+      {/* Mobile Hamburger & Overlay */}
+      <button className="mobile-hamburger" onClick={() => setCollapsed(false)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div 
+        className={`mobile-overlay ${!collapsed ? 'active' : ''}`} 
+        onClick={() => setCollapsed(true)} 
+      />
+
       {/* ── Sidebar ── */}
-      <aside style={{
+      <aside className={`responsive-sidebar ${!collapsed ? 'mobile-open' : ''}`} style={{
         width: sidebarW,
         minHeight: '100vh',
         background: '#0f172a',

@@ -255,7 +255,7 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
         .sec-search-input { width: 100%; padding: 8px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: .875rem; transition: all .2s; }
         .sec-search-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
 
-        .sec-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+        .sec-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         
         .sec-event-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; border-top: 4px solid var(--type-color); display: flex; flex-direction: column; gap: 12px; transition: all .2s; }
         .sec-event-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateY(-2px); }

@@ -7,6 +7,16 @@ import { getAllCategories } from "../../services/categoryManagementApi";
 import { getAllSuppliers } from "../../services/supplierManagementApi";
 import toast from "react-hot-toast";
 
+const baseControlClass =
+  "ep-control w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition";
+
+const getControlClass = (hasError) =>
+  `${baseControlClass} ${
+    hasError
+      ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+      : "border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+  }`;
+
 function EditProductPage({ productId, onBack }) {
   const id = productId;
 
@@ -46,14 +56,20 @@ function EditProductPage({ productId, onBack }) {
       setLoading(true);
       setMessage("");
 
-      const productResponse = await getProductById(id);
-      const categoryResponse = await getAllCategories();
-      const supplierResponse = await getAllSuppliers();
+      const [productResponse, categoryResponse, supplierResponse] =
+        await Promise.all([
+          getProductById(id),
+          getAllCategories(),
+          getAllSuppliers(),
+        ]);
 
-      const product = productResponse.data.product;
+      const product =
+        productResponse.data.product || productResponse.data.data || {};
 
       setCategories(categoryResponse.data.categories || []);
-      setSuppliers(categoryResponse ? supplierResponse.data.data || [] : []);
+      setSuppliers(
+        supplierResponse.data.data || supplierResponse.data.suppliers || []
+      );
 
       setFormData({
         name: product.name || "",
@@ -110,9 +126,7 @@ function EditProductPage({ productId, onBack }) {
   const handleImageChange = (e) => {
     const selectedImage = e.target.files[0];
 
-    if (!selectedImage) {
-      return;
-    }
+    if (!selectedImage) return;
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     const maxSize = 2 * 1024 * 1024;
@@ -268,8 +282,8 @@ function EditProductPage({ productId, onBack }) {
       productFormData.append("brand", formData.brand.trim());
       productFormData.append("description", formData.description.trim());
       productFormData.append("price", formData.price);
-      productFormData.append("costPrice", formData.costPrice);
-      productFormData.append("reorderLevel", formData.reorderLevel);
+      productFormData.append("costPrice", formData.costPrice || "");
+      productFormData.append("reorderLevel", formData.reorderLevel || "");
       productFormData.append("unit", formData.unit.trim());
 
       if (formData.category) {
@@ -290,7 +304,9 @@ function EditProductPage({ productId, onBack }) {
       setMessage("Product updated successfully");
 
       setTimeout(() => {
-        onBack();
+        if (typeof onBack === "function") {
+          onBack();
+        }
       }, 800);
     } catch (error) {
       const errorMessage =
@@ -302,9 +318,13 @@ function EditProductPage({ productId, onBack }) {
     }
   };
 
+  const visibleSuppliers = suppliers.filter(
+    (supplier) => supplier.status === "Active" || supplier._id === formData.supplier
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
+      <div className="edit-product-page min-h-screen bg-slate-50 p-6 text-slate-900">
         <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-slate-600">Loading product details...</p>
         </div>
@@ -314,7 +334,7 @@ function EditProductPage({ productId, onBack }) {
 
   if (!id) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
+      <div className="edit-product-page min-h-screen bg-slate-50 p-6 text-slate-900">
         <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-red-600">Product ID not found.</p>
 
@@ -331,7 +351,53 @@ function EditProductPage({ productId, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
+    <div className="edit-product-page min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+      <style>
+        {`
+          .edit-product-page .ep-control {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .edit-product-page textarea.ep-control {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .edit-product-page .ep-control::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #94a3b8 !important;
+          }
+
+          .edit-product-page .ep-control option {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .edit-product-page .ep-control:-webkit-autofill,
+          .edit-product-page .ep-control:-webkit-autofill:hover,
+          .edit-product-page .ep-control:-webkit-autofill:focus {
+            -webkit-text-fill-color: #0f172a !important;
+            box-shadow: 0 0 0px 1000px #ffffff inset !important;
+          }
+
+          .edit-product-page input[type="file"]::file-selector-button {
+            color: #0f172a !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            padding: 6px 12px !important;
+            margin-right: 12px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+          }
+        `}
+      </style>
+
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl bg-white p-6 shadow-sm md:flex-row md:items-center">
           <div>
@@ -381,11 +447,7 @@ function EditProductPage({ productId, onBack }) {
                   onChange={handleInputChange}
                   maxLength={80}
                   placeholder="Example: Coca Cola"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.name
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.name)}
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -406,11 +468,7 @@ function EditProductPage({ productId, onBack }) {
                   maxLength={14}
                   inputMode="numeric"
                   placeholder="Example: 123456789111"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.barcode
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.barcode)}
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   Optional. Barcode should be 8 to 14 digits.
@@ -430,11 +488,7 @@ function EditProductPage({ productId, onBack }) {
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.category
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.category)}
                 >
                   <option value="">Select category</option>
                   {categories.map((category) => (
@@ -458,20 +512,15 @@ function EditProductPage({ productId, onBack }) {
                   name="supplier"
                   value={formData.supplier}
                   onChange={handleInputChange}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.supplier
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.supplier)}
                 >
                   <option value="">Select supplier</option>
-                  {suppliers
-                    .filter((supplier) => supplier.status === "Active")
-                    .map((supplier) => (
-                      <option key={supplier._id} value={supplier._id}>
-                        {supplier.companyName}
-                      </option>
-                    ))}
+                  {visibleSuppliers.map((supplier) => (
+                    <option key={supplier._id} value={supplier._id}>
+                      {supplier.companyName}
+                      {supplier.status !== "Active" ? " (Inactive)" : ""}
+                    </option>
+                  ))}
                 </select>
                 {errors.supplier && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -491,11 +540,7 @@ function EditProductPage({ productId, onBack }) {
                   onChange={handleInputChange}
                   maxLength={50}
                   placeholder="Example: Coca Cola"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.brand
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.brand)}
                 />
                 {errors.brand && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -515,11 +560,7 @@ function EditProductPage({ productId, onBack }) {
                   onChange={handleInputChange}
                   maxLength={20}
                   placeholder="Example: bottle, packet, kg, pcs"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.unit
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.unit)}
                 />
                 {errors.unit && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -540,11 +581,7 @@ function EditProductPage({ productId, onBack }) {
                   min="0"
                   step="0.01"
                   placeholder="Example: 250"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.price
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.price)}
                 />
                 {errors.price && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -565,11 +602,7 @@ function EditProductPage({ productId, onBack }) {
                   min="0"
                   step="0.01"
                   placeholder="Example: 180"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.costPrice
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.costPrice)}
                 />
                 {errors.costPrice && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -590,11 +623,7 @@ function EditProductPage({ productId, onBack }) {
                   min="0"
                   step="1"
                   placeholder="Example: 20"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.reorderLevel
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.reorderLevel)}
                 />
                 {errors.reorderLevel && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -614,11 +643,7 @@ function EditProductPage({ productId, onBack }) {
                   rows="4"
                   maxLength={500}
                   placeholder="Enter product description"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.description
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getControlClass(errors.description)}
                 />
 
                 <div className="mt-1 flex items-center justify-between">
@@ -674,7 +699,7 @@ function EditProductPage({ productId, onBack }) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageChange}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600"
+                className="ep-control w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
               />
 
               <p className="mt-3 text-xs text-slate-500">

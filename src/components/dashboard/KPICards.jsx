@@ -89,52 +89,54 @@ const KPICards = ({ data, loading, role }) => {
   const cards = [
     {
       title: 'Total Revenue',
-      value: kpi.revenue?.total || '$48,250',
+      // දත්ත නැත්නම් පරණ දත්ත (පෙර තිබූ දත්ත) පෙන්වන්න
+      value: kpi.revenue?.total ?? 'Rs. 0',
       sub: 'This period',
-      change: kpi.revenue?.growth_percentage ?? 12.4,
-      trend: kpi.revenue?.trend || 'up',
+      change: kpi.revenue?.growth_percentage ?? 0,
+      trend: kpi.revenue?.trend || 'neutral',
       icon: '💰',
       color: 'blue',
       roles: ['admin', 'manager'],
     },
     {
       title: 'Total Sales',
-      value: kpi.sales?.count?.toLocaleString() || '1,284',
+      // count එක අනිවාර්යයෙන්ම string එකක් ලෙස පෙන්වන්න
+      value: kpi.sales?.count?.toString() ?? '0',
       sub: 'Transactions',
-      change: kpi.sales?.growth_percentage ?? 8.1,
-      trend: (kpi.sales?.growth_percentage ?? 8.1) >= 0 ? 'up' : 'down',
+      change: kpi.sales?.growth_percentage ?? 0,
+      trend: (kpi.sales?.growth_percentage ?? 0) >= 0 ? 'up' : 'down',
       icon: '🛍️',
       color: 'green',
       roles: ['admin', 'manager', 'cashier'],
     },
     {
       title: 'Net Profit',
-      value: kpi.profit?.total || '$14,820',
-      sub: `${kpi.profit?.margin_percentage || 30.7}% Margin`,
+      value: kpi.profit?.total ?? 'Rs. 0',
+      sub: `${kpi.profit?.margin_percentage ?? 0}% Margin`,
       icon: '📈',
       color: 'purple',
       roles: ['admin'],
     },
     {
       title: 'Avg Transaction',
-      value: kpi.sales?.avg_transaction_value || '$37.58',
-      sub: `${kpi.sales?.unique_customers || 842} customers`,
+      value: kpi.sales?.avg_transaction_value ?? 'Rs. 0.00',
+      sub: `${kpi.sales?.unique_customers ?? 0} customers`,
       icon: '👥',
       color: 'cyan',
       roles: ['admin', 'manager', 'cashier'],
     },
     {
       title: 'Inventory Value',
-      value: inventory.inventory_value || '$124,600',
-      sub: `${inventory.total_products || 486} products`,
+      value: inventory.inventory_value ?? 'Rs. 0',
+      sub: `${inventory.total_products ?? 0} products`,
       icon: '📦',
       color: 'amber',
       roles: ['admin', 'manager'],
     },
     {
       title: 'Stock Turnover',
-      value: kpi.stock_turnover?.avg_rate || '4.2x',
-      sub: `${kpi.stock_turnover?.efficiency || 'Healthy'} rate`,
+      value: kpi.stock_turnover?.avg_rate ?? '0.0x',
+      sub: `${kpi.stock_turnover?.efficiency ?? 'N/A'} rate`,
       icon: '🔄',
       color: 'rose',
       roles: ['admin', 'manager'],
@@ -146,7 +148,7 @@ const KPICards = ({ data, loading, role }) => {
   return (
     <div className="kpi-grid">
       {visible.map((card, i) => (
-        <KPICard key={i} {...card} loading={loading} />
+        <KPICard key={card.title} {...card} loading={loading} />
       ))}
       <style>{`
         .kpi-grid {

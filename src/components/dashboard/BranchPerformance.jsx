@@ -1,11 +1,11 @@
 import React from 'react';
 
 const DEMO_BRANCHES = [
-  { branch_id: 1, branch_name: 'Colombo Head Office', location: 'Colombo 03', status: 'active', staff_count: 24, products_count: 486, total_stock: 12840, low_stock_items: 3, revenue: '$18,420', growth: 14.2 },
-  { branch_id: 2, branch_name: 'Kandy City Branch', location: 'Kandy', status: 'active', staff_count: 14, products_count: 312, total_stock: 7620, low_stock_items: 8, revenue: '$11,640', growth: -2.1 },
-  { branch_id: 3, branch_name: 'Galle Fort Branch', location: 'Galle', status: 'active', staff_count: 10, products_count: 248, total_stock: 5840, low_stock_items: 1, revenue: '$8,720', growth: 22.8 },
-  { branch_id: 4, branch_name: 'Negombo Branch', location: 'Negombo', status: 'active', staff_count: 8, products_count: 198, total_stock: 4210, low_stock_items: 5, revenue: '$5,820', growth: 7.3 },
-  { branch_id: 5, branch_name: 'Matara Branch', location: 'Matara', status: 'inactive', staff_count: 6, products_count: 140, total_stock: 2100, low_stock_items: 0, revenue: '$2,400', growth: -8.4 },
+  { branch_id: 1, branch_name: 'Colombo Head Office', location: 'Colombo 03', status: 'active', staff_count: 24, products_count: 486, total_stock: 12840, low_stock_items: 3, revenue: 'Rs.18,420', growth: 14.2 },
+  { branch_id: 2, branch_name: 'Kandy City Branch', location: 'Kandy', status: 'active', staff_count: 14, products_count: 312, total_stock: 7620, low_stock_items: 8, revenue: 'Rs.11,640', growth: -2.1 },
+  { branch_id: 3, branch_name: 'Galle Fort Branch', location: 'Galle', status: 'active', staff_count: 10, products_count: 248, total_stock: 5840, low_stock_items: 1, revenue: 'Rs.8,720', growth: 22.8 },
+  { branch_id: 4, branch_name: 'Negombo Branch', location: 'Negombo', status: 'active', staff_count: 8, products_count: 198, total_stock: 4210, low_stock_items: 5, revenue: 'Rs.5,820', growth: 7.3 },
+  { branch_id: 5, branch_name: 'Matara Branch', location: 'Matara', status: 'inactive', staff_count: 6, products_count: 140, total_stock: 2100, low_stock_items: 0, revenue: 'Rs.2,400', growth: -8.4 },
 ];
 
 const BranchCard = ({ branch }) => {
