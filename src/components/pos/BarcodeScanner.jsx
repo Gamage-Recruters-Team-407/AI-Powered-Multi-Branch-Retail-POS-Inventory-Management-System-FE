@@ -223,7 +223,11 @@ const BarcodeScanner = ({ products = [], onFound }) => {
         await html5QrRef.current.stop();
         html5QrRef.current.clear();
       }
-    } catch {}
+    } catch (err) {
+      // Log error but don't crash the UI
+      // eslint-disable-next-line no-console
+      console.warn("Failed to stop camera", err);
+    }
     setCameraOn(false);
   };
 

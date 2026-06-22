@@ -1,8 +1,33 @@
 import React from "react";
 import { motion } from "framer-motion";
 import {
-  FiDollarSign, FiTag, FiBox, FiAlertCircle
+  FiTag, FiBox, FiAlertCircle
 } from "react-icons/fi";
+
+const RsIcon = (props) => (
+  <svg
+    stroke="currentColor"
+    fill="currentColor"
+    strokeWidth="0"
+    viewBox="0 0 24 24"
+    className={props.className}
+    height="1em"
+    width="1em"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <text
+      x="50%"
+      y="58%"
+      dominantBaseline="middle"
+      textAnchor="middle"
+      fontWeight="900"
+      fontSize="12"
+      fontFamily="system-ui, -apple-system, sans-serif"
+    >
+      Rs
+    </text>
+  </svg>
+);
 
 const CARDS = (summary) => [
   {
@@ -12,7 +37,7 @@ const CARDS = (summary) => [
       summary.totalStockValue || 0
     ),
     rawValue: summary.totalStockValue || 0,
-    icon: FiDollarSign,
+    icon: RsIcon,
     gradient: "from-blue-500 to-indigo-500",
     iconBg: "bg-[var(--accent-light)]",
     iconColor: "text-[var(--accent-color)]",

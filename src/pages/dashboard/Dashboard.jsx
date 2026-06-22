@@ -17,6 +17,7 @@ import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
 import NotificationsModule from '../../components/dashboard/NotificationsModule';
 import axiosInstance from '../../api/axiosInstance';
 import { getAllBranchesWithPerformance } from '../../services/branchApi';
+import * as inventoryService from '../../services/inventoryService';
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage'));
 const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
@@ -59,19 +60,41 @@ const ModuleLoading = () => (
 import { InventoryProvider } from '../../context/InventoryContext';
 import InventoryDashboard from '../inventory/InventoryDashboard';
 
-// Demo data generator
+// Demo data generator - FIXED
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: '$48,250', growth_percentage: 12.4, trend: 'up' },
-    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: '$37.58', unique_customers: 842 },
-    profit: { total: '$14,820', margin_percentage: 30.7 },
-    stock_turnover: { avg_rate: '4.2x', efficiency: 'Healthy' },
+    revenue: {
+      total: 'Rs. 0',
+      growth_percentage: 0,
+      trend: 'up'
+    },
+    sales: {
+      count: 0,
+      growth_percentage: 0,
+      avg_transaction_value: 'Rs. 0.00',
+      unique_customers: 0
+    },
+    profit: {
+      total: 'Rs. 0',
+      margin_percentage: 0
+    },
+    stock_turnover: {
+      avg_rate: '0.0x',
+      efficiency: 'Needs Attention'
+    }
   },
-  inventory: { total_products: 486, total_stock: 32610, inventory_value: '$124,600', avg_stock_level: 67.1 },
-  low_stock_alerts: { count: 12 },
+  inventory: {
+    total_products: 0,
+    total_stock: 0,
+    inventory_value: 'Rs. 0',
+    avg_stock_level: 0
+  },
+  low_stock_alerts: {
+    count: 0
+  },
   branches: null,
   top_products: null,
-  sales: null,
+  sales: null
 });
 
 
@@ -150,6 +173,76 @@ const _getDateRange = (preset) => {
   return { startDate: start, endDate: end };
 };
 
+const formatLKR = (amount, decimals = 0) => {
+  const value = Number(amount) || 0;
+  return `Rs. ${value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+};
+
+const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+  const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
+  if (isEmpty) {
+    return prevValue !== undefined && prevValue !== null ? prevValue : formatter(0);
+  }
+  return formatter(rawVal);
+};
+
+const mapStatsToDashboardData = (stats, prevData) => {
+  if (!stats) return prevData || generateDemoData();
+
+  const prevKpi = prevData?.kpi || {};
+  const prevInventory = prevData?.inventory || {};
+
+  const kpis = stats.kpis || {};
+  const inventory = stats.inventory || {};
+  const sales = stats.sales || {};
+  const system = stats.system || {};
+
+  return {
+    kpi: {
+      revenue: {
+        total: resolveValue(kpis.revenue, prevKpi.revenue?.total, formatLKR),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.revenue?.growth_percentage ?? 0,
+        trend: (kpis.salesGrowth ?? 0) >= 0 ? 'up' : 'down',
+      },
+      sales: {
+        count: resolveValue(kpis.transactionCount, prevKpi.sales?.count),
+        growth_percentage: kpis.salesGrowth ?? prevKpi.sales?.growth_percentage ?? 0,
+        avg_transaction_value: resolveValue(sales.averageTransactionValue, prevKpi.sales?.avg_transaction_value, (v) => formatLKR(v, 2)),
+        unique_customers: resolveValue(system.totalCustomers, prevKpi.sales?.unique_customers),
+      },
+      profit: {
+        total: resolveValue(kpis.profit, prevKpi.profit?.total, formatLKR),
+        margin_percentage: kpis.profitMargin ?? prevKpi.profit?.margin_percentage ?? 0,
+      },
+      stock_turnover: {
+        avg_rate: resolveValue(kpis.stockTurnover, prevKpi.stock_turnover?.avg_rate, (v) => `${Number(v).toFixed(1)}x`),
+        efficiency: (kpis.stockTurnover ?? 0) >= 3 ? 'Healthy' : 'Needs Attention',
+      },
+    },
+    inventory: {
+      total_products: resolveValue(system.totalProducts, prevInventory.total_products),
+      total_stock: resolveValue(inventory.totalItems, prevInventory.total_stock),
+      inventory_value: resolveValue(inventory.totalValue, prevInventory.inventory_value, formatLKR),
+      avg_stock_level: inventory.branchStockStatus?.length
+        ? (
+            inventory.branchStockStatus.reduce((sum, b) => sum + (b.avgStockLevel || 0), 0) /
+            inventory.branchStockStatus.length
+          ).toFixed(1)
+        : prevInventory.avg_stock_level ?? 0,
+    },
+    low_stock_alerts: { count: inventory.lowStockAlert?.count ?? prevData?.low_stock_alerts?.count ?? 0 },
+    branches: (stats.branches ?? prevData?.branches ?? null)?.map?.(b => ({
+      ...b,
+      revenue: typeof b.revenue === 'number' ? `Rs. ${b.revenue.toLocaleString()}` : b.revenue,
+    })) ?? null,
+    top_products: sales.topProducts ?? prevData?.top_products ?? null,
+    sales: sales.dailySales ?? prevData?.sales ?? null,
+  };
+};
+
 const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
 
@@ -158,7 +251,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const navigate = useNavigate();
   const role = viewRole || user?.role || 'admin';
 
-  // ✅ අලුත් — roles array check
+  // roles array check
   const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
     item.roles.includes(role)
   );
@@ -217,23 +310,18 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   }, [chatMessages]);
 
-  // AI Chatbot response generator
+  // AI Chatbot response generator - FIXED: Added missing braces
   const generateAIResponse = (userMessage) => {
     const msg = userMessage.toLowerCase();
 
     // Sales & Revenue queries
     if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: $48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+      return `📊 **Sales & Revenue Report**\n\nTotal Revenue: Rs. 48,250\nTotal Sales: 842 transactions\nAverage Transaction: Rs. 57.30\nGrowth: +12.4% vs last period\n\n💡 Top performing day: Saturday (Rs. 8,450)`;
     }
 
     // Profit queries
     if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: $32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
-    }
-
-    // Inventory queries
-    if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: $124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+      return `💰 **Profit Analysis**\n\nGross Profit: Rs. 14,800\nProfit Margin: 30.7%\nNet Profit: Rs. 11,200\n\n📈 Best performing category: Electronics (45% margin)\n🔻 Lowest margin: Groceries (18% margin)`;
     }
 
     // Low stock alerts
@@ -243,12 +331,12 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
     // Branch performance
     if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: $18,240 (Top performer)\n• Kandy City Branch: $12,560 (+8.2% growth)\n• Galle Fort Branch: $9,340\n• Negombo Branch: $8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+      return `🏪 **Branch Performance**\n\n1. Colombo Head Office: Rs. 18,450 (↑8.2%)\n2. Kandy City Branch: Rs. 12,800 (↑5.1%)\n3. Galle Fort Branch: Rs. 9,200 (↑3.7%)\n4. Negombo Branch: Rs. 7,800 (↑2.9%)\n\n🏆 Best performing: Colombo Head Office`;
     }
 
     // Product recommendations
     if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - $12,450\n2. Organic Coconut Oil - $8,920\n3. Ceylon Tea Gift Pack - $7,340\n4. Fresh Milk - $5,670\n5. Spice Assortment - $4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+      return `⭐ **Top Products**\n\n1. Premium Basmati Rice - Rs. 8,450 revenue\n2. Organic Coconut Oil - Rs. 6,200 revenue\n3. Ceylon Tea Gift Pack - Rs. 5,800 revenue\n4. Fresh Milk (1L) - Rs. 4,900 revenue\n\n🎯 AI Recommendation: Promote Premium Basmati Rice with bundle offers.`;
     }
 
     // Demand forecasting
@@ -326,6 +414,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   };
 
+  const handleViewAllInventory = () => {
+    sessionStorage.setItem('scroll_to_inventory_table', 'true');
+    showModule('inventory-mgmt');
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [visibleModule]);
@@ -366,50 +459,68 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // WebSocket
-  useEffect(() => {
-    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
-    socketService.on('connect', () => setWsConnected(true));
-    socketService.on('disconnect', () => setWsConnected(false));
-    socketService.on('dashboard-update', (data) => {
-      setDashboardData(prev => ({ ...prev, ...data }));
-      setLastUpdated(new Date());
-      if (data.liveTransaction) setLiveTransaction(data.liveTransaction);
+
+// WebSocket
+useEffect(() => {
+  socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+  socketService.on('connect', () => setWsConnected(true));
+  socketService.on('disconnect', () => setWsConnected(false));
+
+  return () => socketService.disconnect();
+}, [token]);
+
+const fetchData = useCallback(async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
     });
-    return () => socketService.disconnect();
-  }, [token]);
+    if (selectedBranch !== 'all') params.append('branchId', selectedBranch);
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+    const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000')
+      .replace(/\/api\/?$/, '');
+
+    const res = await fetch(
+      `${BASE}/api/dashboard/stats?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
+
+    const json = await res.json();
+    console.log('🔴 RAW API Response:', json.data);
+    console.log('📈 Daily Sales Array:', json.data?.sales?.dailySales);
+    console.log('💰 KPIs:', json.data?.kpis);
+
+    const demo = generateDemoData();
+
     try {
-      const demo = generateDemoData();
-
-      try {
-        const branchRes = await getAllBranchesWithPerformance();
-        const realBranches = (branchRes.data || []).map((b) => ({
-          branch_id: b._id,
-          branch_name: b.name,
-          location: b.city || 'N/A',
-          status: b.isActive ? 'active' : 'inactive',
-          staff_count: b.employeeCount,
-          products_count: b.inventoryCount,
-          total_stock: b.inventoryCount,
-          low_stock_items: b.lowStockCount,
-          revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
-          growth: 0,
-        }));
-        demo.branches = realBranches;
-      } catch (branchErr) {
-        console.error('Error fetching branch performance:', branchErr);
-      }
-
-      setDashboardData(demo);
-      setLastUpdated(new Date());
-    } finally {
-      setLoading(false);
+      const branchRes = await getAllBranchesWithPerformance();
+      const realBranches = (branchRes.data || []).map((b) => ({
+        branch_id: b._id,
+        branch_name: b.name,
+        location: b.city || 'N/A',
+        status: b.isActive ? 'active' : 'inactive',
+        staff_count: b.employeeCount,
+        products_count: b.inventoryCount,
+        total_stock: b.inventoryCount,
+        low_stock_items: b.lowStockCount,
+        revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
+        growth: 0,
+      }));
+      demo.branches = realBranches;
+    } catch (branchErr) {
+      console.error('Error fetching branch performance:', branchErr);
     }
-  }, []);
+
+    setDashboardData(demo);
+    setLastUpdated(new Date());
+  } catch (err) {
+    console.error('Error fetching dashboard data:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [dateRange, selectedBranch, token]);
   
   useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
 
@@ -532,7 +643,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   <span className="branch-hero-icon">{selectedBranchData?.icon}</span>
                   <div className="branch-hero-info"><h2>{selectedBranchData?.name}</h2><p>Branch Performance Overview</p></div>
                   <div className="branch-stats">
-                    <div className="branch-stat"><span>Today's Revenue</span><strong>$12,450</strong></div>
+                    <div className="branch-stat"><span>Today's Revenue</span><strong>Rs. 12,450</strong></div>
                     <div className="branch-stat"><span>Growth</span><strong className="positive">+8.2%</strong></div>
                   </div>
                 </div>
@@ -584,7 +695,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
                 )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
+              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} onViewAll={handleViewAllInventory} />
                 <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
                   <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
                 </div>
@@ -607,15 +718,17 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
             <section className="dash-section">
               <div className="tp-live-grid">
-                <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts data={dashboardData} /></div>
+                <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts
+  data={dashboardData}
+  dateRange={dateRange}
+  selectedBranch={selectedBranch}
+/></div>
                 <div className="live-feed-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🔴</span><h2 className="section-title">Live Activity</h2>{wsConnected && <span className="live-badge">LIVE</span>}</div></div><LiveFeed wsConnected={wsConnected} liveTransaction={liveTransaction} /></div>
               </div>
             </section>
           </>
         );
 
-      // case 'auth':
-      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
       case 'ai-assistant':
         return <AIRetailAssistantModule />;
       case 'ai-forecast':
@@ -639,9 +752,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
             <EmployeesPage />
           </Suspense>
         );
-      /* case 'customer-mgmt':
-        return <ModuleDetail title="Customer Management" icon="👤" page={2} description="Manage customer data and transactions. Track loyalty rewards and points. Store customer purchase histories. Generate customer insights. Handle customer-related CRUD operations." features={['Customer Profiles', 'Purchase History', 'Loyalty Points', 'Customer Search & Filtering', 'Customer Analytics']} />; */
-
       case 'customer-mgmt':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -777,17 +887,6 @@ case 'product-edit':
             <PurchaseOrdersPage />
           </Suspense>
         );
-      // case 'pos-sales':
-      //   return <ModuleDetail title="POS Sales & Billing" icon="🛒" page={3} description="Handle sales transactions. Process payments securely. Update inventory automatically. Store transaction records. Generate sales summaries." features={['Cashier POS Screens', 'Barcode Scanning', 'Shopping Cart Management', 'Digital Receipts', 'Multiple Payment Methods']} />;
-      // case 'pos-sales':
-      //   navigate('/pos');
-      // return null;
-  //     case 'pos-sales':
-  // return (
-  //   <Suspense fallback={<ModuleLoading />}>
-  //     <POSPage />
-  //   </Suspense>
-  // );
   case 'pos-sales':
   if (posView === 'checkout') return (
     <Suspense fallback={<ModuleLoading />}>
@@ -835,7 +934,7 @@ case 'product-edit':
           </Suspense>
         );
       case 'ai-reorder':
-        return <AISmartReorderingModule />;
+        return <AISmartReorderingModule token={token} />;
       case 'analytics':
         return (
           <Suspense fallback={<ModuleLoading />}>
@@ -958,6 +1057,7 @@ case 'product-edit':
       {/* Floating AI Chatbot — only on Dashboard & Business Overview */}
       {visibleModule === 'dashboard' && <Chatbot />}
 
+      {/* Rest of the styles remain the same... */}
       <style>{`
         :root {
           /* Default Theme (Morning) */
@@ -1096,7 +1196,7 @@ case 'product-edit':
         .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .greeting-badge { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 30px; margin-bottom: 16px; font-size: 0.85rem; font-weight: 500; color: #1e293b; border: 1px solid rgba(255,255,255,0.5); }
         .time-display { color: #3b82f6; font-weight: 600; }
-        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 12px; }
+        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: lightBlue; display: flex; align-items: center; gap: 12px; }
         .title-badge { position: relative; font-size: 0.7rem; background: linear-gradient(135deg, #10b981, #059669); padding: 4px 12px; border-radius: 20px; color: white; font-weight: 600; display: flex; align-items: center; gap: 6px; overflow: hidden; }
         .title-badge::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: shimmer 3s infinite; }
         @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
@@ -1122,7 +1222,7 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
@@ -1346,7 +1446,7 @@ const AIDemandForecastModule = () => (
       <div className="forecast-card"><div className="value">↑ 15%</div><div className="label">Next Month Demand Increase</div></div>
       <div className="forecast-card"><div className="value">94%</div><div className="label">Forecast Accuracy</div></div>
       <div className="forecast-card"><div className="value">2,450</div><div className="label">Predicted Sales (units)</div></div>
-      <div className="forecast-card"><div className="value">$52.8K</div><div className="label">Expected Revenue</div></div>
+      <div className="forecast-card"><div className="value">Rs.52.8K</div><div className="label">Expected Revenue</div></div>
     </div>
 
     <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>📈 Product Demand Forecast (Next 30 Days)</h3>
@@ -1377,7 +1477,7 @@ const AIDemandForecastModule = () => (
   </div>
 );
 
-// AI Smart Reordering Module
+// AI Smart Reordering Module - FIXED
 const AISmartReorderingModule = () => {
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -1387,10 +1487,7 @@ const AISmartReorderingModule = () => {
   const [procurementAlerts, setProcurementAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchRecommendations();
-  }, [selectedBranch, selectedPeriod]);
-
+  // ✅ Moved fetchRecommendations BEFORE useEffect
   const fetchRecommendations = async () => {
     setLoading(true);
     try {
@@ -1433,6 +1530,11 @@ const AISmartReorderingModule = () => {
       setLoading(false);
     }
   };
+
+  // ✅ useEffect now comes AFTER fetchRecommendations is declared
+  useEffect(() => {
+    fetchRecommendations();
+  }, [selectedBranch, selectedPeriod]);
 
   const handleApprove = async (recommendation) => {
     if (recommendation.approved) return;
@@ -1610,14 +1712,18 @@ const AISmartReorderingModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {approvalHistory.map(entry => (
-                  <tr key={entry.id}>
-                    <td>{entry.item}</td>
-                    <td>{entry.quantity}</td>
-                    <td>{entry.branch}</td>
-                    <td>{entry.timestamp}</td>
-                  </tr>
-                ))}
+                {approvalHistory.length === 0 ? (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No approval history yet</td></tr>
+                ) : (
+                  approvalHistory.map(entry => (
+                    <tr key={entry.id}>
+                      <td>{entry.item}</td>
+                      <td>{entry.quantity}</td>
+                      <td>{entry.branch}</td>
+                      <td>{entry.timestamp}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
