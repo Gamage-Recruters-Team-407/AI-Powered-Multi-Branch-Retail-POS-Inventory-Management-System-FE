@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import socketService from '../../services/socketService';
 import {
   FiArrowRight,
   FiBarChart2,
@@ -366,6 +367,31 @@ function StockTransferPage() {
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  // -- Socket.io real-time transfer events ----------------------------------
+  useEffect(() => {
+    if (!apiConnected) return;
+
+    const handleTransferEvent = () => {
+      loadTransfers('All', branches).catch(() => {});
+    };
+
+    socketService.on('transfer:created',    handleTransferEvent);
+    socketService.on('transfer:approved',   handleTransferEvent);
+    socketService.on('transfer:rejected',   handleTransferEvent);
+    socketService.on('transfer:dispatched', handleTransferEvent);
+    socketService.on('transfer:completed',  handleTransferEvent);
+    socketService.on('transfer:cancelled',  handleTransferEvent);
+
+    return () => {
+      socketService.off('transfer:created',    handleTransferEvent);
+      socketService.off('transfer:approved',   handleTransferEvent);
+      socketService.off('transfer:rejected',   handleTransferEvent);
+      socketService.off('transfer:dispatched', handleTransferEvent);
+      socketService.off('transfer:completed',  handleTransferEvent);
+      socketService.off('transfer:cancelled',  handleTransferEvent);
+    };
+  }, [apiConnected, branches, loadTransfers]);
 
   useEffect(() => {
     if (!form.fromBranchId || !apiConnected) return;
@@ -1937,3 +1963,5 @@ function StockTransferPage() {
 }
 
 export default StockTransferPage;
+
+
