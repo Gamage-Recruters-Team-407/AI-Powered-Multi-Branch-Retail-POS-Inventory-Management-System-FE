@@ -88,11 +88,7 @@ const NotificationsModule = () => {
   const [sendCustomerViaEmail, setSendCustomerViaEmail] = useState(false);
   const [sendingCustomerNotif, setSendingCustomerNotif] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
       const [notifRes, prefRes, emailRes, supplierRes, warehouseRes, employeeRes, customerRes, promotionRes] = await Promise.all([
@@ -136,7 +132,11 @@ const NotificationsModule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleMarkAsRead = async (id) => {
     try {

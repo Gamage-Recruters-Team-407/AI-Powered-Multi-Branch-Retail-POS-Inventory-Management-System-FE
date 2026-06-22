@@ -85,18 +85,16 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
   const itemCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex flex-col antialiased font-sans p-2 sm:p-4 relative overflow-hidden">
+    <div className="min-h-screen   via-blue-500 to-indigo-600 flex flex-col antialiased font-sans p-4 relative overflow-hidden">
+      
+      <div className="absolute top-10 right-1/4 w-36 h-36 bg-green-400 rounded-full blur-2xl opacity-60 pointer-events-none" />
 
-      <div className="absolute top-10 right-1/4 w-36 h-36 bg-yellow-400 rounded-full blur-2xl opacity-60 pointer-events-none" />
-
-      <div className="flex-1 flex flex-col rounded-2xl sm:rounded-3xl backdrop-blur-xl bg-white/20 border border-white/30 shadow-2xl overflow-hidden">
-
-        {/* Header */}
-        <div className="px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/20 bg-white/10">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-xl sm:rounded-2xl flex items-center justify-center text-white border border-white/30">
-              <ShoppingBag size={16} className="sm:hidden" />
-              <ShoppingBag size={20} className="hidden sm:block" />
+      <div className="flex-1 flex flex-col rounded-3xl backdrop-blur-xl  border border-white/30 shadow-2xl overflow-hidden">
+        
+        <div className="px-4 lg:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 shrink-0 border-b border-white/20 bg-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/30 shadow-inner">
+              <ShoppingBag size={20} />
             </div>
             <div>
               <h1 className="text-base sm:text-xl font-extrabold text-white tracking-tight">Cashier Desk</h1>

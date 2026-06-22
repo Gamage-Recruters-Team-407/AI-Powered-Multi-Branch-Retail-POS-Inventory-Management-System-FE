@@ -8,7 +8,7 @@ const DEMO_LOW_STOCK = [
   { id: 5, name: 'Coconut Milk 400ml', sku: 'GRC-201', stock: 9, threshold: 35, branch: 'Kandy', category: 'Groceries' },
 ];
 
-const InventoryStatus = ({ data, role }) => {
+const InventoryStatus = ({ data, role, onViewAll }) => {
   const inventory = data?.inventory || {};
   const lowStock = data?.low_stock_alerts?.items || DEMO_LOW_STOCK;
   const lowCount = data?.low_stock_alerts?.count || DEMO_LOW_STOCK.length;
@@ -48,7 +48,7 @@ const InventoryStatus = ({ data, role }) => {
             <div className="lsc-title">
               <span className="alert-badge">⚠️ {lowCount} Low Stock Alerts</span>
             </div>
-            <button className="view-all-btn">View All →</button>
+            <button className="view-all-btn" onClick={onViewAll}>View All →</button>
           </div>
           <div className="stock-table">
             <div className="st-head">
