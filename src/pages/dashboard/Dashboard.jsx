@@ -310,24 +310,36 @@ const MODULE_NAV_ITEMS = [
   },
 ];
 
+// const _getDateRange = (preset) => {
+//   const now = new Date();
+//   const end = now.toISOString().split("T")[0];
+//   let start;
+//   if (preset === "today") start = end;
+//   else if (preset === "week") {
+//     const d = new Date(now);
+//     d.setDate(d.getDate() - 7);
+//     start = d.toISOString().split("T")[0];
+//   } else if (preset === "month") {
+//     const d = new Date(now);
+//     d.setDate(1);
+//     start = d.toISOString().split("T")[0];
+//   } else if (preset === "quarter") {
+//     const d = new Date(now);
+//     d.setMonth(d.getMonth() - 3);
+//     start = d.toISOString().split("T")[0];
+//   } else start = end;
+//   return { startDate: start, endDate: end };
+// };
+
 const _getDateRange = (preset) => {
   const now = new Date();
-  const end = now.toISOString().split("T")[0];
+  const end = now.toISOString().split('T')[0];
   let start;
-  if (preset === "today") start = end;
-  else if (preset === "week") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 7);
-    start = d.toISOString().split("T")[0];
-  } else if (preset === "month") {
-    const d = new Date(now);
-    d.setDate(1);
-    start = d.toISOString().split("T")[0];
-  } else if (preset === "quarter") {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 3);
-    start = d.toISOString().split("T")[0];
-  } else start = end;
+  if (preset === 'today') start = end;
+  else if (preset === 'week') { const d = new Date(now); d.setDate(d.getDate() - 7); start = d.toISOString().split('T')[0]; }
+  else if (preset === 'month') { const d = new Date(now); d.setDate(1); start = d.toISOString().split('T')[0]; }
+  else if (preset === 'quarter') { const d = new Date(now); d.setMonth(d.getMonth() - 3); start = d.toISOString().split('T')[0]; }
+  else start = end;
   return { startDate: start, endDate: end };
 };
 
@@ -498,6 +510,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [sunPhase, setSunPhase] = useState("morning");
   const [moonVisible, setMoonVisible] = useState(false);
   const [clouds, setClouds] = useState([]);
+
+  const [chartGroupBy, setChartGroupBy] = useState('daily');
 
   // Handle logout
   const handleLogout = async () => {
@@ -698,63 +712,148 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => socketService.disconnect();
   }, [token]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-      });
-      if (selectedBranch !== "all") params.append("branchId", selectedBranch);
+  // const fetchData = useCallback(async () => {
+  //   setLoading(true);
+  //   try {
+  //     const params = new URLSearchParams({
+  //       startDate: dateRange.startDate,
+  //       endDate: dateRange.endDate,
+  //     });
+  //     if (selectedBranch !== "all") params.append("branchId", selectedBranch);
 
-      const BASE = (
-        import.meta.env.VITE_API_URL || "http://localhost:5000"
-      ).replace(/\/api\/?$/, "");
+  //     const BASE = (
+  //       import.meta.env.VITE_API_URL || "http://localhost:5000"
+  //     ).replace(/\/api\/?$/, "");
 
-      const res = await fetch(
-        `${BASE}/api/dashboard/stats?${params.toString()}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
+  //     const res = await fetch(
+  //       `${BASE}/api/dashboard/stats?${params.toString()}`,
+  //       { headers: { Authorization: `Bearer ${token}` } },
+  //     );
+  //     if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
 
-      const json = await res.json();
-      console.log("🔴 RAW API Response:", json.data);
-      console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
-      console.log("💰 KPIs:", json.data?.kpis);
+  //     const json = await res.json();
+  //     console.log("🔴 RAW API Response:", json.data);
+  //     console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
+  //     console.log("💰 KPIs:", json.data?.kpis);
 
-      const demo = generateDemoData();
+  //     const demo = generateDemoData();
+
+  //     try {
+  //       const branchRes = await getAllBranchesWithPerformance();
+  //       const realBranches = (branchRes.data || []).map((b) => ({
+  //         branch_id: b._id,
+  //         branch_name: b.name,
+  //         location: b.city || "N/A",
+  //         status: b.isActive ? "active" : "inactive",
+  //         staff_count: b.employeeCount,
+  //         products_count: b.inventoryCount,
+  //         total_stock: b.inventoryCount,
+  //         low_stock_items: b.lowStockCount,
+  //         revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
+  //         growth: 0,
+  //       }));
+  //       demo.branches = realBranches;
+  //     } catch (branchErr) {
+  //       console.error("Error fetching branch performance:", branchErr);
+  //     }
+
+  //     setDashboardData(demo);
+  //     setLastUpdated(new Date());
+  //   } catch (err) {
+  //     console.error("Error fetching dashboard data:", err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [dateRange, selectedBranch, token]);
+
+  // useEffect(() => {
+  //   fetchData();
+  // }, [selectedBranch, datePreset, fetchData]);
+
+  //=======================================================
+    const fetchData = useCallback(async () => {
+      setLoading(true);
 
       try {
-        const branchRes = await getAllBranchesWithPerformance();
-        const realBranches = (branchRes.data || []).map((b) => ({
-          branch_id: b._id,
-          branch_name: b.name,
-          location: b.city || "N/A",
-          status: b.isActive ? "active" : "inactive",
-          staff_count: b.employeeCount,
-          products_count: b.inventoryCount,
-          total_stock: b.inventoryCount,
-          low_stock_items: b.lowStockCount,
-          revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
-          growth: 0,
-        }));
-        demo.branches = realBranches;
-      } catch (branchErr) {
-        console.error("Error fetching branch performance:", branchErr);
+        const params = new URLSearchParams({
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        });
+
+        if (selectedBranch !== "all") {
+          params.append("branchId", selectedBranch);
+        }
+
+        const BASE = (
+          import.meta.env.VITE_API_URL || "http://localhost:5000"
+        ).replace(/\/api\/?$/, "");
+
+        const res = await fetch(
+          `${BASE}/api/dashboard/stats?${params.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error(`Dashboard fetch failed: ${res.status}`);
+        }
+
+        const json = await res.json();
+
+        console.log("🔴 RAW API Response:", json.data);
+        console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
+        console.log("💰 KPIs:", json.data?.kpis);
+
+        // Demo structure base
+        const dashboardData = generateDemoData();
+
+        // Real dashboard stats inject
+        const mappedData = mapStatsToDashboardData(
+          json.data,
+          dashboardData
+        );
+
+        // Real branch performance inject
+        try {
+          const branchRes = await getAllBranchesWithPerformance();
+
+          mappedData.branches = (branchRes.data || []).map((b) => ({
+            branch_id: b._id,
+            branch_name: b.name,
+            location: b.city || "N/A",
+            status: b.isActive ? "active" : "inactive",
+            staff_count: b.employeeCount || 0,
+            products_count: b.inventoryCount || 0,
+            total_stock: b.inventoryCount || 0,
+            low_stock_items: b.lowStockCount || 0,
+            revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
+            growth: b.growth || 0,
+          }));
+        } catch (branchErr) {
+          console.error(
+            "Error fetching branch performance:",
+            branchErr
+          );
+        }
+
+        setDashboardData(mappedData);
+        setLastUpdated(new Date());
+
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setLoading(false);
       }
+    }, [selectedBranch, dateRange, token]);
 
-      setDashboardData(demo);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Error fetching dashboard data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange, selectedBranch, token]);
+    useEffect(() => {
+      fetchData();
+    }, [selectedBranch, dateRange, fetchData]);
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedBranch, datePreset, fetchData]);
+
 
   const handlePreset = (preset) => {
     setDatePreset(preset);
@@ -1117,7 +1216,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
               <KPICards data={dashboardData} loading={loading} role={role} />
             </div>
 
-            <div className="dash-section chart-section">
+            {/* <div className="dash-section chart-section">
               <div className="section-header">
                 <div className="section-title-wrapper">
                   <span className="section-icon">📊</span>
@@ -1133,7 +1232,31 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
               <div className="chart-container">
                 <SalesChart data={dashboardData} />
               </div>
+            </div> */}
+
+          <div className="dash-section chart-section">
+            <div className="section-header">
+              <div className="section-title-wrapper">
+                <span className="section-icon">📊</span>
+                <h2 className="section-title">Sales Analytics</h2>
+                <span className="section-badge">Real-time</span>
+              </div>
+              <div className="chart-controls">
+                {['daily', 'weekly', 'monthly'].map((g) => (
+                  <button
+                    key={g}
+                    className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                    onClick={() => setChartGroupBy(g)}
+                  >
+                    {g.charAt(0).toUpperCase() + g.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
+            <div className="chart-container">
+              <SalesChart data={dashboardData} groupBy={chartGroupBy} />
+            </div>
+          </div>
 
             <div className="dash-section">
               <div className="section-header">

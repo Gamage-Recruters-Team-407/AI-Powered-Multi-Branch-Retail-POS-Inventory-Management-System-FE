@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
-const DEMO_SALES = [
+const DEMO_SALES_DAILY = [
   { date: 'May 27', revenue: 6200, transactions: 84, profit: 1860 },
   { date: 'May 28', revenue: 7800, transactions: 102, profit: 2340 },
   { date: 'May 29', revenue: 5400, transactions: 71, profit: 1620 },
@@ -15,12 +15,28 @@ const DEMO_SALES = [
   { date: 'Jun 02', revenue: 10100, transactions: 139, profit: 3030 },
 ];
 
+const DEMO_SALES_WEEKLY = [
+  { date: 'Week 1', revenue: 38200, transactions: 510, profit: 11460 },
+  { date: 'Week 2', revenue: 45600, transactions: 621, profit: 13680 },
+  { date: 'Week 3', revenue: 41800, transactions: 574, profit: 12540 },
+  { date: 'Week 4', revenue: 52300, transactions: 708, profit: 15690 },
+];
+
+const DEMO_SALES_MONTHLY = [
+  { date: 'Jan', revenue: 142000, transactions: 1920, profit: 42600 },
+  { date: 'Feb', revenue: 128000, transactions: 1740, profit: 38400 },
+  { date: 'Mar', revenue: 165000, transactions: 2210, profit: 49500 },
+  { date: 'Apr', revenue: 178000, transactions: 2380, profit: 53400 },
+  { date: 'May', revenue: 192000, transactions: 2580, profit: 57600 },
+  { date: 'Jun', revenue: 88000, transactions: 1180, profit: 26400 },
+];
+
 const BRANCH_PIE = [
   { name: 'Colombo', value: 38, color: '#2563eb' },
-  { name: 'Kandy', value: 24, color: '#60a5fa' },
-  { name: 'Galle', value: 18, color: '#93c5fd' },
+  { name: 'Kandy',   value: 24, color: '#60a5fa' },
+  { name: 'Galle',   value: 18, color: '#93c5fd' },
   { name: 'Negombo', value: 12, color: '#bfdbfe' },
-  { name: 'Others', value: 8, color: '#dbeafe' },
+  { name: 'Others',  value: 8,  color: '#dbeafe' },
 ];
 
 const CHART_TYPES = ['Area', 'Line', 'Bar'];
@@ -29,11 +45,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: '#172554',
-      borderRadius: 10,
-      padding: '10px 14px',
-      boxShadow: '0 8px 24px rgba(0,0,0,.2)',
-      border: 'none'
+      background: '#172554', borderRadius: 10,
+      padding: '10px 14px', boxShadow: '0 8px 24px rgba(0,0,0,.2)',
     }}>
       <p style={{ color: '#93c5fd', fontSize: '.78rem', marginBottom: 4 }}>{label}</p>
       {payload.map((p, i) => (
@@ -48,28 +61,63 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const SalesChart = ({ data }) => {
-  const [chartType, setChartType] = useState('Area');
-  const [metric, setMetric] = useState('revenue');
+// ── Grouping helpers ──────────────────────────────────────────
+const getWeekLabel = (dateStr) => {
+  const d = new Date(dateStr);
+  const startOfYear = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+  return `W${week} ${d.getFullYear()}`;
+};
 
-  // Backend dailySales data → chart format
-  // Backend format:  { _id: '2026-06-01', revenue: 8700, transactions: 116, avgValue: 75 }
-  // Chart format:    { date: 'Jun 01',    revenue: 8700, transactions: 116, profit: 2610 }
-  const salesData = React.useMemo(() => {
-    const raw = data?.sales;
-    if (!raw || raw.length === 0) return DEMO_SALES;
+const getMonthLabel = (dateStr) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+};
 
+const groupSalesData = (raw, groupBy) => {
+  if (!raw || raw.length === 0) {
+    if (groupBy === 'weekly')  return DEMO_SALES_WEEKLY;
+    if (groupBy === 'monthly') return DEMO_SALES_MONTHLY;
+    return DEMO_SALES_DAILY;
+  }
+
+  if (groupBy === 'daily') {
     return raw.map(day => ({
-      date: new Date(day._id).toLocaleDateString('en-US', {
-        month: 'short',
-        day: '2-digit',
-      }),
-      revenue: day.revenue || 0,
+      date: new Date(day._id).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+      revenue:      day.revenue      || 0,
       transactions: day.transactions || 0,
-      // profit field backend dailySales ekhi naha — revenue 30% as estimate
-      profit: Math.round((day.revenue || 0) * 0.3),
+      profit:       Math.round((day.revenue || 0) * 0.3),
     }));
-  }, [data?.sales]);
+  }
+
+  // weekly / monthly — aggregate
+  const buckets = {};
+  raw.forEach(day => {
+    const key = groupBy === 'weekly' ? getWeekLabel(day._id) : getMonthLabel(day._id);
+    if (!buckets[key]) buckets[key] = { date: key, revenue: 0, transactions: 0, profit: 0 };
+    buckets[key].revenue      += day.revenue      || 0;
+    buckets[key].transactions += day.transactions || 0;
+    buckets[key].profit       += Math.round((day.revenue || 0) * 0.3);
+  });
+  return Object.values(buckets);
+};
+
+// ── Component ─────────────────────────────────────────────────
+const SalesChart = ({ data, groupBy = 'daily' }) => {
+  const [chartType, setChartType] = useState('Area');
+  const [metric, setMetric]       = useState('revenue');
+
+  const salesData = useMemo(
+    () => groupSalesData(data?.sales, groupBy),
+    [data?.sales, groupBy]
+  );
+
+  const subLabel = useMemo(() => {
+    if (!data?.sales || data.sales.length === 0) return 'demo data';
+    if (groupBy === 'daily')   return `Last ${salesData.length} days — live data`;
+    if (groupBy === 'weekly')  return `Last ${salesData.length} weeks — live data`;
+    return `${salesData.length} months — live data`;
+  }, [salesData, groupBy, data?.sales]);
 
   const renderChart = () => {
     const commonProps = {
@@ -77,55 +125,40 @@ const SalesChart = ({ data }) => {
       margin: { top: 10, right: 10, left: 0, bottom: 0 },
     };
 
-    if (chartType === 'Area') {
-      return (
-        <AreaChart {...commonProps}>
-          <defs>
-            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#2563eb" stopOpacity={0}   />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="date"  tick={{ fontSize: 11, fill: '#94a3b8' }} />
-          <YAxis               tick={{ fontSize: 11, fill: '#94a3b8' }} />
-          <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone"
-            dataKey={metric}
-            stroke="#2563eb"
-            fill="url(#revGrad)"
-            strokeWidth={2.5}
-            dot={{ fill: '#2563eb', r: 4 }}
-          />
-        </AreaChart>
-      );
-    }
+    if (chartType === 'Area') return (
+      <AreaChart {...commonProps}>
+        <defs>
+          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#2563eb" stopOpacity={0}   />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+        <YAxis                tick={{ fontSize: 11, fill: '#94a3b8' }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey={metric} stroke="#2563eb"
+          fill="url(#revGrad)" strokeWidth={2.5}
+          dot={{ fill: '#2563eb', r: 4 }} />
+      </AreaChart>
+    );
 
-    if (chartType === 'Line') {
-      return (
-        <LineChart {...commonProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-          <YAxis             tick={{ fontSize: 11, fill: '#94a3b8' }} />
-          <Tooltip content={<CustomTooltip />} />
-          <Line
-            type="monotone"
-            dataKey={metric}
-            stroke="#2563eb"
-            strokeWidth={2.5}
-            dot={{ fill: '#2563eb', r: 4 }}
-            activeDot={{ r: 6 }}
-          />
-        </LineChart>
-      );
-    }
+    if (chartType === 'Line') return (
+      <LineChart {...commonProps}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+        <YAxis                tick={{ fontSize: 11, fill: '#94a3b8' }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Line type="monotone" dataKey={metric} stroke="#2563eb"
+          strokeWidth={2.5} dot={{ fill: '#2563eb', r: 4 }} activeDot={{ r: 6 }} />
+      </LineChart>
+    );
 
     return (
       <BarChart {...commonProps}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-        <YAxis             tick={{ fontSize: 11, fill: '#94a3b8' }} />
+        <YAxis                tick={{ fontSize: 11, fill: '#94a3b8' }} />
         <Tooltip content={<CustomTooltip />} />
         <Bar dataKey={metric} fill="#2563eb" radius={[6, 6, 0, 0]} />
       </BarChart>
@@ -134,50 +167,40 @@ const SalesChart = ({ data }) => {
 
   return (
     <div className="charts-grid">
-
-      {/* ── Main Revenue Chart ── */}
+      {/* ── Main Chart ── */}
       <div className="chart-card main-chart">
         <div className="chart-card-header">
           <div>
             <h3 className="chart-card-title">Revenue &amp; Sales Trend</h3>
-            <p className="chart-card-sub">
-              {data?.sales && data.sales.length > 0
-                ? `Last ${data.sales.length} days — live data`
-                : 'Last 7 days — demo data'}
-            </p>
+            <p className="chart-card-sub">{subLabel}</p>
           </div>
           <div className="chart-controls">
             <div className="chart-tabs">
               {['revenue', 'transactions', 'profit'].map(m => (
-                <button
-                  key={m}
+                <button key={m}
                   className={`chart-tab ${metric === m ? 'active' : ''}`}
-                  onClick={() => setMetric(m)}
-                >
+                  onClick={() => setMetric(m)}>
                   {m.charAt(0).toUpperCase() + m.slice(1)}
                 </button>
               ))}
             </div>
             <div className="chart-tabs">
               {CHART_TYPES.map(t => (
-                <button
-                  key={t}
+                <button key={t}
                   className={`chart-tab ${chartType === t ? 'active' : ''}`}
-                  onClick={() => setChartType(t)}
-                >
+                  onClick={() => setChartType(t)}>
                   {t}
                 </button>
               ))}
             </div>
           </div>
         </div>
-
         <ResponsiveContainer width="100%" height={260}>
           {renderChart()}
         </ResponsiveContainer>
       </div>
 
-      {/* ── Pie Chart — Branch Revenue Share ── */}
+      {/* ── Pie Chart ── */}
       <div className="chart-card pie-chart">
         <div className="chart-card-header">
           <div>
@@ -187,26 +210,14 @@ const SalesChart = ({ data }) => {
         </div>
         <ResponsiveContainer width="100%" height={180}>
           <PieChart>
-            <Pie
-              data={BRANCH_PIE}
-              cx="50%" cy="50%"
-              innerRadius={55} outerRadius={80}
-              paddingAngle={3}
-              dataKey="value"
-            >
+            <Pie data={BRANCH_PIE} cx="50%" cy="50%"
+              innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
               {BRANCH_PIE.map((entry, i) => (
                 <Cell key={i} fill={entry.color} stroke="none" />
               ))}
             </Pie>
-            <Tooltip
-              formatter={(v) => `${v}%`}
-              contentStyle={{
-                borderRadius: 8,
-                border: 'none',
-                background: '#172554',
-                color: '#93c5fd',
-              }}
-            />
+            <Tooltip formatter={(v) => `${v}%`}
+              contentStyle={{ borderRadius: 8, border: 'none', background: '#172554', color: '#93c5fd' }} />
           </PieChart>
         </ResponsiveContainer>
         <div className="pie-legend">
@@ -221,49 +232,16 @@ const SalesChart = ({ data }) => {
       </div>
 
       <style>{`
-        .charts-grid {
-          display: grid;
-          grid-template-columns: 1fr 300px;
-          gap: 16px;
-        }
-        @media (max-width: 1024px) {
-          .charts-grid { grid-template-columns: 1fr; }
-        }
-        .chart-card {
-          background: white;
-          border-radius: var(--radius);
-          padding: 20px;
-          border: 1.5px solid var(--gray-200);
-          animation: fadeIn .5s ease both;
-        }
-        .chart-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 18px;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
+        .charts-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+        @media (max-width: 1024px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-card { background: white; border-radius: var(--radius); padding: 20px; border: 1.5px solid var(--gray-200); animation: fadeIn .5s ease both; }
+        .chart-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
         .chart-card-title { font-size: 1rem; font-weight: 700; color: var(--gray-900); }
         .chart-card-sub   { font-size: .75rem; color: var(--gray-400); margin-top: 2px; }
         .chart-controls   { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-        .chart-tabs {
-          display: flex; gap: 4px;
-          background: var(--gray-100);
-          padding: 3px; border-radius: 8px;
-        }
-        .chart-tab {
-          padding: 4px 10px; border-radius: 6px;
-          font-size: .75rem; font-weight: 600;
-          color: var(--gray-500); background: none;
-          transition: all var(--transition);
-          border: none; cursor: pointer;
-        }
-        .chart-tab.active {
-          background: white;
-          color: var(--blue-600);
-          box-shadow: var(--shadow-sm);
-        }
+        .chart-tabs { display: flex; gap: 4px; background: var(--gray-100); padding: 3px; border-radius: 8px; }
+        .chart-tab { padding: 4px 10px; border-radius: 6px; font-size: .75rem; font-weight: 600; color: var(--gray-500); background: none; transition: all var(--transition); border: none; cursor: pointer; }
+        .chart-tab.active { background: white; color: var(--blue-600); box-shadow: var(--shadow-sm); }
         .pie-legend      { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
         .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
         .pie-dot         { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
