@@ -53,6 +53,7 @@ const ReportsPage = lazy(() => import("../reports/ReportsPage"));
 const POSPage = lazy(() => import("../pos/POSPage"));
 const CheckoutPage = lazy(() => import("../pos/CheckoutPage"));
 const ReceiptPage = lazy(() => import("../pos/ReceiptPage"));
+//branch list page import
 const BranchListPage = lazy(() => import("../branches/BranchListPage"));
 const PromotionsPage = lazy(() => import("../promotions/PromotionsPage"));
 const SalesHistoryPage = lazy(() => import("../pos/SalesHistoryPage"));
