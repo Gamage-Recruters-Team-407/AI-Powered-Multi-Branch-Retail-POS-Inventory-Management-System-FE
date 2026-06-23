@@ -154,15 +154,14 @@
 // };
 
 // export default CheckoutPage;import { useState } from "react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, AlertCircle, Package, User, CreditCard as CardIcon, Tag, Check, Trash } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useSales } from "../../context/SalesContext";
 import { createSale } from "../../services/salesApi";
 import PaymentMethod from "../../components/pos/PaymentMethod";
 import { useAuth } from "../../context/AuthContext";
-import { validateCoupon } from "../../services/promotionApi";
+import { searchCustomers } from "../../services/customerApi";
 import { toast } from "react-hot-toast";
 
 const CheckoutPage = ({ onBack, onComplete }) => {
@@ -174,7 +173,11 @@ const CheckoutPage = ({ onBack, onComplete }) => {
 
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [cashReceived, setCashReceived]   = useState("");
-  const [customerId, setCustomerId]       = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customer, setCustomer]           = useState(null);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerError, setCustomerError]     = useState("");
+  const debounceRef = useRef(null);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState("");
 
@@ -226,6 +229,45 @@ const CheckoutPage = ({ onBack, onComplete }) => {
     toast.success("Coupon removed.");
   };
 
+  useEffect(() => {
+  if (debounceRef.current) clearTimeout(debounceRef.current);
+  setCustomerError("");
+
+  const phone = customerPhone.trim();
+  if (!phone || phone.length < 9) {
+    setCustomer(null);
+    return;
+  }
+
+  debounceRef.current = setTimeout(async () => {
+    setCustomerLoading(true);
+    try {
+      const res = await searchCustomers(phone);
+      const results = res?.data?.data || res?.data || [];
+      const list = Array.isArray(results) ? results : [];
+
+      const found =
+        list.find(
+          (c) => (c.phone || c.phoneNumber || "").replace(/\D/g, "") === phone.replace(/\D/g, "")
+        ) || list[0] || null;
+
+      if (found) {
+        setCustomer(found);
+      } else {
+        setCustomer(null);
+        setCustomerError("No customer found with this number.");
+      }
+    } catch (err) {
+      setCustomer(null);
+      setCustomerError("No customer found with this number.");
+    } finally {
+      setCustomerLoading(false);
+    }
+  }, 500);
+
+  return () => clearTimeout(debounceRef.current);
+}, [customerPhone]);
+
   if (cart.length === 0) { onBack ? onBack() : navigate("/pos"); return null; }
 
   const change     = paymentMethod === "CASH" && cashReceived ? parseFloat(cashReceived) - total : 0;
@@ -234,7 +276,8 @@ const CheckoutPage = ({ onBack, onComplete }) => {
   const handleConfirm = async () => {
     setError(""); setLoading(true);
     try {
-      const payload = buildCheckoutPayload(paymentMethod, parseFloat(cashReceived), customerId);
+      const customerIdToSend = customer?._id || customer?.id || null;
+      const payload = buildCheckoutPayload(paymentMethod, parseFloat(cashReceived), customerIdToSend);
       const res     = await createSale(payload);
       const sale    = res.data.data;
       addSale(sale);
@@ -318,18 +361,50 @@ const CheckoutPage = ({ onBack, onComplete }) => {
             </div>
           </div>
 
-          {/* Customer ID */}
+          {/* Customer Phone Number */}
           <div className="mb-4 sm:mb-5">
             <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
-              <User size={12} className="text-slate-400" /> Customer ID <span className="text-slate-400 font-normal lowercase">(optional)</span>
+              <User size={12} className="text-slate-400" /> Customer Phone Number <span className="text-slate-400 font-normal lowercase">(optional)</span>
             </label>
             <input
-              type="text"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              placeholder="Leave blank for walk-in customer"
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="e.g. 0771234567 — leave blank for walk-in customer"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 sm:px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
             />
+
+            {customerLoading && (
+              <p className="mt-1.5 text-[10px] font-bold text-slate-400">Searching customer...</p>
+            )}
+
+            {!customerLoading && customerError && (
+              <p className="mt-1.5 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                <AlertCircle size={12} /> {customerError}
+              </p>
+            )}
+
+            {!customerLoading && customer && (
+              <div className="mt-2.5 p-3 bg-blue-50 border border-blue-200/50 rounded-xl text-[11px] font-bold text-blue-700">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Check size={13} strokeWidth={3} className="text-blue-500" />
+                    {`${customer.firstName || ""} ${customer.lastName || ""}`.trim() || "Customer"}
+                  </span>
+                  {customer.customerType && (
+                    <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                      {customer.customerType}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 text-[10px] font-semibold text-blue-500">
+                  {customer.phone && <span>📞 {customer.phone}</span>}
+                  {/* {customer.loyaltyPoints != null && <span>⭐ {customer.loyaltyPoints} pts</span>}
+                  {customer.totalPurchases != null && <span>🛒 Rs.{customer.totalPurchases.toLocaleString()} total</span>} */}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Coupon */}

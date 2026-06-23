@@ -150,7 +150,7 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
           </div>
 
           {/* Cart — sidebar on desktop */}
-          <div className="hidden lg:flex w-[380px] xl:w-[420px] backdrop-blur-md bg-white/60 border-l border-white/30 flex-col shadow-2xl">
+          <div className="hidden lg:flex w-[380px] xl:w-[420px] max-h-screen backdrop-blur-md bg-white/60 border-l border-white/30 flex-col shadow-2xl overflow-hidden">
             <Cart
               cart={cart}
               subtotal={subtotal}
