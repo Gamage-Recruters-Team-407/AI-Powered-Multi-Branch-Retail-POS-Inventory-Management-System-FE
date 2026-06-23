@@ -661,7 +661,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     sessionStorage.setItem("dashboard_visibleModule", moduleId);
 
     // Close sidebar on mobile after navigating
-    if (window.innerWidth <= 1024) {
+    if (window.innerWidth <= 768) {
       setNavExpanded(false);
     }
   };
@@ -2056,6 +2056,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
         @media (max-width: 1100px) {
           .content-wrapper { margin-left: 70px; padding: 16px; }
           .floating-nav { width: 70px; }
+          .floating-nav.expanded { width: 280px; }
+          .floating-nav.expanded + .sky-background + .content-wrapper { margin-left: 280px; }
           .tp-live-grid { grid-template-columns: 1fr; }
           .inventory-grid { grid-template-columns: 1fr; }
           .branch-hero-content { flex-direction: column; text-align: center; }
@@ -2075,7 +2077,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
         }
-        @media (max-width: 1024px) {
+        @media (max-width: 768px) {
           .floating-nav { transform: translateX(-100%); width: 280px; }
           .floating-nav.expanded { transform: translateX(0); }
           .content-wrapper { margin-left: 0 !important; width: 100% !important; padding: 16px; margin-top: 60px; }

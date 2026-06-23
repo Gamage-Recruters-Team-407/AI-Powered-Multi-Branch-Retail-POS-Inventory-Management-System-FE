@@ -3,6 +3,14 @@ import { FiX, FiPrinter } from 'react-icons/fi';
 const ReceiptModal = ({ isOpen, onClose, returnItem }) => {
   if (!isOpen || !returnItem) return null;
 
+  const refundSubtotal = Number(returnItem.subtotal ?? 0);
+  const refundDiscount = Number(returnItem.discountAmount ?? 0);
+  const refundTax = Number(returnItem.taxAmount ?? 0);
+  const hasExplicitBreakdown =
+    Number.isFinite(refundSubtotal) &&
+    refundSubtotal > 0 &&
+    Number.isFinite(refundTax);
+
   const handlePrint = () => {
     window.print();
   };
@@ -105,8 +113,11 @@ const ReceiptModal = ({ isOpen, onClose, returnItem }) => {
 
             {/* Calculations */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
-              <div>Refund Subtotal: LKR {(returnItem.amount / 1.12).toFixed(2)}</div>
-              <div>Tax (Refunded): LKR {(returnItem.amount - (returnItem.amount / 1.12)).toFixed(2)}</div>
+              <div>Refund Subtotal: LKR {(hasExplicitBreakdown ? refundSubtotal : Number(returnItem.amount || 0)).toFixed(2)}</div>
+              {hasExplicitBreakdown && refundDiscount > 0 && (
+                <div>Discount Reversal: -LKR {refundDiscount.toFixed(2)}</div>
+              )}
+              <div>Tax (Refunded): LKR {(hasExplicitBreakdown ? refundTax : 0).toFixed(2)}</div>
               <div style={{ fontSize: '15px', fontWeight: 'bold', margin: '6px 0 0 0' }}>
                 TOTAL REFUND: LKR {returnItem.amount.toFixed(2)}
               </div>
@@ -118,6 +129,7 @@ const ReceiptModal = ({ isOpen, onClose, returnItem }) => {
               <div><strong>Reason:</strong> {returnItem.reason}</div>
               <div><strong>Condition:</strong> {returnItem.condition}</div>
               <div><strong>Status:</strong> {returnItem.status.toUpperCase()}</div>
+              {returnItem.paymentMethod && <div><strong>Refund Method:</strong> {returnItem.paymentMethod}</div>}
             </div>
 
             <div style={{ borderTop: '1px dashed #cbd5e1', margin: '16px 0' }} />

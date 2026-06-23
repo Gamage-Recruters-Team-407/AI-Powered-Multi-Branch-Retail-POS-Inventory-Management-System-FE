@@ -108,7 +108,7 @@ export default function UserListPage() {
   return (
 <div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
@@ -155,12 +155,12 @@ export default function UserListPage() {
           </div>
         ) : (
           <div>
-          <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"4px" }}>
-          <table style={{ width:"100%", minWidth:"1400px", borderCollapse:"collapse", fontSize:"14px" }}>
+          <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"0px" }}>
+          <table style={{ width:"100%", minWidth:"850px", borderCollapse:"collapse", fontSize:"14px" }}>
             <thead>
               <tr style={{ background:"rgba(248,250,252,0.8)" }}>
                 {["User","Email","Phone","Role","Status","Actions"].map(h => (
-                  <th key={h} style={{ padding:"14px 20px", textAlign:"left", fontWeight:"600", color:"#475569", fontSize:"12px", textTransform:"uppercase", letterSpacing:"0.5px", borderBottom:"1px solid rgba(226,232,240,0.8)" }}>{h}</th>
+                  <th key={h} style={{ padding:"12px 10px", textAlign:"left", fontWeight:"600", color:"#475569", fontSize:"12px", textTransform:"uppercase", letterSpacing:"0.5px", borderBottom:"1px solid #e2e8f0" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -172,11 +172,11 @@ export default function UserListPage() {
                   <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
                 </td></tr>
               ) : paginatedUsers.map((user, i) => (
-                <tr key={user._id} style={{ borderBottom:"1px solid rgba(241,245,249,0.8)", transition:"background 0.15s" }}
+                <tr key={user._id} style={{ transition:"background 0.15s" }}
                   onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
                   onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                   <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
                       <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
                         {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
                       </div>
@@ -203,7 +203,7 @@ export default function UserListPage() {
 
                   {/* ========== UPDATED BUTTONS ========== */}
                   <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", gap:"8px" }}>
+                    <div style={{ display:"flex", gap:"6px" }}>
                       <button onClick={()=>openEdit(user)}
                         style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
                         onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
@@ -235,7 +235,7 @@ export default function UserListPage() {
             </tbody>
           </table>
           </div>
-          <div style={{ textAlign:"center", padding:"4px 0 2px", fontSize:"11px", color:"#94a3b8" }}>
+          <div style={{ textAlign:"center", padding:"2px 0 0", fontSize:"11px", color:"#94a3b8" }}>
             ← scroll to see more →
           </div>
           </div>

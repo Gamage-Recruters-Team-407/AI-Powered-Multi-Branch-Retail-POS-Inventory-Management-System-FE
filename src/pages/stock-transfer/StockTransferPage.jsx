@@ -404,17 +404,17 @@ function StockTransferPage() {
   }, [activeTab, apiConnected, branches, loadTransfers]);
 
   useEffect(() => {
-    if (!apiConnected || activeTab !== 'tracking' || !perms.canCreateTransfer) return;
+    if (!apiConnected || activeTab !== 'tracking') return;
     const interval = window.setInterval(() => {
       loadTransfers('All', branches).catch(() => {});
-    }, 20000);
+    }, 5000);
     const onFocus = () => loadTransfers('All', branches).catch(() => {});
     window.addEventListener('focus', onFocus);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener('focus', onFocus);
     };
-  }, [activeTab, apiConnected, branches, loadTransfers, perms.canCreateTransfer]);
+  }, [activeTab, apiConnected, branches, loadTransfers]);
 
   useEffect(() => {
     if (!apiConnected || activeTab !== 'reports' || !perms.tabs.reports) return;
@@ -864,10 +864,10 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await approveTransfer(transfer._id);
-      updateTransferInList(updated);
       setMessage(
         `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
       );
+      await loadTransfers('All', branches);
       await loadStockForBranches(branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Approve failed.'));
@@ -901,9 +901,9 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await updateTransfer(transfer._id, payload);
-      updateTransferInList(updated);
       setEditingTransferId(null);
       setMessage(`${updated.id} updated — still Pending until admin approves.`);
+      await loadTransfers('All', branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Could not update transfer.'));
     } finally {
@@ -918,14 +918,10 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await rejectTransfer(transfer._id, reason.trim());
-      updateTransferInList({
-        ...updated,
-        status: 'Rejected',
-        rejectReason: updated.rejectReason || reason.trim(),
-      });
       setMessage(
         `${updated.id} rejected. Manager must create a new request if needed.`,
       );
+      await loadTransfers('All', branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Reject failed.'));
     } finally {
@@ -938,10 +934,10 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await dispatchTransfer(transfer._id);
-      updateTransferInList(updated);
       setMessage(
         `${updated.id} dispatched — In Transit. Stock deducted at source; destination manager can confirm receipt.`,
       );
+      await loadTransfers('All', branches);
       await loadStockForBranches(branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Dispatch failed.'));
@@ -964,10 +960,10 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await completeTransfer(transfer._id);
-      updateTransferInList(updated);
       setMessage(
         `${updated.id} completed — stock added at destination, movement logged.`,
       );
+      await loadTransfers('All', branches);
       await loadStockForBranches(branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Receipt confirmation failed.'));
@@ -991,8 +987,8 @@ function StockTransferPage() {
     setSubmitting(true);
     try {
       const updated = await cancelTransfer(transfer._id, cancelReason.trim());
-      setTransfers((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
       setMessage(`${updated.id} cancelled.`);
+      await loadTransfers('All', branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Cancel failed.'));
     } finally {
