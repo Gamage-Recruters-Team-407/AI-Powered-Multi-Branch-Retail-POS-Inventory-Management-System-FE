@@ -49,7 +49,7 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
     // Use React Router navigation instead of window.location
     navigate(item.path);
     // Close sidebar automatically on mobile
-    if (window.innerWidth <= 1024) {
+    if (window.innerWidth <= 768) {
       setCollapsed(true);
     }
   };
@@ -207,7 +207,7 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
           cursor: pointer;
           font-size: 14px;
         }
-        @media (max-width: 1024px) {
+        @media (max-width: 768px) {
           .mobile-close-sidebar-btn { display: flex; }
           .collapse-btn { display: none; }
         }
