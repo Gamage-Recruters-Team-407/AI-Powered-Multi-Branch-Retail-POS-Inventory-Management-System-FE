@@ -62,10 +62,10 @@ const normalizeProduct = (product) => {
 
     price: Number(product.price ?? product.sellingPrice ?? 0),
 
+    // You are using reorderLevel as stock count
     stock,
     quantity: stock,
     availableStock: stock,
-
     reorderLevel: stock,
 
     image: product.image || product.imageUrl || "",

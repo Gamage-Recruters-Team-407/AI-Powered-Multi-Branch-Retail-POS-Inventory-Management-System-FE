@@ -195,27 +195,7 @@ export const CartProvider = ({ children }) => {
     };
   };
 
-  /*
-    Supports both:
-    buildCheckoutPayload(paymentMethod, cashReceived, customerId)
-    and
-    buildCheckoutPayload({ paymentMethod, cashReceived, customerId })
-  */
-  const buildCheckoutPayload = (arg1, arg2, arg3) => {
-    let paymentMethod;
-    let cashReceived;
-    let customerId;
-
-    if (typeof arg1 === "object" && arg1 !== null) {
-      paymentMethod = arg1.paymentMethod;
-      cashReceived = arg1.cashReceived;
-      customerId = arg1.customerId;
-    } else {
-      paymentMethod = arg1;
-      cashReceived = arg2;
-      customerId = arg3;
-    }
-
+  const buildCheckoutPayload = (paymentMethod, cashReceived, customerId) => {
     return {
       items: cart.map((item) => ({
         productId: getItemId(item),

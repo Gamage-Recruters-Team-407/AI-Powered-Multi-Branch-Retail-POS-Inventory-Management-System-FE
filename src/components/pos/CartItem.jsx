@@ -22,6 +22,7 @@ const CartItem = ({ item, increaseQty, decreaseQty, removeItem }) => {
   const id = getItemId(item);
   const price = getPrice(item);
   const availableStock = getAvailableStock(item);
+
   const reachedMaxStock = Number(item.qty) >= availableStock;
   const outOfStock = availableStock <= 0;
   const lineTotal = price * Number(item.qty || 0);
