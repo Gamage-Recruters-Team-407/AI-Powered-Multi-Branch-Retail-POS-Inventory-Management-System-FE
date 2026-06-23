@@ -204,17 +204,18 @@ function StockTransferPage() {
 
   const loadTransfers = useCallback(
     async (statusFilter, branchList = [], { updateState = true } = {}) => {
-      const params = { limit: 100, page: 1 };
+      const params = { limit: 100, page: 1, _t: Date.now() };
+      
       if (statusFilter && statusFilter !== 'All') {
         params.status = mapStatusToApi(statusFilter);
       }
       const { items, permissions, summary } = await listTransfers(params);
       if (permissions) setServerPerms(permissions);
       if (updateState) {
-        setTransfers(items);
+        setTransfers(items || []);
         if (summary) setTransferSummary(summary);
       }
-      return items;
+      return items || [];
     },
     [],
   );
@@ -283,16 +284,16 @@ function StockTransferPage() {
     const branchList =
       branchesResult.status === 'fulfilled' ? branchesResult.value : [];
 
-    const transfersResult = await Promise.allSettled([
-      loadTransfers('All', branchList),
+    const [transfersOutcome] = await Promise.allSettled([
+      loadTransfers('All', branchList, { updateState: false }),
     ]);
 
     const productList =
       productsResult.status === 'fulfilled' ? productsResult.value : [];
     const transferItems =
-      transfersResult.status === 'fulfilled' ? transfersResult.value : [];
+      transfersOutcome?.status === 'fulfilled' ? transfersOutcome.value : [];
     const transferLoadError =
-      transfersResult.status === 'rejected' ? transfersResult.reason : null;
+      transfersOutcome?.status === 'rejected' ? transfersOutcome.reason : null;
 
     setBranches(branchList);
     setProducts(productList);
@@ -398,19 +399,6 @@ function StockTransferPage() {
     if (!apiConnected || !['tracking', 'history'].includes(activeTab)) return;
     loadTransfers('All', branches).catch(() => {});
   }, [activeTab, apiConnected, branches, loadTransfers]);
-
-  useEffect(() => {
-    if (!apiConnected || activeTab !== 'tracking' || !perms.canCreateTransfer) return;
-    const interval = window.setInterval(() => {
-      loadTransfers('All', branches).catch(() => {});
-    }, 20000);
-    const onFocus = () => loadTransfers('All', branches).catch(() => {});
-    window.addEventListener('focus', onFocus);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [activeTab, apiConnected, branches, loadTransfers, perms.canCreateTransfer]);
 
   useEffect(() => {
     if (!apiConnected || activeTab !== 'reports' || !perms.tabs.reports) return;
@@ -830,31 +818,123 @@ function StockTransferPage() {
     }
   };
 
-  const updateTransferInList = (updated) => {
-    setTransfers((prev) =>
-      prev.map((t) => (t._id === updated._id ? updated : t)),
-    );
-  };
+  const applyOptimisticUpdate = useCallback((tId, newStatus, additionalFields = {}) => {
+    setTransfers((prev) => prev.map((t) => {
+      if (t._id === tId || t.id === tId) {
+        return { ...t, ...additionalFields, status: newStatus };
+      }
+      return t;
+    }));
+    setTransferSummary(null); 
+  }, []);
 
   const handleApprove = async (transfer) => {
-    if (!transfer._id || !perms.canApproveTransfer) return;
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+    
     setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Approved');
+
     try {
-      const updated = await approveTransfer(transfer._id);
-      updateTransferInList(updated);
-      setMessage(
-        `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
-      );
-      await loadStockForBranches(branches);
+      await approveTransfer(tId);
+      setMessage(`${transfer.id || tId} approved successfully.`);
+      loadTransfers('All', branches).catch(() => {});
     } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
       setMessage(getApiErrorMessage(err, 'Approve failed.'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleReject = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+
+    const reason = window.prompt('Reason for rejection (required):');
+    if (!reason?.trim()) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Rejected', { rejectReason: reason.trim() });
+
+    try {
+      await rejectTransfer(tId, reason.trim());
+      setMessage(`${transfer.id || tId} rejected.`);
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status, { rejectReason: transfer.rejectReason });
+      setMessage(getApiErrorMessage(err, 'Reject failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDispatch = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'In Transit');
+
+    try {
+      await dispatchTransfer(tId);
+      setMessage(`${transfer.id || tId} dispatched — In Transit. Stock deducted at source.`);
+      loadStockForBranches(branches).catch(() => {});
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
+      setMessage(getApiErrorMessage(err, 'Dispatch failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirmReceipt = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Completed');
+
+    try {
+      await completeTransfer(tId);
+      setMessage(`${transfer.id || tId} completed — stock added at destination. See History tab.`);
+      loadStockForBranches(branches).catch(() => {});
+      loadTransfers('All', branches).catch(() => {});
+      setActiveTab('history'); 
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
+      setMessage(getApiErrorMessage(err, 'Receipt confirmation failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+
+    const cancelReason = window.prompt('Reason for cancellation (required):');
+    if (!cancelReason?.trim()) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Cancelled', { cancelReason: cancelReason.trim() });
+
+    try {
+      await cancelTransfer(tId, cancelReason.trim());
+      setMessage(`${transfer.id || tId} cancelled.`);
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status, { cancelReason: transfer.cancelReason });
+      setMessage(getApiErrorMessage(err, 'Cancel failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSaveEdit = async (transfer, editForm) => {
-    if (!transfer._id || !canEditTransfer(transfer, perms)) {
+    const tId = transfer._id || transfer.id;
+    if (!tId || !canEditTransfer(transfer, perms)) {
       setMessage('Transfers can only be edited while Pending (before admin approval).');
       return;
     }
@@ -877,101 +957,13 @@ function StockTransferPage() {
 
     setSubmitting(true);
     try {
-      const updated = await updateTransfer(transfer._id, payload);
-      updateTransferInList(updated);
+      await updateTransfer(tId, payload);
+      const refreshed = await loadTransfers('All', branches);
+      setTransfers(refreshed);
       setEditingTransferId(null);
-      setMessage(`${updated.id} updated — still Pending until admin approves.`);
+      setMessage(`${transfer.id || tId} updated — still Pending until admin approves.`);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Could not update transfer.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReject = async (transfer) => {
-    if (!transfer._id || !perms.canRejectTransfer) return;
-    const reason = window.prompt('Reason for rejection (required):');
-    if (!reason?.trim()) return;
-    setSubmitting(true);
-    try {
-      const updated = await rejectTransfer(transfer._id, reason.trim());
-      updateTransferInList({
-        ...updated,
-        status: 'Rejected',
-        rejectReason: updated.rejectReason || reason.trim(),
-      });
-      setMessage(
-        `${updated.id} rejected. Manager must create a new request if needed.`,
-      );
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Reject failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDispatch = async (transfer) => {
-    if (!transfer._id || !perms.canDispatchTransfer) return;
-    setSubmitting(true);
-    try {
-      const updated = await dispatchTransfer(transfer._id);
-      updateTransferInList(updated);
-      setMessage(
-        `${updated.id} dispatched — In Transit. Stock deducted at source; destination manager can confirm receipt.`,
-      );
-      await loadStockForBranches(branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Dispatch failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleConfirmReceipt = async (transfer) => {
-    const { showConfirm } = getTransferUiActions(
-      transfer,
-      perms,
-      userBranchIds,
-      branches,
-    );
-    if (!transfer._id || !showConfirm) {
-      setMessage('Only the destination branch manager can confirm receipt.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const updated = await completeTransfer(transfer._id);
-      updateTransferInList(updated);
-      setMessage(
-        `${updated.id} completed — stock added at destination, movement logged.`,
-      );
-      await loadStockForBranches(branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Receipt confirmation failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCancel = async (transfer) => {
-    const { showCancel } = getTransferUiActions(
-      transfer,
-      perms,
-      userBranchIds,
-      branches,
-    );
-    if (!transfer._id || !showCancel) {
-      return;
-    }
-    const cancelReason = window.prompt('Reason for cancellation (required):');
-    if (!cancelReason?.trim()) return;
-    setSubmitting(true);
-    try {
-      const updated = await cancelTransfer(transfer._id, cancelReason.trim());
-      setTransfers((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
-      setMessage(`${updated.id} cancelled.`);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Cancel failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -1351,8 +1343,6 @@ function StockTransferPage() {
                 onPrimary={
                   perms.canCreateTransfer ? () => switchTab('request') : undefined
                 }
-                secondaryLabel="Sync data"
-                onSecondary={refreshAll}
               />
             ) : (
               <div className={stTransferCards}>
