@@ -360,12 +360,12 @@ const formatLKR = (amount, decimals = 0) => {
 // };
 
 const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
-const isEmpty =
-  rawVal === undefined ||
-  rawVal === null ||
-  rawVal === 0 ||
-  Number.isNaN(rawVal);
-  
+  const isEmpty =
+    rawVal === undefined ||
+    rawVal === null ||
+    rawVal === 0 ||
+    Number.isNaN(rawVal);
+
   if (isEmpty) {
     return prevValue !== undefined && prevValue !== null
       ? prevValue
@@ -438,11 +438,11 @@ const mapStatsToDashboardData = (stats, prevData) => {
       ),
       avg_stock_level: inventory.branchStockStatus?.length
         ? (
-            inventory.branchStockStatus.reduce(
-              (sum, b) => sum + (b.avgStockLevel || 0),
-              0,
-            ) / inventory.branchStockStatus.length
-          ).toFixed(1)
+          inventory.branchStockStatus.reduce(
+            (sum, b) => sum + (b.avgStockLevel || 0),
+            0,
+          ) / inventory.branchStockStatus.length
+        ).toFixed(1)
         : (prevInventory.avg_stock_level ?? 0),
     },
     low_stock_alerts: {
@@ -710,99 +710,99 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   }, []);
 
 
-// WebSocket
-useEffect(() => {
-  socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
-  socketService.on('connect', () => setWsConnected(true));
-  socketService.on('disconnect', () => setWsConnected(false));
+  // WebSocket
+  useEffect(() => {
+    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+    socketService.on('connect', () => setWsConnected(true));
+    socketService.on('disconnect', () => setWsConnected(false));
 
 
-  return () => socketService.disconnect();
-}, [token]);
+    return () => socketService.disconnect();
+  }, [token]);
 
 
-  
-    const fetchData = useCallback(async () => {
-      setLoading(true);
 
-      try {
-        const params = new URLSearchParams({
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-        });
+  const fetchData = useCallback(async () => {
+    setLoading(true);
 
-        if (selectedBranch !== "all") {
-          params.append("branchId", selectedBranch);
-        }
+    try {
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
 
-        const BASE = (
-          import.meta.env.VITE_API_URL || "http://localhost:5000"
-        ).replace(/\/api\/?$/, "");
-
-        const res = await fetch(
-          `${BASE}/api/dashboard/stats?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`Dashboard fetch failed: ${res.status}`);
-        }
-
-        const json = await res.json();
-
-        console.log("🔴 RAW API Response:", json.data);
-        console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
-        console.log("💰 KPIs:", json.data?.kpis);
-
-        // Demo structure base
-        const dashboardData = generateDemoData();
-
-        // Real dashboard stats inject
-        const mappedData = mapStatsToDashboardData(
-          json.data,
-          dashboardData
-        );
-
-        // Real branch performance inject
-        try {
-          const branchRes = await getAllBranchesWithPerformance();
-
-          mappedData.branches = (branchRes.data || []).map((b) => ({
-            branch_id: b._id,
-            branch_name: b.name,
-            location: b.city || "N/A",
-            status: b.isActive ? "active" : "inactive",
-            staff_count: b.employeeCount || 0,
-            products_count: b.inventoryCount || 0,
-            total_stock: b.inventoryCount || 0,
-            low_stock_items: b.lowStockCount || 0,
-            revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
-            growth: b.growth || 0,
-          }));
-        } catch (branchErr) {
-          console.error(
-            "Error fetching branch performance:",
-            branchErr
-          );
-        }
-
-        setDashboardData(mappedData);
-        setLastUpdated(new Date());
-
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-      } finally {
-        setLoading(false);
+      if (selectedBranch !== "all") {
+        params.append("branchId", selectedBranch);
       }
-    }, [selectedBranch, dateRange, token]);
 
-    useEffect(() => {
-      fetchData();
-    }, [selectedBranch, dateRange, fetchData]);
+      const BASE = (
+        import.meta.env.VITE_API_URL || "http://localhost:5000"
+      ).replace(/\/api\/?$/, "");
+
+      const res = await fetch(
+        `${BASE}/api/dashboard/stats?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Dashboard fetch failed: ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      console.log("🔴 RAW API Response:", json.data);
+      console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
+      console.log("💰 KPIs:", json.data?.kpis);
+
+      // Demo structure base
+      const dashboardData = generateDemoData();
+
+      // Real dashboard stats inject
+      const mappedData = mapStatsToDashboardData(
+        json.data,
+        dashboardData
+      );
+
+      // Real branch performance inject
+      try {
+        const branchRes = await getAllBranchesWithPerformance();
+
+        mappedData.branches = (branchRes.data || []).map((b) => ({
+          branch_id: b._id,
+          branch_name: b.name,
+          location: b.city || "N/A",
+          status: b.isActive ? "active" : "inactive",
+          staff_count: b.employeeCount || 0,
+          products_count: b.inventoryCount || 0,
+          total_stock: b.inventoryCount || 0,
+          low_stock_items: b.lowStockCount || 0,
+          revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
+          growth: b.growth || 0,
+        }));
+      } catch (branchErr) {
+        console.error(
+          "Error fetching branch performance:",
+          branchErr
+        );
+      }
+
+      setDashboardData(mappedData);
+      setLastUpdated(new Date());
+
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBranch, dateRange, token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedBranch, dateRange, fetchData]);
 
 
   const handlePreset = (preset) => {
@@ -1184,29 +1184,29 @@ useEffect(() => {
               </div>
             </div> */}
 
-          <div className="dash-section chart-section">
-            <div className="section-header">
-              <div className="section-title-wrapper">
-                <span className="section-icon">📊</span>
-                <h2 className="section-title">Sales Analytics</h2>
-                <span className="section-badge">Real-time</span>
+            <div className="dash-section chart-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">📊</span>
+                  <h2 className="section-title">Sales Analytics</h2>
+                  <span className="section-badge">Real-time</span>
+                </div>
+                <div className="chart-controls">
+                  {['daily', 'weekly', 'monthly'].map((g) => (
+                    <button
+                      key={g}
+                      className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                      onClick={() => setChartGroupBy(g)}
+                    >
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="chart-controls">
-                {['daily', 'weekly', 'monthly'].map((g) => (
-                  <button
-                    key={g}
-                    className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
-                    onClick={() => setChartGroupBy(g)}
-                  >
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
-                ))}
+              <div className="chart-container">
+                <SalesChart data={dashboardData} groupBy={chartGroupBy} />
               </div>
             </div>
-            <div className="chart-container">
-              <SalesChart data={dashboardData} groupBy={chartGroupBy} />
-            </div>
-          </div>
 
             <div className="dash-section">
               <div className="section-header">
@@ -1248,22 +1248,6 @@ useEffect(() => {
                   role={role}
                   onViewAll={handleViewAllInventory}
                 />
-                <div className="quick-stats">
-                  <div className="quick-stat-card">
-                    <div className="stat-icon">📈</div>
-                    <div className="stat-info">
-                      <span className="stat-value">94%</span>
-                      <span className="stat-label">Stock Accuracy</span>
-                    </div>
-                  </div>
-                  <div className="quick-stat-card">
-                    <div className="stat-icon">🚚</div>
-                    <div className="stat-info">
-                      <span className="stat-value">3</span>
-                      <span className="stat-label">Pending Orders</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
