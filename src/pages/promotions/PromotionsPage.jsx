@@ -96,10 +96,12 @@ export default function PromotionsPage() {
 
   // Filter promotions based on search query and status filter
   const filteredPromotions = promotions.filter((promo) => {
-    const matchesSearch =
-      promo.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      promo.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      promo.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const name = (promo.title || promo.name || "").toLowerCase();
+    const code = (promo.couponCode || promo.code || "").toLowerCase();
+    const desc = (promo.description || "").toLowerCase();
+
+    const matchesSearch = name.includes(query) || code.includes(query) || desc.includes(query);
 
     if (statusFilter === "active") {
       return matchesSearch && promo.isActive;
