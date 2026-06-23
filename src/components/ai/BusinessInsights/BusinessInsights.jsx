@@ -5,6 +5,7 @@ import ChartWidget from './ChartWidget';
 
 const BusinessInsights = ({ darkMode }) => {
   const [data, setData] = useState(null);
+  const [prevData, setPrevData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const surface = darkMode ? '#1E293B' : '#FFFFFF';
@@ -15,10 +16,18 @@ const BusinessInsights = ({ darkMode }) => {
   useEffect(() => {
     const fetchInsights = async () => {
       try {
+        // Fetch current period data
         const res = await fetch('http://localhost:5000/api/recommendations/analytics/insights');
         const json = await res.json();
         if (json.success) {
           setData(json.data);
+        }
+
+        // Fetch previous period data for computing change%
+        const prevRes = await fetch('http://localhost:5000/api/recommendations/analytics/insights?period=previous');
+        const prevJson = await prevRes.json();
+        if (prevJson.success) {
+          setPrevData(prevJson.data);
         }
       } catch (error) {
         console.error('Error fetching insights:', error);
@@ -28,6 +37,33 @@ const BusinessInsights = ({ darkMode }) => {
     };
     fetchInsights();
   }, []);
+
+  // Compute real change percentage between current and previous period
+  const computeChange = (current, previous) => {
+    if (!previous || previous === 0) return { text: 'N/A', isPositive: true, neutral: true };
+    const change = ((current - previous) / previous) * 100;
+    const formatted = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+    return { text: formatted, isPositive: change >= 0, neutral: Math.abs(change) < 0.1 };
+  };
+
+  const getRevenueChange = () => {
+    if (!data || !prevData) return { text: 'N/A', isPositive: true, neutral: true };
+    return computeChange(data.kpis.totalRevenue, prevData.kpis?.totalRevenue);
+  };
+
+  const getOrderValueChange = () => {
+    if (!data || !prevData) return { text: 'N/A', isPositive: true, neutral: true };
+    return computeChange(data.kpis.averageOrderValue, prevData.kpis?.averageOrderValue);
+  };
+
+  const getOrdersChange = () => {
+    if (!data || !prevData) return { text: 'N/A', isPositive: true, neutral: true };
+    return computeChange(data.kpis.totalOrders, prevData.kpis?.totalOrders);
+  };
+
+  const revenueChange = getRevenueChange();
+  const orderValueChange = getOrderValueChange();
+  const ordersChange = getOrdersChange();
 
   return (
     <div style={{ background: surface, borderRadius: '20px', border: `1px solid ${border}`, padding: '20px', boxShadow: shadow }}>
@@ -41,11 +77,11 @@ const BusinessInsights = ({ darkMode }) => {
       {!loading && data && (
         <>
           <div className="kpi-grid" style={{ marginBottom: '20px' }}>
-            <KpiCard title="Total Revenue" value={`Rs ${data.kpis.totalRevenue.toLocaleString()}`} change="+16.8%" isPositive={true} darkMode={darkMode} />
-            <KpiCard title="Avg Order Value" value={`Rs ${data.kpis.averageOrderValue}`} change="-0.5%" isPositive={true} darkMode={darkMode} />
-            <KpiCard title="Orders" value={data.kpis.totalOrders} change="+3.2%" isPositive={true} darkMode={darkMode} />
-            <KpiCard title="Low Stock" value={`${data.kpis.lowStockCount} items`} change="0.0%" neutral={true} darkMode={darkMode} />
-            <KpiCard title="Top Product" value={data.kpis.topProduct} change="Trending" neutral={true} darkMode={darkMode} />
+            <KpiCard title="Total Revenue" value={`Rs ${data.kpis.totalRevenue.toLocaleString()}`} change={revenueChange.text} isPositive={revenueChange.isPositive} neutral={revenueChange.neutral} darkMode={darkMode} />
+            <KpiCard title="Avg Order Value" value={`Rs ${data.kpis.averageOrderValue}`} change={orderValueChange.text} isPositive={orderValueChange.isPositive} neutral={orderValueChange.neutral} darkMode={darkMode} />
+            <KpiCard title="Orders" value={data.kpis.totalOrders} change={ordersChange.text} isPositive={ordersChange.isPositive} neutral={ordersChange.neutral} darkMode={darkMode} />
+            <KpiCard title="Low Stock" value={`${data.kpis.lowStockCount} items`} change={`${data.kpis.lowStockCount} alerts`} neutral={true} darkMode={darkMode} />
+            <KpiCard title="Top Product" value={data.kpis.topProduct} change="Best Seller" neutral={true} darkMode={darkMode} />
           </div>
 
           <div style={{ marginBottom: '20px' }}>
@@ -65,4 +101,3 @@ const BusinessInsights = ({ darkMode }) => {
 };
 
 export default BusinessInsights;
-
