@@ -641,6 +641,9 @@ function ProductListPage({
                         Price
                       </th>
                       <th className="px-6 py-4 text-sm font-semibold text-slate-700">
+                        Stock
+                      </th>
+                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">
                         Status
                       </th>
                       <th className="px-6 py-4 text-sm font-semibold text-slate-700">
@@ -693,6 +696,10 @@ function ProductListPage({
 
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           Rs. {product.price || 0}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                          {product.reorderLevel ?? 0}
                         </td>
 
                         <td className="px-6 py-4">

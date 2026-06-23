@@ -196,7 +196,7 @@ function ProductDetailsPage({ productId, onBack, onEdit }) {
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase text-slate-500">
-                  Reorder Level
+                  Stock
                 </p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
                   {product.reorderLevel || 0}
