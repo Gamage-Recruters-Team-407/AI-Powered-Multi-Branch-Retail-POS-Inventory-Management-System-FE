@@ -482,8 +482,10 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("all");
-  const [datePreset, setDatePreset] = useState("month");
-  const [dateRange, setDateRange] = useState(_getDateRange("month"));
+
+  const [datePreset, setDatePreset] = useState('today');
+  const [dateRange, setDateRange] = useState(_getDateRange('today'));
+
   const [wsConnected, setWsConnected] = useState(false);
   const [liveTransaction, setLiveTransaction] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -709,7 +711,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
-
+  
   // WebSocket
   useEffect(() => {
     socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);

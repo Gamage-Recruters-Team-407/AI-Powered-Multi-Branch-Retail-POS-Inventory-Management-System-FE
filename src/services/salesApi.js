@@ -27,6 +27,7 @@ export const voidSale = (id) => salesApi.patch(`/${id}/void`);
 export const getSalesSummary = (period = "today", startDate, endDate) =>
   salesApi.get("/summary", { params: { period, startDate, endDate } });
 
+
 // Barcode product lookup
 export const getProductByBarcode = (barcode) =>
   salesApi.get(`/barcode/${barcode}`);
