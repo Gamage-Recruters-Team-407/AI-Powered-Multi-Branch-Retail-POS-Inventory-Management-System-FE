@@ -11,7 +11,8 @@ function BranchListPage() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = ["admin", "manager", "super_admin"].includes(user?.role);
+  const isAdmin = ["admin", "super_admin"].includes(user?.role);
+  const isManager = user?.role === "manager";
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [message, setMessage] = useState("");
@@ -47,6 +48,15 @@ function BranchListPage() {
     setKeyword("");
     fetchBranches();
   };
+
+  const visibleBranches = branches.filter((b) => {
+    if (isManager) {
+      const managerId = user?._id;
+      const branchManagerId = b.manager?._id || b.manager;
+      return String(branchManagerId) === String(managerId);
+    }
+    return true;
+  });
 
   return (
     <>
@@ -92,7 +102,10 @@ function BranchListPage() {
               backdropFilter: "blur(10px)",
             }}
           >
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
+            <form
+              onSubmit={handleSearch}
+              className="flex flex-col sm:flex-row gap-3"
+            >
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -131,13 +144,13 @@ function BranchListPage() {
           >
             <div className="p-4 border-b">
               <h2 className="font-semibold text-gray-800">
-                Branch List ({isAdmin ? branches.length : 1})
+                Branch List ({visibleBranches.length})
               </h2>
             </div>
 
             {loading ? (
               <div className="p-6 text-center">Loading...</div>
-            ) : branches.length === 0 ? (
+              ) : visibleBranches.length === 0 ? (
               <div className="p-6 text-center">No branches found</div>
             ) : (
               <table className="w-full text-left">
@@ -153,16 +166,7 @@ function BranchListPage() {
                 </thead>
 
                 <tbody>
-                  {branches
-                    .filter((b) => {
-                      if (!isAdmin) {
-                        const branchId =
-                          user?.branchId || user?.branch?._id || user?.branch;
-                        return b._id === branchId;
-                      }
-                      return true;
-                    })
-                    .map((b) => (
+                  {visibleBranches.map((b) => (
                       <tr key={b._id} className="border-t">
                         <td className="p-3 text-gray-800">{b.name}</td>
                         <td className="p-3 text-gray-800">{b.code || "N/A"}</td>
@@ -211,7 +215,6 @@ function BranchListPage() {
             )}
           </div>
         </div>
-
       </div>
 
       {isAdmin && showAddModal && (

@@ -163,7 +163,7 @@ function StockTransferPage() {
   const [serverPerms, setServerPerms] = useState(null);
   const perms = useMemo(
     () => coalescePermissions(serverPerms, roleSlug),
-    [serverPerms, roleSlug],
+    [serverPerms, roleSlug]
   );
 
   const [activeTab, setActiveTab] = useState('tracking');
@@ -190,6 +190,13 @@ function StockTransferPage() {
   const [progressSearch, setProgressSearch] = useState('');
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('All');
+  
+  // Pagination State
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 8;
+  const [stockPage, setStockPage] = useState(1);
+  const STOCK_PAGE_SIZE = 8;
+  
   const [stockBranch, setStockBranch] = useState('All');
   const [stockSearch, setStockSearch] = useState('');
   const [editingTransferId, setEditingTransferId] = useState(null);
@@ -217,7 +224,7 @@ function StockTransferPage() {
       }
       return items || [];
     },
-    [],
+    []
   );
 
   const mergeTransfers = useCallback((...lists) => {
@@ -245,7 +252,7 @@ function StockTransferPage() {
           } catch {
             return [];
           }
-        }),
+        })
       );
       setStockRows(results.flat());
     } finally {
@@ -281,19 +288,15 @@ function StockTransferPage() {
       getProducts(),
     ]);
 
-    const branchList =
-      branchesResult.status === 'fulfilled' ? branchesResult.value : [];
+    const branchList = branchesResult.status === 'fulfilled' ? branchesResult.value : [];
 
     const [transfersOutcome] = await Promise.allSettled([
       loadTransfers('All', branchList, { updateState: false }),
     ]);
 
-    const productList =
-      productsResult.status === 'fulfilled' ? productsResult.value : [];
-    const transferItems =
-      transfersOutcome?.status === 'fulfilled' ? transfersOutcome.value : [];
-    const transferLoadError =
-      transfersOutcome?.status === 'rejected' ? transfersOutcome.reason : null;
+    const productList = productsResult.status === 'fulfilled' ? productsResult.value : [];
+    const transferItems = transfersOutcome?.status === 'fulfilled' ? transfersOutcome.value : [];
+    const transferLoadError = transfersOutcome?.status === 'rejected' ? transfersOutcome.reason : null;
 
     setBranches(branchList);
     setProducts(productList);
@@ -304,57 +307,45 @@ function StockTransferPage() {
 
     if (hasBranches) {
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const productNote =
-        productList.length > 0
-          ? `${productList.length} products`
-          : 'products from inventory';
+      const productNote = productList.length > 0 ? `${productList.length} products` : 'products from inventory';
       const transferNote = transferLoadError
         ? `Transfers failed: ${getApiErrorMessage(transferLoadError, 'access denied or server error')}`
         : `${transferItems.length} transfers`;
-      setApiMessage(
-        `Connected · ${branchList.length} branches · ${productNote} · ${transferNote} · ${time}`,
-      );
+      setApiMessage(`Connected · ${branchList.length} branches · ${productNote} · ${transferNote} · ${time}`);
+      
       if (transferLoadError && (apiPerms?.canApproveTransfer ?? roleSlug === 'admin')) {
         setMessage(
           getApiErrorMessage(
             transferLoadError,
-            'Could not load transfers. If your role is Admin, ensure the backend accepts your role (restart API after update) and click Sync.',
-          ),
+            'Could not load transfers. If your role is Admin, ensure the backend accepts your role (restart API after update) and click Sync.'
+          )
         );
       }
     } else {
-      const err =
-        branchesResult.status === 'rejected' ? branchesResult.reason : null;
+      const err = branchesResult.status === 'rejected' ? branchesResult.reason : null;
       setApiMessage(
         getApiErrorMessage(
           err,
-          'No branches returned. Add branches in the database and click Sync (must be logged in).',
-        ),
+          'No branches returned. Add branches in the database and click Sync (must be logged in).'
+        )
       );
     }
 
     const homeBranchId = getUserBranchIds(user, branchList)[0] ?? null;
     const fromDefault = homeBranchId || branchList[0]?.id || '';
-    const toDefault =
-      branchList.find((b) => b.id !== fromDefault)?.id ??
-      branchList[1]?.id ??
-      '';
+    const toDefault = branchList.find((b) => b.id !== fromDefault)?.id ?? branchList[1]?.id ?? '';
 
     setForm((prev) => ({
       ...prev,
       fromBranchId: prev.fromBranchId || fromDefault,
-      toBranchId:
-        prev.toBranchId && prev.toBranchId !== (prev.fromBranchId || fromDefault)
-          ? prev.toBranchId
-          : toDefault,
+      toBranchId: prev.toBranchId && prev.toBranchId !== (prev.fromBranchId || fromDefault) ? prev.toBranchId : toDefault,
       productId: prev.productId || productList[0]?.id || '',
     }));
 
     if (branchList.length) {
-      const stockBranches =
-        homeBranchId && !apiPerms?.canViewAllBranches
-          ? branchList.filter((b) => b.id === homeBranchId)
-          : branchList;
+      const stockBranches = homeBranchId && !apiPerms?.canViewAllBranches
+        ? branchList.filter((b) => b.id === homeBranchId)
+        : branchList;
       await loadStockForBranches(stockBranches.length ? stockBranches : branchList);
       const fromId = homeBranchId || branchList[0]?.id;
       const fromName = branchList.find((b) => b.id === fromId)?.name ?? '';
@@ -374,19 +365,13 @@ function StockTransferPage() {
     loadSourceInventory(form.fromBranchId, branchName);
   }, [form.fromBranchId, form.productId, apiConnected, branches, loadSourceInventory]);
 
-  const userBranchIds = useMemo(
-    () => getUserBranchIds(user, branches),
-    [user, branches],
-  );
+  const userBranchIds = useMemo(() => getUserBranchIds(user, branches), [user, branches]);
 
-  const visibleTabs = useMemo(
-    () => TAB_DEFS.filter((tab) => perms.tabs[tab.id]),
-    [perms.tabs],
-  );
+  const visibleTabs = useMemo(() => TAB_DEFS.filter((tab) => perms.tabs[tab.id]), [perms.tabs]);
 
   const visibleTransfers = useMemo(
     () => filterTransfersByScope(transfers, perms, userBranchIds, branches, user),
-    [transfers, perms, userBranchIds, branches, user],
+    [transfers, perms, userBranchIds, branches, user]
   );
 
   useEffect(() => {
@@ -398,6 +383,19 @@ function StockTransferPage() {
   useEffect(() => {
     if (!apiConnected || !['tracking', 'history'].includes(activeTab)) return;
     loadTransfers('All', branches).catch(() => {});
+  }, [activeTab, apiConnected, branches, loadTransfers]);
+
+  useEffect(() => {
+    if (!apiConnected || activeTab !== 'tracking') return;
+    const interval = window.setInterval(() => {
+      loadTransfers('All', branches).catch(() => {});
+    }, 5000);
+    const onFocus = () => loadTransfers('All', branches).catch(() => {});
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [activeTab, apiConnected, branches, loadTransfers]);
 
   useEffect(() => {
@@ -414,14 +412,9 @@ function StockTransferPage() {
     setLogsLoading(true);
     setLogsError('');
 
-    const scopedTransfers = filterTransfersByScope(
-      transfers,
-      perms,
-      userBranchIds,
-      branches,
-      user,
-    );
+    const scopedTransfers = filterTransfersByScope(transfers, perms, userBranchIds, branches, user);
     const instantRows = buildLogsFromTransfers(scopedTransfers);
+    
     if (instantRows.length) {
       setMovementLogs(instantRows);
       setLogsSource('Showing transfer records loaded on this page');
@@ -463,13 +456,7 @@ function StockTransferPage() {
 
   useEffect(() => {
     if (activeTab !== 'logs' || !perms.tabs.logs) return;
-    const scoped = filterTransfersByScope(
-      transfers,
-      perms,
-      userBranchIds,
-      branches,
-      user,
-    );
+    const scoped = filterTransfersByScope(transfers, perms, userBranchIds, branches, user);
     const instant = buildLogsFromTransfers(scoped);
     if (instant.length) {
       setMovementLogs(instant);
@@ -480,12 +467,12 @@ function StockTransferPage() {
 
   const activeTransfers = useMemo(
     () => visibleTransfers.filter((t) => isActiveForProgressTab(t, perms)),
-    [visibleTransfers, perms],
+    [visibleTransfers, perms]
   );
 
   const pendingForApproval = useMemo(
     () => visibleTransfers.filter((t) => t.status === 'Pending'),
-    [visibleTransfers],
+    [visibleTransfers]
   );
 
   const sortedActiveTransfers = useMemo(() => {
@@ -497,9 +484,8 @@ function StockTransferPage() {
   }, [activeTransfers]);
 
   const filteredActiveTransfers = useMemo(
-    () =>
-      sortedActiveTransfers.filter((t) => matchesTransferSearch(t, progressSearch)),
-    [sortedActiveTransfers, progressSearch],
+    () => sortedActiveTransfers.filter((t) => matchesTransferSearch(t, progressSearch)),
+    [sortedActiveTransfers, progressSearch]
   );
 
   const hasProgressSearch = normalizeSearchQuery(progressSearch).length > 0;
@@ -515,12 +501,7 @@ function StockTransferPage() {
         Rejected: transferSummary.rejected ?? 0,
       };
     }
-    const counts = {
-      Pending: 0,
-      Approved: 0,
-      'In Transit': 0,
-      Rejected: 0,
-    };
+    const counts = { Pending: 0, Approved: 0, 'In Transit': 0, Rejected: 0 };
     visibleTransfers.forEach((t) => {
       if (counts[t.status] !== undefined) counts[t.status] += 1;
     });
@@ -537,6 +518,17 @@ function StockTransferPage() {
       })
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   }, [visibleTransfers, historySearch, historyStatus]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(historyTransfers.length / HISTORY_PAGE_SIZE));
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyStatus, historyTransfers.length]);
+
+  const paginatedHistoryTransfers = useMemo(() => {
+    const start = (historyPage - 1) * HISTORY_PAGE_SIZE;
+    return historyTransfers.slice(start, start + HISTORY_PAGE_SIZE);
+  }, [historyTransfers, historyPage]);
 
   const catalogProducts = useMemo(() => {
     if (products.length) return products;
@@ -563,7 +555,7 @@ function StockTransferPage() {
 
   const managerHomeBranchId = useMemo(
     () => (perms.viewScope === 'branch' ? userBranchIds[0] : null),
-    [perms.viewScope, userBranchIds],
+    [perms.viewScope, userBranchIds]
   );
 
   useEffect(() => {
@@ -605,6 +597,13 @@ function StockTransferPage() {
     });
   }, [stockRows, stockBranch, stockSearch, perms.viewScope, userBranchIds, branches]);
 
+  const stockTotalPages = Math.max(1, Math.ceil(filteredStockRows.length / STOCK_PAGE_SIZE));
+
+  const paginatedStockRows = useMemo(() => {
+    const start = (stockPage - 1) * STOCK_PAGE_SIZE;
+    return filteredStockRows.slice(start, start + STOCK_PAGE_SIZE);
+  }, [filteredStockRows, stockPage]); 
+
   const kpis = useMemo(() => {
     const inTransit = visibleTransfers.filter((t) => t.status === 'In Transit').length;
     const pending = visibleTransfers.filter((t) => t.status === 'Pending').length;
@@ -613,15 +612,11 @@ function StockTransferPage() {
     return { inTransit, pending, completed, lowStock };
   }, [visibleTransfers, stockRows]);
 
-  const selectedProduct = catalogProducts.find(
-    (p) => String(p.id) === String(form.productId),
-  );
+  const selectedProduct = catalogProducts.find((p) => String(p.id) === String(form.productId));
   const fromBranchName = branches.find((b) => b.id === form.fromBranchId)?.name ?? '';
   const sourceStock =
     sourceInventory.find((s) => String(s.productId) === String(form.productId)) ??
-    stockRows.find(
-      (s) => s.branch === fromBranchName && String(s.productId) === String(form.productId),
-    );
+    stockRows.find((s) => s.branch === fromBranchName && String(s.productId) === String(form.productId));
   const availableQty = sourceStock?.qty ?? 0;
 
   const reportByBranch = useMemo(() => {
@@ -692,14 +687,7 @@ function StockTransferPage() {
         byStatus: reportByStatus,
         pipeline: progressPipeline,
       }),
-    [
-      visibleTransfers,
-      perms.label,
-      kpis,
-      reportByBranch,
-      reportByStatus,
-      progressPipeline,
-    ],
+    [visibleTransfers, perms.label, kpis, reportByBranch, reportByStatus, progressPipeline]
   );
 
   const handleExportExcel = () => {
@@ -734,17 +722,11 @@ function StockTransferPage() {
       const result = exportStockTransferPdf(report);
       const count = result.count;
       if (result.mode === 'html') {
-        setMessage(
-          `Downloaded report HTML for ${count} transfer(s). Open the file → Print → Save as PDF.`,
-        );
+        setMessage(`Downloaded report HTML for ${count} transfer(s). Open the file → Print → Save as PDF.`);
       } else if (result.mode === 'print') {
-        setMessage(
-          `Print dialog opened for ${count} transfer(s). Choose "Save as PDF" as the printer.`,
-        );
+        setMessage(`Print dialog opened for ${count} transfer(s). Choose "Save as PDF" as the printer.`);
       } else {
-        setMessage(
-          `Report opened in a new tab (${count} transfer(s)). Use Print → Save as PDF.`,
-        );
+        setMessage(`Report opened in a new tab (${count} transfer(s)). Use Print → Save as PDF.`);
       }
     } catch (err) {
       setMessage(err?.message ?? 'PDF export failed.');
@@ -775,9 +757,7 @@ function StockTransferPage() {
       return;
     }
     if (sourceStock && qty > availableQty) {
-      setMessage(
-        `Insufficient stock at source. Available: ${availableQty} ${selectedProduct?.unit ?? 'units'}.`,
-      );
+      setMessage(`Insufficient stock at source. Available: ${availableQty} ${selectedProduct?.unit ?? 'units'}.`);
       return;
     }
 
@@ -795,7 +775,7 @@ function StockTransferPage() {
           productId: form.productId,
           quantity: qty,
           notes: form.notes,
-        }),
+        })
       );
       try {
         const listed = await loadTransfers('All', branches);
@@ -804,9 +784,7 @@ function StockTransferPage() {
         setTransfers((prev) => mergeTransfers([created], prev));
       }
       setForm((prev) => ({ ...prev, quantity: '', notes: '' }));
-      setMessage(
-        `Request ${created.id} submitted (Pending). An admin will Approve or Reject on Progress. You can track it there.`,
-      );
+      setMessage(`Request ${created.id} submitted (Pending). An admin will Approve or Reject on Progress. You can track it there.`);
       setActiveTab('tracking');
       await loadStockForBranches(branches);
       const fromName = branches.find((b) => b.id === form.fromBranchId)?.name ?? '';
@@ -836,9 +814,10 @@ function StockTransferPage() {
     applyOptimisticUpdate(tId, 'Approved');
 
     try {
-      await approveTransfer(tId);
-      setMessage(`${transfer.id || tId} approved successfully.`);
-      loadTransfers('All', branches).catch(() => {});
+      const updated = await approveTransfer(transfer._id);
+      setMessage(`${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`);
+      await loadTransfers('All', branches);
+      await loadStockForBranches(branches);
     } catch (err) {
       applyOptimisticUpdate(tId, transfer.status);
       setMessage(getApiErrorMessage(err, 'Approve failed.'));
@@ -849,7 +828,7 @@ function StockTransferPage() {
 
   const handleReject = async (transfer) => {
     const tId = transfer._id || transfer.id;
-    if (!tId) return;
+    if (!tId || !perms.canRejectTransfer) return;
 
     const reason = window.prompt('Reason for rejection (required):');
     if (!reason?.trim()) return;
@@ -871,7 +850,7 @@ function StockTransferPage() {
 
   const handleDispatch = async (transfer) => {
     const tId = transfer._id || transfer.id;
-    if (!tId) return;
+    if (!tId || !perms.canDispatchTransfer) return;
     
     setSubmitting(true);
     applyOptimisticUpdate(tId, 'In Transit');
@@ -890,8 +869,13 @@ function StockTransferPage() {
   };
 
   const handleConfirmReceipt = async (transfer) => {
+    const { showConfirm } = getTransferUiActions(transfer, perms, userBranchIds, branches);
     const tId = transfer._id || transfer.id;
-    if (!tId) return;
+    
+    if (!tId || !showConfirm) {
+      setMessage('Only the destination branch manager can confirm receipt.');
+      return;
+    }
     
     setSubmitting(true);
     applyOptimisticUpdate(tId, 'Completed');
@@ -911,8 +895,9 @@ function StockTransferPage() {
   };
 
   const handleCancel = async (transfer) => {
+    const { showCancel } = getTransferUiActions(transfer, perms, userBranchIds, branches);
     const tId = transfer._id || transfer.id;
-    if (!tId) return;
+    if (!tId || !showCancel) return;
 
     const cancelReason = window.prompt('Reason for cancellation (required):');
     if (!cancelReason?.trim()) return;
@@ -957,11 +942,10 @@ function StockTransferPage() {
 
     setSubmitting(true);
     try {
-      await updateTransfer(tId, payload);
-      const refreshed = await loadTransfers('All', branches);
-      setTransfers(refreshed);
+      const updated = await updateTransfer(transfer._id, payload);
       setEditingTransferId(null);
-      setMessage(`${transfer.id || tId} updated — still Pending until admin approves.`);
+      setMessage(`${updated.id} updated — still Pending until admin approves.`);
+      await loadTransfers('All', branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Could not update transfer.'));
     } finally {
@@ -1066,6 +1050,8 @@ function StockTransferPage() {
               branches,
               user,
             )}
+            branches={branches}
+            products={products}
             onRefresh={loadTransferLogs}
           />
         ) : null}
@@ -1613,7 +1599,7 @@ function StockTransferPage() {
                   'Transfer hint',
                 ]}
               >
-                {filteredStockRows.map((row) => {
+                {paginatedStockRows.map((row) => {
                   const low = row.reorder > 0 && row.qty < row.reorder;
                   const surplus = row.reorder > 0 && row.qty > row.reorder * 2;
                   return (
@@ -1647,6 +1633,57 @@ function StockTransferPage() {
                   );
                 })}
               </TransferTable>
+            )}
+            {filteredStockRows.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-4">
+                <span className={stMetaText}>
+                  Page {stockPage} of {stockTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={stockPage <= 1}
+                    onClick={() => setStockPage((p) => Math.max(1, p - 1))}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: stockTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === stockTotalPages || Math.abs(p - stockPage) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push(`gap-${p}`);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p) =>
+                      typeof p === 'string' ? (
+                        <span key={p} className="px-2 text-sm text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          className={cn(
+                            'min-w-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                            p === stockPage
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50',
+                          )}
+                          onClick={() => setStockPage(p)}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={stockPage >= stockTotalPages}
+                    onClick={() => setStockPage((p) => Math.min(stockTotalPages, p + 1))}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         )}
@@ -1746,18 +1783,27 @@ function StockTransferPage() {
                   'Status',
                 ]}
               >
-                {historyTransfers.map((t) => (
+                {paginatedHistoryTransfers.map((t) => (
                   <tr key={t._id ?? t.id} className={transferTableRowClass}>
                     <td className={transferTableCellClass}>
                       <span className={stTransferId}>{t.id}</span>
                     </td>
-                    <td className={transferTableCellClass}>{formatLogDate(t.date)}</td>
-                    <td className={transferTableCellClass}>{toDisplayString(t.product)}</td>
                     <td className={transferTableCellClass}>
-                      <span className={stRoutePill}>
-                        {toDisplayString(t.from)} → {toDisplayString(t.to)}
-                      </span>
-                    </td>
+  {products.find(p => String(p.id) === String(t.product?._id ?? t.product))?.name
+    ?? t.product?.name
+    ?? toDisplayString(t.product)}
+</td>
+<td className={transferTableCellClass}>
+  <span className={stRoutePill}>
+    {branches.find(b => b.id === (t.from?._id ?? t.from))?.name
+      ?? t.from?.name
+      ?? toDisplayString(t.from)}
+    {' → '}
+    {branches.find(b => b.id === (t.to?._id ?? t.to))?.name
+      ?? t.to?.name
+      ?? toDisplayString(t.to)}
+  </span>
+</td>
                     <td className={transferTableCellClass}>{t.qty}</td>
                     <td className={transferTableCellClass}>{formatUserLabel(t.requestedBy)}</td>
                     <td className={transferTableCellClass}>
@@ -1766,6 +1812,57 @@ function StockTransferPage() {
                   </tr>
                 ))}
               </TransferTable>
+            )}
+            {historyTransfers.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-4">
+                <span className={stMetaText}>
+                  Page {historyPage} of {historyTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={historyPage <= 1}
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: historyTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === historyTotalPages || Math.abs(p - historyPage) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push(`gap-${p}`);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p) =>
+                      typeof p === 'string' ? (
+                        <span key={p} className="px-2 text-sm text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          className={cn(
+                            'min-w-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                            p === historyPage
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50',
+                          )}
+                          onClick={() => setHistoryPage(p)}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={historyPage >= historyTotalPages}
+                    onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         )}

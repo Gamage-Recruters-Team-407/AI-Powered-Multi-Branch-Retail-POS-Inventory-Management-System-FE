@@ -65,7 +65,8 @@
 
 // export default POSPage;
 
-import { History, ShoppingBag } from "lucide-react";
+import { History, ShoppingBag, ShoppingCart, X } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
 import { useProducts } from "../../context/ProductContext";
@@ -80,6 +81,8 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
     subtotal, discount, setDiscount, taxRate, taxAmount, total,
   } = useCart();
   const { products } = useProducts();
+  const [showCart, setShowCart] = useState(false);
+  const itemCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
     <div className="min-h-screen   via-blue-500 to-indigo-600 flex flex-col antialiased font-sans p-4 relative overflow-hidden">
@@ -94,35 +97,60 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
               <ShoppingBag size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white tracking-tight">Cashier Desk</h1>
-              <p className="text-xs font-semibold text-sky-100/80 mt-0.5">
+              <h1 className="text-base sm:text-xl font-extrabold text-white tracking-tight">Cashier Desk</h1>
+              <p className="text-[10px] sm:text-xs font-semibold text-sky-100/80 mt-0.5 hidden sm:block">
                 {new Date().toLocaleDateString("en-LK", {
                   weekday: "long", year: "numeric", month: "long", day: "numeric",
                 })}
               </p>
+              <p className="text-[10px] font-semibold text-sky-100/80 mt-0.5 sm:hidden">
+                {new Date().toLocaleDateString("en-LK", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
             </div>
           </div>
-          
-          <button
-            onClick={() => onViewHistory ? onViewHistory() : navigate("/history")}
-            className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-2xl hover:bg-blue-700 hover:shadow-lg transition-all text-xs uppercase tracking-wider shadow-md shadow-blue-700/20"
-          >
-            <History size={14} /> Sales History
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Mobile cart toggle */}
+            <button
+              onClick={() => setShowCart(true)}
+              className="relative lg:hidden flex items-center gap-1.5 bg-white/20 text-white font-bold px-3 py-2 rounded-xl text-xs border border-white/30"
+            >
+              <ShoppingCart size={14} />
+              Cart
+              {itemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {itemCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => onViewHistory ? onViewHistory() : navigate("/history")}
+              className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 text-white font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all text-[10px] sm:text-xs uppercase tracking-wider shadow-md"
+            >
+              <History size={12} className="sm:hidden" />
+              <History size={14} className="hidden sm:block" />
+              <span className="hidden sm:inline">Sales History</span>
+              <span className="sm:hidden">History</span>
+            </button>
+          </div>
         </div>
 
-      
-        <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden p-3 lg:p-5 gap-4 min-h-[500px] lg:min-h-0">
-            <div className="backdrop-blur-md bg-white/40 p-2 rounded-2xl border border-white/20 shadow-sm">
+        {/* Body */}
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* Products — full width on mobile */}
+          <div className="flex-1 flex flex-col overflow-hidden p-2 sm:p-5 gap-2 sm:gap-4">
+            <div className="backdrop-blur-md bg-white/40 p-2 rounded-xl sm:rounded-2xl border border-white/20 shadow-sm">
               <BarcodeScanner products={products} onFound={addToCart} />
             </div>
-            <div className="flex-1 overflow-hidden backdrop-blur-md bg-white/30 rounded-2xl border border-white/20 p-4 shadow-sm">
+            <div className="flex-1 overflow-hidden backdrop-blur-md bg-white/30 rounded-xl sm:rounded-2xl border border-white/20 p-2 sm:p-4 shadow-sm">
               <ProductList products={products} onAddToCart={addToCart} />
             </div>
           </div>
 
-          <div className="w-full lg:w-[380px] xl:w-[420px] backdrop-blur-md bg-white/60 border-t lg:border-t-0 lg:border-l border-white/30 flex flex-col shadow-2xl shrink-0">
+          {/* Cart — sidebar on desktop */}
+          <div className="hidden lg:flex w-[380px] xl:w-[420px] backdrop-blur-md bg-white/60 border-l border-white/30 flex-col shadow-2xl">
             <Cart
               cart={cart}
               subtotal={subtotal}
@@ -139,8 +167,54 @@ const POSPage = ({ onCheckout, onViewHistory }) => {
             />
           </div>
         </div>
-        
       </div>
+
+      {/* Mobile Cart — Bottom Sheet */}
+      {showCart && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowCart(false)}
+          />
+          {/* Sheet */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div className="flex items-center gap-2">
+                <ShoppingCart size={18} className="text-blue-600" />
+                <span className="font-bold text-slate-800">Cart</span>
+                {itemCount > 0 && (
+                  <span className="bg-blue-600 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                    {itemCount}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowCart(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Cart
+                cart={cart}
+                subtotal={subtotal}
+                discount={discount}
+                setDiscount={setDiscount}
+                taxRate={taxRate}
+                taxAmount={taxAmount}
+                total={total}
+                increaseQty={increaseQty}
+                decreaseQty={decreaseQty}
+                removeItem={removeItem}
+                onClearCart={clearCart}
+                onCheckout={() => { setShowCart(false); onCheckout?.(); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
