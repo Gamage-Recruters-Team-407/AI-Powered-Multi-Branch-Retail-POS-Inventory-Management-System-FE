@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { addProduct } from "../../services/productManagementApi";
 import { getAllCategories } from "../../services/categoryManagementApi";
 import { getAllSuppliers } from "../../services/supplierManagementApi";
+import { getBranches } from "../../services/inventoryService";
 import toast from "react-hot-toast";
 
 const baseControlClass =
@@ -29,10 +30,13 @@ function AddProductPage({ onBack }) {
     costPrice: "",
     reorderLevel: "",
     unit: "",
+    quantity: "",
+    branch: "",
   });
 
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [branches, setBranches] = useState([]);
 
   const [image, setImage] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
@@ -48,6 +52,15 @@ function AddProductPage({ onBack }) {
 
       const categoryResponse = await getAllCategories();
       const supplierResponse = await getAllSuppliers();
+
+      try {
+        const branchResponse = await getBranches();
+        if (branchResponse && branchResponse.success) {
+          setBranches(branchResponse.data || []);
+        }
+      } catch (bErr) {
+        console.error("Failed to load branches:", bErr.message);
+      }
 
       setCategories(categoryResponse.data.categories || []);
       setSuppliers(
@@ -190,6 +203,17 @@ function AddProductPage({ onBack }) {
       newErrors.reorderLevel = "Reorder level must be a whole number";
     }
 
+    if (formData.quantity && Number(formData.quantity) < 0) {
+      newErrors.quantity = "Initial stock quantity cannot be negative";
+    }
+
+    if (
+      formData.quantity &&
+      !Number.isInteger(Number(formData.quantity))
+    ) {
+      newErrors.quantity = "Initial stock quantity must be a whole number";
+    }
+
     if (formData.brand.trim().length > 50) {
       newErrors.brand = "Brand cannot exceed 50 characters";
     }
@@ -238,6 +262,9 @@ function AddProductPage({ onBack }) {
       productFormData.append("costPrice", formData.costPrice || "");
       productFormData.append("reorderLevel", formData.reorderLevel || "");
       productFormData.append("unit", formData.unit.trim());
+
+      productFormData.append("quantity", formData.quantity || "0");
+      productFormData.append("branch", formData.branch || "");
 
       if (formData.category) {
         productFormData.append("category", formData.category);
@@ -578,6 +605,51 @@ function AddProductPage({ onBack }) {
                 {errors.reorderLevel && (
                   <p className="mt-1 text-xs font-medium text-red-600">
                     {errors.reorderLevel}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Initial Stock Quantity
+                </label>
+                <input
+                  type="number"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  placeholder="Example: 100"
+                  min="0"
+                  step="1"
+                  className={getInputClass(errors.quantity)}
+                />
+                {errors.quantity && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.quantity}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Target Branch
+                </label>
+                <select
+                  name="branch"
+                  value={formData.branch}
+                  onChange={handleInputChange}
+                  className={getInputClass(errors.branch)}
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.branch && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.branch}
                   </p>
                 )}
               </div>

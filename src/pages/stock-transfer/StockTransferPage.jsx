@@ -163,7 +163,7 @@ function StockTransferPage() {
   const [serverPerms, setServerPerms] = useState(null);
   const perms = useMemo(
     () => coalescePermissions(serverPerms, roleSlug),
-    [serverPerms, roleSlug],
+    [serverPerms, roleSlug]
   );
 
   const [activeTab, setActiveTab] = useState('tracking');
@@ -190,10 +190,13 @@ function StockTransferPage() {
   const [progressSearch, setProgressSearch] = useState('');
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('All');
+  
+  // Pagination State
   const [historyPage, setHistoryPage] = useState(1);
   const HISTORY_PAGE_SIZE = 8;
   const [stockPage, setStockPage] = useState(1);
   const STOCK_PAGE_SIZE = 8;
+  
   const [stockBranch, setStockBranch] = useState('All');
   const [stockSearch, setStockSearch] = useState('');
   const [editingTransferId, setEditingTransferId] = useState(null);
@@ -208,19 +211,20 @@ function StockTransferPage() {
 
   const loadTransfers = useCallback(
     async (statusFilter, branchList = [], { updateState = true } = {}) => {
-      const params = { limit: 100, page: 1 };
+      const params = { limit: 100, page: 1, _t: Date.now() };
+      
       if (statusFilter && statusFilter !== 'All') {
         params.status = mapStatusToApi(statusFilter);
       }
       const { items, permissions, summary } = await listTransfers(params);
       if (permissions) setServerPerms(permissions);
       if (updateState) {
-        setTransfers(items);
+        setTransfers(items || []);
         if (summary) setTransferSummary(summary);
       }
-      return items;
+      return items || [];
     },
-    [],
+    []
   );
 
   const mergeTransfers = useCallback((...lists) => {
@@ -248,7 +252,7 @@ function StockTransferPage() {
           } catch {
             return [];
           }
-        }),
+        })
       );
       setStockRows(results.flat());
     } finally {
@@ -284,19 +288,15 @@ function StockTransferPage() {
       getProducts(),
     ]);
 
-    const branchList =
-      branchesResult.status === 'fulfilled' ? branchesResult.value : [];
+    const branchList = branchesResult.status === 'fulfilled' ? branchesResult.value : [];
 
-    const transfersResult = await Promise.allSettled([
-      loadTransfers('All', branchList),
+    const [transfersOutcome] = await Promise.allSettled([
+      loadTransfers('All', branchList, { updateState: false }),
     ]);
 
-    const productList =
-      productsResult.status === 'fulfilled' ? productsResult.value : [];
-    const transferItems =
-      transfersResult.status === 'fulfilled' ? transfersResult.value : [];
-    const transferLoadError =
-      transfersResult.status === 'rejected' ? transfersResult.reason : null;
+    const productList = productsResult.status === 'fulfilled' ? productsResult.value : [];
+    const transferItems = transfersOutcome?.status === 'fulfilled' ? transfersOutcome.value : [];
+    const transferLoadError = transfersOutcome?.status === 'rejected' ? transfersOutcome.reason : null;
 
     setBranches(branchList);
     setProducts(productList);
@@ -307,57 +307,45 @@ function StockTransferPage() {
 
     if (hasBranches) {
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const productNote =
-        productList.length > 0
-          ? `${productList.length} products`
-          : 'products from inventory';
+      const productNote = productList.length > 0 ? `${productList.length} products` : 'products from inventory';
       const transferNote = transferLoadError
         ? `Transfers failed: ${getApiErrorMessage(transferLoadError, 'access denied or server error')}`
         : `${transferItems.length} transfers`;
-      setApiMessage(
-        `Connected · ${branchList.length} branches · ${productNote} · ${transferNote} · ${time}`,
-      );
+      setApiMessage(`Connected · ${branchList.length} branches · ${productNote} · ${transferNote} · ${time}`);
+      
       if (transferLoadError && (apiPerms?.canApproveTransfer ?? roleSlug === 'admin')) {
         setMessage(
           getApiErrorMessage(
             transferLoadError,
-            'Could not load transfers. If your role is Admin, ensure the backend accepts your role (restart API after update) and click Sync.',
-          ),
+            'Could not load transfers. If your role is Admin, ensure the backend accepts your role (restart API after update) and click Sync.'
+          )
         );
       }
     } else {
-      const err =
-        branchesResult.status === 'rejected' ? branchesResult.reason : null;
+      const err = branchesResult.status === 'rejected' ? branchesResult.reason : null;
       setApiMessage(
         getApiErrorMessage(
           err,
-          'No branches returned. Add branches in the database and click Sync (must be logged in).',
-        ),
+          'No branches returned. Add branches in the database and click Sync (must be logged in).'
+        )
       );
     }
 
     const homeBranchId = getUserBranchIds(user, branchList)[0] ?? null;
     const fromDefault = homeBranchId || branchList[0]?.id || '';
-    const toDefault =
-      branchList.find((b) => b.id !== fromDefault)?.id ??
-      branchList[1]?.id ??
-      '';
+    const toDefault = branchList.find((b) => b.id !== fromDefault)?.id ?? branchList[1]?.id ?? '';
 
     setForm((prev) => ({
       ...prev,
       fromBranchId: prev.fromBranchId || fromDefault,
-      toBranchId:
-        prev.toBranchId && prev.toBranchId !== (prev.fromBranchId || fromDefault)
-          ? prev.toBranchId
-          : toDefault,
+      toBranchId: prev.toBranchId && prev.toBranchId !== (prev.fromBranchId || fromDefault) ? prev.toBranchId : toDefault,
       productId: prev.productId || productList[0]?.id || '',
     }));
 
     if (branchList.length) {
-      const stockBranches =
-        homeBranchId && !apiPerms?.canViewAllBranches
-          ? branchList.filter((b) => b.id === homeBranchId)
-          : branchList;
+      const stockBranches = homeBranchId && !apiPerms?.canViewAllBranches
+        ? branchList.filter((b) => b.id === homeBranchId)
+        : branchList;
       await loadStockForBranches(stockBranches.length ? stockBranches : branchList);
       const fromId = homeBranchId || branchList[0]?.id;
       const fromName = branchList.find((b) => b.id === fromId)?.name ?? '';
@@ -377,19 +365,13 @@ function StockTransferPage() {
     loadSourceInventory(form.fromBranchId, branchName);
   }, [form.fromBranchId, form.productId, apiConnected, branches, loadSourceInventory]);
 
-  const userBranchIds = useMemo(
-    () => getUserBranchIds(user, branches),
-    [user, branches],
-  );
+  const userBranchIds = useMemo(() => getUserBranchIds(user, branches), [user, branches]);
 
-  const visibleTabs = useMemo(
-    () => TAB_DEFS.filter((tab) => perms.tabs[tab.id]),
-    [perms.tabs],
-  );
+  const visibleTabs = useMemo(() => TAB_DEFS.filter((tab) => perms.tabs[tab.id]), [perms.tabs]);
 
   const visibleTransfers = useMemo(
     () => filterTransfersByScope(transfers, perms, userBranchIds, branches, user),
-    [transfers, perms, userBranchIds, branches, user],
+    [transfers, perms, userBranchIds, branches, user]
   );
 
   useEffect(() => {
@@ -430,14 +412,9 @@ function StockTransferPage() {
     setLogsLoading(true);
     setLogsError('');
 
-    const scopedTransfers = filterTransfersByScope(
-      transfers,
-      perms,
-      userBranchIds,
-      branches,
-      user,
-    );
+    const scopedTransfers = filterTransfersByScope(transfers, perms, userBranchIds, branches, user);
     const instantRows = buildLogsFromTransfers(scopedTransfers);
+    
     if (instantRows.length) {
       setMovementLogs(instantRows);
       setLogsSource('Showing transfer records loaded on this page');
@@ -479,13 +456,7 @@ function StockTransferPage() {
 
   useEffect(() => {
     if (activeTab !== 'logs' || !perms.tabs.logs) return;
-    const scoped = filterTransfersByScope(
-      transfers,
-      perms,
-      userBranchIds,
-      branches,
-      user,
-    );
+    const scoped = filterTransfersByScope(transfers, perms, userBranchIds, branches, user);
     const instant = buildLogsFromTransfers(scoped);
     if (instant.length) {
       setMovementLogs(instant);
@@ -496,12 +467,12 @@ function StockTransferPage() {
 
   const activeTransfers = useMemo(
     () => visibleTransfers.filter((t) => isActiveForProgressTab(t, perms)),
-    [visibleTransfers, perms],
+    [visibleTransfers, perms]
   );
 
   const pendingForApproval = useMemo(
     () => visibleTransfers.filter((t) => t.status === 'Pending'),
-    [visibleTransfers],
+    [visibleTransfers]
   );
 
   const sortedActiveTransfers = useMemo(() => {
@@ -513,9 +484,8 @@ function StockTransferPage() {
   }, [activeTransfers]);
 
   const filteredActiveTransfers = useMemo(
-    () =>
-      sortedActiveTransfers.filter((t) => matchesTransferSearch(t, progressSearch)),
-    [sortedActiveTransfers, progressSearch],
+    () => sortedActiveTransfers.filter((t) => matchesTransferSearch(t, progressSearch)),
+    [sortedActiveTransfers, progressSearch]
   );
 
   const hasProgressSearch = normalizeSearchQuery(progressSearch).length > 0;
@@ -531,12 +501,7 @@ function StockTransferPage() {
         Rejected: transferSummary.rejected ?? 0,
       };
     }
-    const counts = {
-      Pending: 0,
-      Approved: 0,
-      'In Transit': 0,
-      Rejected: 0,
-    };
+    const counts = { Pending: 0, Approved: 0, 'In Transit': 0, Rejected: 0 };
     visibleTransfers.forEach((t) => {
       if (counts[t.status] !== undefined) counts[t.status] += 1;
     });
@@ -590,7 +555,7 @@ function StockTransferPage() {
 
   const managerHomeBranchId = useMemo(
     () => (perms.viewScope === 'branch' ? userBranchIds[0] : null),
-    [perms.viewScope, userBranchIds],
+    [perms.viewScope, userBranchIds]
   );
 
   useEffect(() => {
@@ -634,7 +599,6 @@ function StockTransferPage() {
 
   const stockTotalPages = Math.max(1, Math.ceil(filteredStockRows.length / STOCK_PAGE_SIZE));
 
-  
   const paginatedStockRows = useMemo(() => {
     const start = (stockPage - 1) * STOCK_PAGE_SIZE;
     return filteredStockRows.slice(start, start + STOCK_PAGE_SIZE);
@@ -648,15 +612,11 @@ function StockTransferPage() {
     return { inTransit, pending, completed, lowStock };
   }, [visibleTransfers, stockRows]);
 
-  const selectedProduct = catalogProducts.find(
-    (p) => String(p.id) === String(form.productId),
-  );
+  const selectedProduct = catalogProducts.find((p) => String(p.id) === String(form.productId));
   const fromBranchName = branches.find((b) => b.id === form.fromBranchId)?.name ?? '';
   const sourceStock =
     sourceInventory.find((s) => String(s.productId) === String(form.productId)) ??
-    stockRows.find(
-      (s) => s.branch === fromBranchName && String(s.productId) === String(form.productId),
-    );
+    stockRows.find((s) => s.branch === fromBranchName && String(s.productId) === String(form.productId));
   const availableQty = sourceStock?.qty ?? 0;
 
   const reportByBranch = useMemo(() => {
@@ -727,14 +687,7 @@ function StockTransferPage() {
         byStatus: reportByStatus,
         pipeline: progressPipeline,
       }),
-    [
-      visibleTransfers,
-      perms.label,
-      kpis,
-      reportByBranch,
-      reportByStatus,
-      progressPipeline,
-    ],
+    [visibleTransfers, perms.label, kpis, reportByBranch, reportByStatus, progressPipeline]
   );
 
   const handleExportExcel = () => {
@@ -769,17 +722,11 @@ function StockTransferPage() {
       const result = exportStockTransferPdf(report);
       const count = result.count;
       if (result.mode === 'html') {
-        setMessage(
-          `Downloaded report HTML for ${count} transfer(s). Open the file → Print → Save as PDF.`,
-        );
+        setMessage(`Downloaded report HTML for ${count} transfer(s). Open the file → Print → Save as PDF.`);
       } else if (result.mode === 'print') {
-        setMessage(
-          `Print dialog opened for ${count} transfer(s). Choose "Save as PDF" as the printer.`,
-        );
+        setMessage(`Print dialog opened for ${count} transfer(s). Choose "Save as PDF" as the printer.`);
       } else {
-        setMessage(
-          `Report opened in a new tab (${count} transfer(s)). Use Print → Save as PDF.`,
-        );
+        setMessage(`Report opened in a new tab (${count} transfer(s)). Use Print → Save as PDF.`);
       }
     } catch (err) {
       setMessage(err?.message ?? 'PDF export failed.');
@@ -810,9 +757,7 @@ function StockTransferPage() {
       return;
     }
     if (sourceStock && qty > availableQty) {
-      setMessage(
-        `Insufficient stock at source. Available: ${availableQty} ${selectedProduct?.unit ?? 'units'}.`,
-      );
+      setMessage(`Insufficient stock at source. Available: ${availableQty} ${selectedProduct?.unit ?? 'units'}.`);
       return;
     }
 
@@ -830,7 +775,7 @@ function StockTransferPage() {
           productId: form.productId,
           quantity: qty,
           notes: form.notes,
-        }),
+        })
       );
       try {
         const listed = await loadTransfers('All', branches);
@@ -839,9 +784,7 @@ function StockTransferPage() {
         setTransfers((prev) => mergeTransfers([created], prev));
       }
       setForm((prev) => ({ ...prev, quantity: '', notes: '' }));
-      setMessage(
-        `Request ${created.id} submitted (Pending). An admin will Approve or Reject on Progress. You can track it there.`,
-      );
+      setMessage(`Request ${created.id} submitted (Pending). An admin will Approve or Reject on Progress. You can track it there.`);
       setActiveTab('tracking');
       await loadStockForBranches(branches);
       const fromName = branches.find((b) => b.id === form.fromBranchId)?.name ?? '';
@@ -853,31 +796,130 @@ function StockTransferPage() {
     }
   };
 
-  const updateTransferInList = (updated) => {
-    setTransfers((prev) =>
-      prev.map((t) => (t._id === updated._id ? updated : t)),
-    );
-  };
+  const applyOptimisticUpdate = useCallback((tId, newStatus, additionalFields = {}) => {
+    setTransfers((prev) => prev.map((t) => {
+      if (t._id === tId || t.id === tId) {
+        return { ...t, ...additionalFields, status: newStatus };
+      }
+      return t;
+    }));
+    setTransferSummary(null); 
+  }, []);
 
   const handleApprove = async (transfer) => {
-    if (!transfer._id || !perms.canApproveTransfer) return;
+    const tId = transfer._id || transfer.id;
+    if (!tId) return;
+    
     setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Approved');
+
     try {
       const updated = await approveTransfer(transfer._id);
-      setMessage(
-        `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
-      );
+      setMessage(`${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`);
       await loadTransfers('All', branches);
       await loadStockForBranches(branches);
     } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
       setMessage(getApiErrorMessage(err, 'Approve failed.'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleReject = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId || !perms.canRejectTransfer) return;
+
+    const reason = window.prompt('Reason for rejection (required):');
+    if (!reason?.trim()) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Rejected', { rejectReason: reason.trim() });
+
+    try {
+      await rejectTransfer(tId, reason.trim());
+      setMessage(`${transfer.id || tId} rejected.`);
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status, { rejectReason: transfer.rejectReason });
+      setMessage(getApiErrorMessage(err, 'Reject failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDispatch = async (transfer) => {
+    const tId = transfer._id || transfer.id;
+    if (!tId || !perms.canDispatchTransfer) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'In Transit');
+
+    try {
+      await dispatchTransfer(tId);
+      setMessage(`${transfer.id || tId} dispatched — In Transit. Stock deducted at source.`);
+      loadStockForBranches(branches).catch(() => {});
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
+      setMessage(getApiErrorMessage(err, 'Dispatch failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirmReceipt = async (transfer) => {
+    const { showConfirm } = getTransferUiActions(transfer, perms, userBranchIds, branches);
+    const tId = transfer._id || transfer.id;
+    
+    if (!tId || !showConfirm) {
+      setMessage('Only the destination branch manager can confirm receipt.');
+      return;
+    }
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Completed');
+
+    try {
+      await completeTransfer(tId);
+      setMessage(`${transfer.id || tId} completed — stock added at destination. See History tab.`);
+      loadStockForBranches(branches).catch(() => {});
+      loadTransfers('All', branches).catch(() => {});
+      setActiveTab('history'); 
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status);
+      setMessage(getApiErrorMessage(err, 'Receipt confirmation failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async (transfer) => {
+    const { showCancel } = getTransferUiActions(transfer, perms, userBranchIds, branches);
+    const tId = transfer._id || transfer.id;
+    if (!tId || !showCancel) return;
+
+    const cancelReason = window.prompt('Reason for cancellation (required):');
+    if (!cancelReason?.trim()) return;
+    
+    setSubmitting(true);
+    applyOptimisticUpdate(tId, 'Cancelled', { cancelReason: cancelReason.trim() });
+
+    try {
+      await cancelTransfer(tId, cancelReason.trim());
+      setMessage(`${transfer.id || tId} cancelled.`);
+      loadTransfers('All', branches).catch(() => {});
+    } catch (err) {
+      applyOptimisticUpdate(tId, transfer.status, { cancelReason: transfer.cancelReason });
+      setMessage(getApiErrorMessage(err, 'Cancel failed.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSaveEdit = async (transfer, editForm) => {
-    if (!transfer._id || !canEditTransfer(transfer, perms)) {
+    const tId = transfer._id || transfer.id;
+    if (!tId || !canEditTransfer(transfer, perms)) {
       setMessage('Transfers can only be edited while Pending (before admin approval).');
       return;
     }
@@ -906,91 +948,6 @@ function StockTransferPage() {
       await loadTransfers('All', branches);
     } catch (err) {
       setMessage(getApiErrorMessage(err, 'Could not update transfer.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReject = async (transfer) => {
-    if (!transfer._id || !perms.canRejectTransfer) return;
-    const reason = window.prompt('Reason for rejection (required):');
-    if (!reason?.trim()) return;
-    setSubmitting(true);
-    try {
-      const updated = await rejectTransfer(transfer._id, reason.trim());
-      setMessage(
-        `${updated.id} rejected. Manager must create a new request if needed.`,
-      );
-      await loadTransfers('All', branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Reject failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDispatch = async (transfer) => {
-    if (!transfer._id || !perms.canDispatchTransfer) return;
-    setSubmitting(true);
-    try {
-      const updated = await dispatchTransfer(transfer._id);
-      setMessage(
-        `${updated.id} dispatched — In Transit. Stock deducted at source; destination manager can confirm receipt.`,
-      );
-      await loadTransfers('All', branches);
-      await loadStockForBranches(branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Dispatch failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleConfirmReceipt = async (transfer) => {
-    const { showConfirm } = getTransferUiActions(
-      transfer,
-      perms,
-      userBranchIds,
-      branches,
-    );
-    if (!transfer._id || !showConfirm) {
-      setMessage('Only the destination branch manager can confirm receipt.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const updated = await completeTransfer(transfer._id);
-      setMessage(
-        `${updated.id} completed — stock added at destination, movement logged.`,
-      );
-      await loadTransfers('All', branches);
-      await loadStockForBranches(branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Receipt confirmation failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCancel = async (transfer) => {
-    const { showCancel } = getTransferUiActions(
-      transfer,
-      perms,
-      userBranchIds,
-      branches,
-    );
-    if (!transfer._id || !showCancel) {
-      return;
-    }
-    const cancelReason = window.prompt('Reason for cancellation (required):');
-    if (!cancelReason?.trim()) return;
-    setSubmitting(true);
-    try {
-      const updated = await cancelTransfer(transfer._id, cancelReason.trim());
-      setMessage(`${updated.id} cancelled.`);
-      await loadTransfers('All', branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Cancel failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -1082,21 +1039,21 @@ function StockTransferPage() {
 
         {activeTab === 'logs' && perms.tabs.logs ? (
           <TransferLogsTab
-  perms={perms}
-  logsLoading={logsLoading}
-  logsError={logsError}
-  movementLogs={movementLogs}
-  scopedTransfers={filterTransfersByScope(
-    transfers,
-    perms,
-    userBranchIds,
-    branches,
-    user,
-  )}
-  branches={branches}
-  products={products}
-  onRefresh={loadTransferLogs}
-/>
+            perms={perms}
+            logsLoading={logsLoading}
+            logsError={logsError}
+            movementLogs={movementLogs}
+            scopedTransfers={filterTransfersByScope(
+              transfers,
+              perms,
+              userBranchIds,
+              branches,
+              user,
+            )}
+            branches={branches}
+            products={products}
+            onRefresh={loadTransferLogs}
+          />
         ) : null}
 
         {activeTab === 'logs' && !perms.tabs.logs ? (
@@ -1372,8 +1329,6 @@ function StockTransferPage() {
                 onPrimary={
                   perms.canCreateTransfer ? () => switchTab('request') : undefined
                 }
-                secondaryLabel="Sync data"
-                onSecondary={refreshAll}
               />
             ) : (
               <div className={stTransferCards}>

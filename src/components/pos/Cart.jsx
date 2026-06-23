@@ -182,7 +182,7 @@ const Cart = ({
   const itemCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <div className="w-full flex flex-col h-full bg-white">
+    <div className="w-full flex flex-col h-full bg-white overflow-hidden">
       {/* Header */}
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
         <div className="flex items-center gap-2">
