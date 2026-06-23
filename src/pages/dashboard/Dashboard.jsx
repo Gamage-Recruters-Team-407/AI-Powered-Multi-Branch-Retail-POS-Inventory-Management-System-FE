@@ -1,140 +1,335 @@
 // Dashboard.jsx
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import KPICards from '../../components/dashboard/KPICards';
-import SalesChart from '../../components/dashboard/SalesChart';
-import BranchPerformance from '../../components/dashboard/BranchPerformance';
-import InventoryStatus from '../../components/dashboard/InventoryStatus';
-import TopProducts from '../../components/dashboard/TopProducts';
-import LiveFeed from '../../components/dashboard/LiveFeed';
-import SmartRecommendations from '../../components/dashboard/SmartRecommendations';
-import PersonalizedRecommendations from '../../components/dashboard/PersonalizedRecommendations';
-import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
-import { socketService } from '../../services/socketService';
-const WarehouseList = lazy(() => import('../Warehouse/WarehouseList'));
-const WarehouseDetail = lazy(() => import('../Warehouse/WarehouseDetail'));
-import { useNavigate } from 'react-router-dom';
-import Chatbot from '../../components/ai/Chatbot/Chatbot';
-import AIIntelligenceHub from '../../components/ai/AIIntelligenceHub';
-import NotificationsModule from '../../components/dashboard/NotificationsModule';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
+import KPICards from "../../components/dashboard/KPICards";
+import SalesChart from "../../components/dashboard/SalesChart";
+import BranchPerformance from "../../components/dashboard/BranchPerformance";
+import InventoryStatus from "../../components/dashboard/InventoryStatus";
+import TopProducts from "../../components/dashboard/TopProducts";
+import LiveFeed from "../../components/dashboard/LiveFeed";
+import SmartRecommendations from "../../components/dashboard/SmartRecommendations";
+import PersonalizedRecommendations from "../../components/dashboard/PersonalizedRecommendations";
+import { useAuth } from "../../context/AuthContext";
+import { useNotification } from "../../context/NotificationContext";
+import { socketService } from "../../services/socketService";
+import { useNavigate } from "react-router-dom";
+import Chatbot from "../../components/ai/Chatbot/Chatbot";
+import AIIntelligenceHub from "../../components/ai/AIIntelligenceHub";
+import NotificationsModule from "../../components/dashboard/NotificationsModule";
+import axiosInstance from "../../api/axiosInstance";
+import { getAllBranchesWithPerformance } from "../../services/branchApi";
+import * as inventoryService from "../../services/inventoryService";
 
+const AnalyticsPage = lazy(() => import("../analytics/AnalyticsPage"));
+const AuditSecurityPage = lazy(() => import("../audit/AuditSecurityPage"));
 
-const SuppliersPage = lazy(() => import('../suppliers/SuppliersPage'));
-const EmployeesPage = lazy(() => import('../employees/EmployeesPage'));
-const ReturnsPage = lazy(() => import('../returns/ReturnsPage'));
-const StockTransferPage = lazy(() => import('../stock-transfer/StockTransferPage'));
-const PurchaseOrdersPage = lazy(() => import('../purchase-orders/PurchaseOrdersPage'));
-const CustomerListPage = lazy(() => import('../customers/CustomerListPage'));
-const ProductListPage = lazy(() => import('../products/ProductListPage'));
-const CategoryManagementPage = lazy(() => import('../products/CategoryManagementPage'));
-const AddProductPage = lazy(() => import('../products/AddProductPage'));
-const EditProductPage = lazy(() => import('../products/EditProductPage'));
-const ProductDetailsPage = lazy(() => import('../products/ProductDetailsPage'));
-const ReportsPage = lazy(() => import('../reports/ReportsPage'));
-const POSPage = lazy(() => import('../pos/POSPage'));
-const CheckoutPage = lazy(() => import('../pos/CheckoutPage'));
-const ReceiptPage = lazy(() => import('../pos/ReceiptPage'));
-const BranchListPage = lazy(() => import('../branches/BranchListPage'));
-const PromotionsPage = lazy(() => import('../promotions/PromotionsPage'));
-const UserListPage = lazy(() => import("../users/UserListPage")); 
-const SalesHistoryPage = lazy(() => import('../pos/SalesHistoryPage'));
-
-const AuditSecurityPage = lazy(() => import('../audit/AuditSecurityPage'));
-const AnalyticsPageLazy = lazy(() => import('../analytics/AnalyticsPage'));
+const SuppliersPage = lazy(() => import("../suppliers/SuppliersPage"));
+const EmployeesPage = lazy(() => import("../employees/EmployeesPage"));
+const ReturnsPage = lazy(() => import("../returns/ReturnsPage"));
+const StockTransferPage = lazy(
+  () => import("../stock-transfer/StockTransferPage"),
+);
+const PurchaseOrdersPage = lazy(
+  () => import("../purchase-orders/PurchaseOrdersPage"),
+);
+const CustomerListPage = lazy(() => import("../customers/CustomerListPage"));
+const UserListPage = lazy(() => import("../users/UserListPage"));
+const WarehouseList = lazy(() => import("../Warehouse/WarehouseList"));
+const WarehouseDetail = lazy(() => import("../Warehouse/WarehouseDetail"));
+const ProductListPage = lazy(() => import("../products/ProductListPage"));
+const CategoryManagementPage = lazy(
+  () => import("../products/CategoryManagementPage"),
+);
+const AddProductPage = lazy(() => import("../products/AddProductPage"));
+const EditProductPage = lazy(() => import("../products/EditProductPage"));
+const ProductDetailsPage = lazy(() => import("../products/ProductDetailsPage"));
+const ReportsPage = lazy(() => import("../reports/ReportsPage"));
+const POSPage = lazy(() => import("../pos/POSPage"));
+const CheckoutPage = lazy(() => import("../pos/CheckoutPage"));
+const ReceiptPage = lazy(() => import("../pos/ReceiptPage"));
+//branch list page import
+const BranchListPage = lazy(() => import("../branches/BranchListPage"));
+const PromotionsPage = lazy(() => import("../promotions/PromotionsPage"));
+const SalesHistoryPage = lazy(() => import("../pos/SalesHistoryPage"));
 const ModuleLoading = () => (
   <div
     className="module-detail"
     style={{
       padding: 32,
-      textAlign: 'center',
-      color: '#475569',
+      textAlign: "center",
+      color: "#475569",
       fontWeight: 600,
     }}
   >
     Loading module…
   </div>
 );
-import { InventoryProvider } from '../../context/InventoryContext';
-import InventoryDashboard from '../inventory/InventoryDashboard';
+import { InventoryProvider } from "../../context/InventoryContext";
+import InventoryDashboard from "../inventory/InventoryDashboard";
 
-// Demo data generator
+// Demo data generator - FIXED
 const generateDemoData = () => ({
   kpi: {
-    revenue: { total: '$48,250', growth_percentage: 12.4, trend: 'up' },
-    sales: { count: 1284, growth_percentage: 8.1, avg_transaction_value: '$37.58', unique_customers: 842 },
-    profit: { total: '$14,820', margin_percentage: 30.7 },
-    stock_turnover: { avg_rate: '4.2x', efficiency: 'Healthy' },
+    revenue: {
+      total: "Rs. 0",
+      growth_percentage: 0,
+      trend: "up",
+    },
+    sales: {
+      count: 0,
+      growth_percentage: 0,
+      avg_transaction_value: "Rs. 0.00",
+      unique_customers: 0,
+    },
+    profit: {
+      total: "Rs. 0",
+      margin_percentage: 0,
+    },
+    stock_turnover: {
+      avg_rate: "0.0x",
+      efficiency: "Needs Attention",
+    },
   },
-  inventory: { total_products: 486, total_stock: 32610, inventory_value: '$124,600', avg_stock_level: 67.1 },
-  low_stock_alerts: { count: 12 },
+  inventory: {
+    total_products: 0,
+    total_stock: 0,
+    inventory_value: "Rs. 0",
+    avg_stock_level: 0,
+  },
+  low_stock_alerts: {
+    count: 0,
+  },
   branches: null,
   top_products: null,
   sales: null,
 });
 
-
 const BRANCHES = [
-  { id: 'all', name: 'All Branches', icon: '🏢', image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=100&h=100&fit=crop' },
-  { id: '1', name: 'Colombo Head Office', icon: '🏙️', image: 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?w=100&h=100&fit=crop' },
-  { id: '2', name: 'Kandy City Branch', icon: '🏞️', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=100&h=100&fit=crop' },
-  { id: '3', name: 'Galle Fort Branch', icon: '🏯', image: 'https://images.unsplash.com/photo-1555992336-03a23c7b20ee?w=100&h=100&fit=crop' },
-  { id: '4', name: 'Negombo Branch', icon: '🏖️', image: 'https://images.unsplash.com/photo-1582308883171-79927e0e0697?w=100&h=100&fit=crop' },
+  {
+    id: "all",
+    name: "All Branches",
+    icon: "🏢",
+    image:
+      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=100&h=100&fit=crop",
+  },
+  {
+    id: "1",
+    name: "Colombo Head Office",
+    icon: "🏙️",
+    image:
+      "https://images.unsplash.com/photo-1589519160732-57fc498494f8?w=100&h=100&fit=crop",
+  },
+  {
+    id: "2",
+    name: "Kandy City Branch",
+    icon: "🏞️",
+    image:
+      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=100&h=100&fit=crop",
+  },
+  {
+    id: "3",
+    name: "Galle Fort Branch",
+    icon: "🏯",
+    image:
+      "https://images.unsplash.com/photo-1555992336-03a23c7b20ee?w=100&h=100&fit=crop",
+  },
+  {
+    id: "4",
+    name: "Negombo Branch",
+    icon: "🏖️",
+    image:
+      "https://images.unsplash.com/photo-1582308883171-79927e0e0697?w=100&h=100&fit=crop",
+  },
 ];
 
 const DATE_PRESETS = [
-  { label: 'Today', value: 'today', icon: '📅' },
-  { label: 'This Week', value: 'week', icon: '📆' },
-  { label: 'This Month', value: 'month', icon: '📊' },
-  { label: 'Last 3 Months', value: 'quarter', icon: '📈' },
-  { label: 'Custom', value: 'custom', icon: '⚙️' },
+  { label: "Today", value: "today", icon: "📅" },
+  { label: "This Week", value: "week", icon: "📆" },
+  { label: "This Month", value: "month", icon: "📊" },
+  { label: "Last 3 Months", value: "quarter", icon: "📈" },
+  { label: "Custom", value: "custom", icon: "⚙️" },
 ];
 
 const MODULE_NAV_ITEMS = [
-  { id: 'dashboard',     label: 'Dashboard & Business Overview',    icon: '📊', page: 1, isMain: true,
-    roles: ['admin','manager','cashier','user'] },
+  {
+    id: "dashboard",
+    label: "Dashboard & Business Overview",
+    icon: "📊",
+    page: 1,
+    isMain: true,
+    roles: ["admin", "manager", "cashier", "user"],
+  },
   // { id: 'auth',          label: 'Authentication & Authorization',   icon: '🔐', page: 1,
   //   roles: ['admin'] },
-  { id: 'user-mgmt',     label: 'User Management',                  icon: '👥', page: 1,
-    roles: ['admin'] },
-  { id: 'branch-mgmt',   label: 'Branch Management',                icon: '🏢', page: 1,
-    roles: ['admin','manager'] },
-  { id: 'employee-mgmt', label: 'Employee Management',              icon: '👔', page: 1,
-    roles: ['admin','manager'] },
-  { id: 'customer-mgmt', label: 'Customer Management',              icon: '👤', page: 2,
-    roles: ['admin','manager','cashier'] },
-  { id: 'supplier-mgmt', label: 'Supplier Management',              icon: '🚚', page: 2,
-    roles: ['admin','manager'] },
-  { id: 'product-mgmt',  label: 'Product Management',               icon: '📦', page: 2,
-    roles: ['admin','manager'] },
-  { id: 'inventory-mgmt',label: 'Inventory Management',             icon: '📊', page: 2,
-    roles: ['admin','manager'] },
-  { id: 'warehouse-mgmt',label: 'Warehouse Management',             icon: '🏭', page: 2,
-    roles: ['admin','manager'] },
-  { id: 'purchase-order',label: 'Purchase Order Management',        icon: '📋', page: 2,
-    roles: ['admin','manager'] },
-  { id: 'pos-sales',     label: 'POS Sales & Billing',              icon: '🛒', page: 3,
-    roles: ['admin','manager','cashier'] },
-  { id: 'returns-refund',label: 'Returns & Refund Management',      icon: '🔄', page: 3,
-    roles: ['admin','manager','cashier'] },
-  { id: 'stock-transfer',label: 'Stock Transfer Management',        icon: '🚛', page: 3,
-    roles: ['admin','manager'] },
-  { id: 'promotion',     label: 'Promotion & Discount Management',  icon: '🏷️', page: 3,
-    roles: ['admin','manager'] },
-  { id: 'ai-forecast',   label: 'AI Demand Forecasting',            icon: '🤖', page: 3,
-    roles: ['admin','manager'] },
-  { id: 'ai-reorder',    label: 'AI Smart Reordering',              icon: '📈', page: 3,
-    roles: ['admin','manager'] },
-  { id: 'analytics',     label: 'Business Analytics',               icon: '📉', page: 3,
-    roles: ['admin','manager'] },
-  { id: 'reporting',     label: 'Reporting Management',             icon: '📄', page: 4,
-    roles: ['admin'] },
-  { id: 'notifications', label: 'Notifications & Alerts',           icon: '🔔', page: 4,
-    roles: ['admin','manager','cashier'] },
-  { id: 'audit-logs',    label: 'Audit Logs & Security',            icon: '🛡️', page: 4,
-    roles: ['admin'] },
-  { id: 'ai-intelligence',label: 'AI Intelligence',                 icon: '🧠', page: 5, isAI: true,
-    roles: ['admin','manager'] },
+  {
+    id: "user-mgmt",
+    label: "User Management",
+    icon: "👥",
+    page: 1,
+    roles: ["admin"],
+  },
+  {
+    id: "branch-mgmt",
+    label: "Branch Management",
+    icon: "🏢",
+    page: 1,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "employee-mgmt",
+    label: "Employee Management",
+    icon: "👔",
+    page: 1,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "customer-mgmt",
+    label: "Customer Management",
+    icon: "👤",
+    page: 2,
+    roles: ["admin", "manager", "cashier"],
+  },
+  {
+    id: "supplier-mgmt",
+    label: "Supplier Management",
+    icon: "🚚",
+    page: 2,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "product-mgmt",
+    label: "Product Management",
+    icon: "📦",
+    page: 2,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "inventory-mgmt",
+    label: "Inventory Management",
+    icon: "📊",
+    page: 2,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "warehouse-mgmt",
+    label: "Warehouse Management",
+    icon: "🏭",
+    page: 2,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "purchase-order",
+    label: "Purchase Order Management",
+    icon: "📋",
+    page: 2,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "pos-sales",
+    label: "POS Sales & Billing",
+    icon: "🛒",
+    page: 3,
+    roles: ["admin", "manager", "cashier"],
+  },
+  {
+    id: "returns-refund",
+    label: "Returns & Refund Management",
+    icon: "🔄",
+    page: 3,
+    roles: ["admin", "manager", "cashier"],
+  },
+  {
+    id: "stock-transfer",
+    label: "Stock Transfer Management",
+    icon: "🚛",
+    page: 3,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "promotion",
+    label: "Promotion & Discount Management",
+    icon: "🏷️",
+    page: 3,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "ai-forecast",
+    label: "AI Demand Forecasting",
+    icon: "🤖",
+    page: 3,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "ai-reorder",
+    label: "AI Smart Reordering",
+    icon: "📈",
+    page: 3,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "analytics",
+    label: "Business Analytics",
+    icon: "📉",
+    page: 3,
+    roles: ["admin", "manager"],
+  },
+  {
+    id: "reporting",
+    label: "Reporting Management",
+    icon: "📄",
+    page: 4,
+    roles: ["admin"],
+  },
+  {
+    id: "notifications",
+    label: "Notifications & Alerts",
+    icon: "🔔",
+    page: 4,
+    roles: ["admin", "manager", "cashier"],
+  },
+  {
+    id: "audit-logs",
+    label: "Audit Logs & Security",
+    icon: "🛡️",
+    page: 4,
+    roles: ["admin"],
+  },
+  {
+    id: "ai-intelligence",
+    label: "AI Intelligence",
+    icon: "🧠",
+    page: 5,
+    isAI: true,
+    roles: ["admin", "manager"],
+  },
 ];
+
+// const _getDateRange = (preset) => {
+//   const now = new Date();
+//   const end = now.toISOString().split("T")[0];
+//   let start;
+//   if (preset === "today") start = end;
+//   else if (preset === "week") {
+//     const d = new Date(now);
+//     d.setDate(d.getDate() - 7);
+//     start = d.toISOString().split("T")[0];
+//   } else if (preset === "month") {
+//     const d = new Date(now);
+//     d.setDate(1);
+//     start = d.toISOString().split("T")[0];
+//   } else if (preset === "quarter") {
+//     const d = new Date(now);
+//     d.setMonth(d.getMonth() - 3);
+//     start = d.toISOString().split("T")[0];
+//   } else start = end;
+//   return { startDate: start, endDate: end };
+// };
 
 const _getDateRange = (preset) => {
   const now = new Date();
@@ -148,124 +343,269 @@ const _getDateRange = (preset) => {
   return { startDate: start, endDate: end };
 };
 
+const formatLKR = (amount, decimals = 0) => {
+  const value = Number(amount) || 0;
+  return `Rs. ${value.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+};
+
+// const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+//   const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
+//   if (isEmpty) {
+//     return prevValue !== undefined && prevValue !== null ? prevValue : formatter(0);
+//   }
+//   return formatter(rawVal);
+// };
+
+const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+  const isEmpty =
+    rawVal === undefined ||
+    rawVal === null ||
+    rawVal === 0 ||
+    Number.isNaN(rawVal);
+
+  if (isEmpty) {
+    return prevValue !== undefined && prevValue !== null
+      ? prevValue
+      : formatter(0);
+  }
+  return formatter(rawVal);
+};
+
+const mapStatsToDashboardData = (stats, prevData) => {
+  if (!stats) return prevData || generateDemoData();
+
+  const prevKpi = prevData?.kpi || {};
+  const prevInventory = prevData?.inventory || {};
+
+  const kpis = stats.kpis || {};
+  const inventory = stats.inventory || {};
+  const sales = stats.sales || {};
+  const system = stats.system || {};
+
+  return {
+    kpi: {
+      revenue: {
+        total: resolveValue(kpis.revenue, prevKpi.revenue?.total, formatLKR),
+        growth_percentage:
+          kpis.salesGrowth ?? prevKpi.revenue?.growth_percentage ?? 0,
+        trend: (kpis.salesGrowth ?? 0) >= 0 ? "up" : "down",
+      },
+      sales: {
+        count: resolveValue(kpis.transactionCount, prevKpi.sales?.count),
+        growth_percentage:
+          kpis.salesGrowth ?? prevKpi.sales?.growth_percentage ?? 0,
+        avg_transaction_value: resolveValue(
+          sales.averageTransactionValue,
+          prevKpi.sales?.avg_transaction_value,
+          (v) => formatLKR(v, 2),
+        ),
+        unique_customers: resolveValue(
+          system.totalCustomers,
+          prevKpi.sales?.unique_customers,
+        ),
+      },
+      profit: {
+        total: resolveValue(kpis.profit, prevKpi.profit?.total, formatLKR),
+        margin_percentage:
+          kpis.profitMargin ?? prevKpi.profit?.margin_percentage ?? 0,
+      },
+      stock_turnover: {
+        avg_rate: resolveValue(
+          kpis.stockTurnover,
+          prevKpi.stock_turnover?.avg_rate,
+          (v) => `${Number(v).toFixed(1)}x`,
+        ),
+        efficiency:
+          (kpis.stockTurnover ?? 0) >= 3 ? "Healthy" : "Needs Attention",
+      },
+    },
+    inventory: {
+      total_products: resolveValue(
+        system.totalProducts,
+        prevInventory.total_products,
+      ),
+      total_stock: resolveValue(
+        inventory.totalItems,
+        prevInventory.total_stock,
+      ),
+      inventory_value: resolveValue(
+        inventory.totalValue,
+        prevInventory.inventory_value,
+        formatLKR,
+      ),
+      avg_stock_level: inventory.branchStockStatus?.length
+        ? (
+          inventory.branchStockStatus.reduce(
+            (sum, b) => sum + (b.avgStockLevel || 0),
+            0,
+          ) / inventory.branchStockStatus.length
+        ).toFixed(1)
+        : (prevInventory.avg_stock_level ?? 0),
+    },
+    low_stock_alerts: {
+      count:
+        inventory.lowStockAlert?.count ??
+        prevData?.low_stock_alerts?.count ??
+        0,
+    },
+    branches:
+      (stats.branches ?? prevData?.branches ?? null)?.map?.((b) => ({
+        ...b,
+        revenue:
+          typeof b.revenue === "number"
+            ? `Rs. ${b.revenue.toLocaleString()}`
+            : b.revenue,
+      })) ?? null,
+    top_products: sales.topProducts ?? prevData?.top_products ?? null,
+    sales: sales.dailySales ?? prevData?.sales ?? null,
+  };
+};
+
 const Dashboard = ({ viewRole, returnState, setReturnState }) => {
-
-
   const { user, token, logout } = useAuth();
-  const { notifications = [], removeNotification, clearAll } = useNotification() || {};
+  const {
+    notifications = [],
+    removeNotification,
+    clearAll,
+  } = useNotification() || {};
   const navigate = useNavigate();
-  const role = viewRole || user?.role || 'admin';
+  const role = viewRole || user?.role || "admin";
 
-  // ✅ අලුත් — roles array check
-  const filteredNavItems = MODULE_NAV_ITEMS.filter(item =>
-    item.roles.includes(role)
+  // roles array check
+  const filteredNavItems = MODULE_NAV_ITEMS.filter((item) =>
+    item.roles.includes(role),
   );
 
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState('all');
-  const [datePreset, setDatePreset] = useState('month');
-  const [dateRange, setDateRange] = useState(_getDateRange('month'));
+  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [datePreset, setDatePreset] = useState("month");
+  const [dateRange, setDateRange] = useState(_getDateRange("month"));
   const [wsConnected, setWsConnected] = useState(false);
   const [liveTransaction, setLiveTransaction] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [greeting, setGreeting] = useState('');
+  const [greeting, setGreeting] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [navExpanded, setNavExpanded] = useState(true);
   const [warehouseDetailId, setWarehouseDetailId] = useState(null);
   const [activeModule, setActiveModule] = useState(() => {
-    return sessionStorage.getItem('dashboard_activeModule') || 'dashboard';
+    return sessionStorage.getItem("dashboard_activeModule") || "dashboard";
   });
   const [visibleModule, setVisibleModule] = useState(() => {
-    return sessionStorage.getItem('dashboard_visibleModule') || 'dashboard';
+    return sessionStorage.getItem("dashboard_visibleModule") || "dashboard";
   });
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const [posView, setPosView] = useState('pos');
+  const [posView, setPosView] = useState("pos");
   const [lastSale, setLastSale] = useState(null);
   // Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
-    { id: 1, type: 'bot', text: '👋 Hello! I\'m your AI Retail Assistant. How can I help you today?\n\nYou can ask me about:\n• Sales performance and revenue\n• Inventory status and low stock alerts\n• Branch performance comparisons\n• Product recommendations\n• Business insights and analytics' }
+    {
+      id: 1,
+      type: "bot",
+      text: "👋 Hello! I'm your AI Retail Assistant. How can I help you today?\n\nYou can ask me about:\n• Sales performance and revenue\n• Inventory status and low stock alerts\n• Branch performance comparisons\n• Product recommendations\n• Business insights and analytics",
+    },
   ]);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
 
   // Time-based state
-  const [sunPhase, setSunPhase] = useState('morning');
+  const [sunPhase, setSunPhase] = useState("morning");
   const [moonVisible, setMoonVisible] = useState(false);
   const [clouds, setClouds] = useState([]);
+
+  const [chartGroupBy, setChartGroupBy] = useState('daily');
 
   // Handle logout
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
   // Scroll to bottom of chat
   useEffect(() => {
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatMessages]);
 
-  // AI Chatbot response generator
+  // AI Chatbot response generator - FIXED: Added missing braces
   const generateAIResponse = (userMessage) => {
     const msg = userMessage.toLowerCase();
 
     // Sales & Revenue queries
-    if (msg.includes('revenue') || msg.includes('sales') || msg.includes('how much')) {
-      return `📊 **Sales Performance Update**\n\n• Total Revenue: $48,250\n• Sales Count: 1,284 transactions\n• Growth: +12.4% vs last period\n• Average Transaction: $37.58\n• Unique Customers: 842\n\nWould you like to see branch-wise breakdown?`;
+    if (
+      msg.includes("revenue") ||
+      msg.includes("sales") ||
+      msg.includes("how much")
+    ) {
+      return `📊 **Sales & Revenue Report**\n\nTotal Revenue: Rs. 48,250\nTotal Sales: 842 transactions\nAverage Transaction: Rs. 57.30\nGrowth: +12.4% vs last period\n\n💡 Top performing day: Saturday (Rs. 8,450)`;
     }
 
     // Profit queries
-    if (msg.includes('profit') || msg.includes('margin')) {
-      return `💰 **Profit Analysis**\n\n• Total Profit: $14,820\n• Profit Margin: 30.7%\n• Gross Profit: $32,430\n• Net Profit Margin: 24.2%\n\nProfit is healthy compared to industry average of 25-30%.`;
-    }
-
-    // Inventory queries
-    if (msg.includes('inventory') || msg.includes('stock')) {
-      return `📦 **Inventory Status**\n\n• Total Products: 486\n• Total Stock Units: 32,610\n• Inventory Value: $124,600\n• Low Stock Alerts: 12 items\n• Stock Turnover Rate: 4.2x (Healthy)\n\n⚠️ Recommended to reorder: Rice (50 units left), Cooking Oil (23 units)`;
+    if (msg.includes("profit") || msg.includes("margin")) {
+      return `💰 **Profit Analysis**\n\nGross Profit: Rs. 14,800\nProfit Margin: 30.7%\nNet Profit: Rs. 11,200\n\n📈 Best performing category: Electronics (45% margin)\n🔻 Lowest margin: Groceries (18% margin)`;
     }
 
     // Low stock alerts
-    if (msg.includes('low stock') || msg.includes('alert')) {
+    if (msg.includes("low stock") || msg.includes("alert")) {
       return `⚠️ **Low Stock Alerts**\n\n12 products are running low:\n1. Premium Rice - 50 units left\n2. Coconut Oil - 23 units left\n3. Sugar - 35 units left\n4. Milk Powder - 42 units left\n5. Tea Bags - 67 units left\n\n🔔 AI Suggestion: Create purchase orders for these items today.`;
     }
 
     // Branch performance
-    if (msg.includes('branch') || msg.includes('location')) {
-      return `🏢 **Branch Performance**\n\n• Colombo Head Office: $18,240 (Top performer)\n• Kandy City Branch: $12,560 (+8.2% growth)\n• Galle Fort Branch: $9,340\n• Negombo Branch: $8,110\n\n📈 Colombo leads with 38% of total revenue.`;
+    if (msg.includes("branch") || msg.includes("location")) {
+      return `🏪 **Branch Performance**\n\n1. Colombo Head Office: Rs. 18,450 (↑8.2%)\n2. Kandy City Branch: Rs. 12,800 (↑5.1%)\n3. Galle Fort Branch: Rs. 9,200 (↑3.7%)\n4. Negombo Branch: Rs. 7,800 (↑2.9%)\n\n🏆 Best performing: Colombo Head Office`;
     }
 
     // Product recommendations
-    if (msg.includes('product') || msg.includes('recommend') || msg.includes('top product')) {
-      return `⭐ **Top Performing Products**\n\n1. Premium Basmati Rice - $12,450\n2. Organic Coconut Oil - $8,920\n3. Ceylon Tea Gift Pack - $7,340\n4. Fresh Milk - $5,670\n5. Spice Assortment - $4,890\n\n🎯 AI Recommendation: Increase stock of organic products - demand up 23% this month.`;
+    if (
+      msg.includes("product") ||
+      msg.includes("recommend") ||
+      msg.includes("top product")
+    ) {
+      return `⭐ **Top Products**\n\n1. Premium Basmati Rice - Rs. 8,450 revenue\n2. Organic Coconut Oil - Rs. 6,200 revenue\n3. Ceylon Tea Gift Pack - Rs. 5,800 revenue\n4. Fresh Milk (1L) - Rs. 4,900 revenue\n\n🎯 AI Recommendation: Promote Premium Basmati Rice with bundle offers.`;
     }
 
     // Demand forecasting
-    if (msg.includes('forecast') || msg.includes('prediction') || msg.includes('demand')) {
+    if (
+      msg.includes("forecast") ||
+      msg.includes("prediction") ||
+      msg.includes("demand")
+    ) {
       return `🔮 **AI Demand Forecast**\n\nNext 30 days predictions:\n• Rice & Grains: ↑15% demand increase\n• Cooking Oils: ↑12% (holiday season)\n• Dairy Products: ↑8%\n• Spices: ↑20% (export demand)\n\n📊 Recommended stock levels: Increase inventory by 25% for essential items.`;
     }
 
     // Reorder suggestions
-    if (msg.includes('reorder') || msg.includes('purchase')) {
+    if (msg.includes("reorder") || msg.includes("purchase")) {
       return `🛒 **Smart Reorder Recommendations**\n\nAuto-generated purchase orders:\n• 500 units - Premium Rice (Current: 50)\n• 200 units - Coconut Oil (Current: 23)\n• 300 units - Sugar (Current: 35)\n• 150 units - Milk Powder (Current: 42)\n\n✅ AI Confidence: 94% - Ready to approve?`;
     }
 
     // Business insights
-    if (msg.includes('insight') || msg.includes('analysis') || msg.includes('trend')) {
+    if (
+      msg.includes("insight") ||
+      msg.includes("analysis") ||
+      msg.includes("trend")
+    ) {
       return `📈 **Business Insights**\n\n• Morning sales increased by 18% (8am-11am)\n• Weekend revenue is 2.3x higher than weekdays\n• Organic products category growing at 27% MoM\n• Customer retention rate: 68% (↑5%)\n\n💡 Tip: Launch morning breakfast combos to maximize morning traffic.`;
     }
 
     // Help / greeting
-    if (msg.includes('help') || msg.includes('what can you') || msg.includes('hi') || msg.includes('hello')) {
+    if (
+      msg.includes("help") ||
+      msg.includes("what can you") ||
+      msg.includes("hi") ||
+      msg.includes("hello")
+    ) {
       return `🤖 **How I Can Help You**\n\nAsk me about:\n• 📊 Sales & Revenue stats\n• 💰 Profit margins and analysis\n• 📦 Inventory status and alerts\n• 🏢 Branch performance comparison\n• ⭐ Top products & recommendations\n• 🔮 Demand forecasting & predictions\n• 🛒 Smart reordering suggestions\n• 📈 Business insights & trends\n\nWhat would you like to know today?`;
     }
 
@@ -277,50 +617,60 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     if (!chatInput.trim()) return;
 
     // Add user message
-    const userMsg = { id: Date.now(), type: 'user', text: chatInput };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatInput('');
+    const userMsg = { id: Date.now(), type: "user", text: chatInput };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
     setIsTyping(true);
 
     // Simulate AI thinking
     setTimeout(() => {
       const botResponse = generateAIResponse(chatInput);
-      const botMsg = { id: Date.now() + 1, type: 'bot', text: botResponse };
-      setChatMessages(prev => [...prev, botMsg]);
+      const botMsg = { id: Date.now() + 1, type: "bot", text: botResponse };
+      setChatMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
     }, 800);
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === "Enter") sendMessage();
   };
 
   const showModule = (moduleId) => {
     const productInnerModules = [
-      'product-categories',
-      'product-add',
-      'product-view',
-      'product-edit',
+      "product-categories",
+      "product-add",
+      "product-view",
+      "product-edit",
     ];
 
     if (productInnerModules.includes(moduleId)) {
-      setActiveModule('product-mgmt');
+      setActiveModule("product-mgmt");
     } else {
       setActiveModule(moduleId);
     }
 
     // Reset warehouse detail when navigating away or back to list
-    if (moduleId === 'warehouse-mgmt') {
+    if (moduleId === "warehouse-mgmt") {
       setWarehouseDetailId(null);
     }
 
     setVisibleModule(moduleId);
-    sessionStorage.setItem('dashboard_activeModule', moduleId);
-    sessionStorage.setItem('dashboard_visibleModule', moduleId);
+    sessionStorage.setItem("dashboard_activeModule", moduleId);
+    sessionStorage.setItem("dashboard_visibleModule", moduleId);
+
+    // Close sidebar on mobile after navigating
+    if (window.innerWidth <= 768) {
+      setNavExpanded(false);
+    }
+  };
+
+  const handleViewAllInventory = () => {
+    sessionStorage.setItem("scroll_to_inventory_table", "true");
+    showModule("inventory-mgmt");
   };
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [visibleModule]);
 
   // Update greeting and time-based elements
@@ -330,15 +680,15 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
       const hour = now.getHours();
       setCurrentTime(now);
 
-      if (hour < 12) setGreeting('Good Morning');
-      else if (hour < 18) setGreeting('Good Afternoon');
-      else setGreeting('Good Evening');
+      if (hour < 12) setGreeting("Good Morning");
+      else if (hour < 18) setGreeting("Good Afternoon");
+      else setGreeting("Good Evening");
 
-      if (hour >= 5 && hour < 7) setSunPhase('sunrise');
-      else if (hour >= 7 && hour < 12) setSunPhase('morning');
-      else if (hour >= 12 && hour < 16) setSunPhase('afternoon');
-      else if (hour >= 16 && hour < 18) setSunPhase('sunset');
-      else setSunPhase('night');
+      if (hour >= 5 && hour < 7) setSunPhase("sunrise");
+      else if (hour >= 7 && hour < 12) setSunPhase("morning");
+      else if (hour >= 12 && hour < 16) setSunPhase("afternoon");
+      else if (hour >= 16 && hour < 18) setSunPhase("sunset");
+      else setSunPhase("night");
 
       setMoonVisible(hour >= 19 || hour < 5);
 
@@ -359,63 +709,144 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
+
   // WebSocket
   useEffect(() => {
     socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
     socketService.on('connect', () => setWsConnected(true));
     socketService.on('disconnect', () => setWsConnected(false));
-    socketService.on('dashboard-update', (data) => {
-      setDashboardData(prev => ({ ...prev, ...data }));
-      setLastUpdated(new Date());
-      if (data.liveTransaction) setLiveTransaction(data.liveTransaction);
-    });
+
+
     return () => socketService.disconnect();
   }, [token]);
 
-  // Fetch data
+
+
   const fetchData = useCallback(async () => {
     setLoading(true);
+
     try {
-      await new Promise(r => setTimeout(r, 800));
-      setDashboardData(generateDemoData());
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+
+      if (selectedBranch !== "all") {
+        params.append("branchId", selectedBranch);
+      }
+
+      const BASE = (
+        import.meta.env.VITE_API_URL || "http://localhost:5000"
+      ).replace(/\/api\/?$/, "");
+
+      const res = await fetch(
+        `${BASE}/api/dashboard/stats?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Dashboard fetch failed: ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      console.log("🔴 RAW API Response:", json.data);
+      console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
+      console.log("💰 KPIs:", json.data?.kpis);
+
+      // Demo structure base
+      const dashboardData = generateDemoData();
+
+      // Real dashboard stats inject
+      const mappedData = mapStatsToDashboardData(
+        json.data,
+        dashboardData
+      );
+
+      // Real branch performance inject
+      try {
+        const branchRes = await getAllBranchesWithPerformance();
+
+        mappedData.branches = (branchRes.data || []).map((b) => ({
+          branch_id: b._id,
+          branch_name: b.name,
+          location: b.city || "N/A",
+          status: b.isActive ? "active" : "inactive",
+          staff_count: b.employeeCount || 0,
+          products_count: b.inventoryCount || 0,
+          total_stock: b.inventoryCount || 0,
+          low_stock_items: b.lowStockCount || 0,
+          revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
+          growth: b.growth || 0,
+        }));
+      } catch (branchErr) {
+        console.error(
+          "Error fetching branch performance:",
+          branchErr
+        );
+      }
+
+      setDashboardData(mappedData);
       setLastUpdated(new Date());
+
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedBranch, dateRange, token]);
 
-  useEffect(() => { fetchData(); }, [selectedBranch, datePreset, fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [selectedBranch, dateRange, fetchData]);
+
 
   const handlePreset = (preset) => {
     setDatePreset(preset);
-    if (preset !== 'custom') setDateRange(_getDateRange(preset));
+    if (preset !== "custom") setDateRange(_getDateRange(preset));
   };
 
-  const selectedBranchData = BRANCHES.find(b => b.id === selectedBranch);
-  const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const selectedBranchData = BRANCHES.find((b) => b.id === selectedBranch);
+  const formattedTime = currentTime.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const getSkyGradient = () => {
     switch (sunPhase) {
-      case 'sunrise': return 'linear-gradient(180deg, #ff7e5e 0%, #feb47b 40%, #ffd6a5 100%)';
-      case 'morning': return 'linear-gradient(180deg, #4facfe 0%, #00f2fe 100%)';
-      case 'afternoon': return 'linear-gradient(180deg, #3b8dff 0%, #86b6ff 50%, #b8d4ff 100%)';
-      case 'sunset': return 'linear-gradient(180deg, #ff6b6b 0%, #ff8e53 30%, #ffd93d 100%)';
-      case 'night': return 'linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%)';
-      default: return 'linear-gradient(180deg, #4facfe 0%, #00f2fe 100%)';
+      case "sunrise":
+        return "linear-gradient(180deg, #ff7e5e 0%, #feb47b 40%, #ffd6a5 100%)";
+      case "morning":
+        return "linear-gradient(180deg, #4facfe 0%, #00f2fe 100%)";
+      case "afternoon":
+        return "linear-gradient(180deg, #3b8dff 0%, #86b6ff 50%, #b8d4ff 100%)";
+      case "sunset":
+        return "linear-gradient(180deg, #ff6b6b 0%, #ff8e53 30%, #ffd93d 100%)";
+      case "night":
+        return "linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%)";
+      default:
+        return "linear-gradient(180deg, #4facfe 0%, #00f2fe 100%)";
     }
   };
 
   // Render module content based on visibleModule
   const renderModuleContent = () => {
     switch (visibleModule) {
-      case 'dashboard':
+      case "dashboard":
         return (
           <>
             <div className="dash-header">
               <div className="dash-header-left">
                 <div className="greeting-badge">
                   <span className="wave-emoji">👋</span>
-                  <span className="greeting-text">{greeting}, {user?.name || 'Admin'}!</span>
+                  <span className="greeting-text">
+                    {greeting}, {user?.name || "Admin"}!
+                  </span>
                   <span className="time-display">🕐 {formattedTime}</span>
                 </div>
                 <h1 className="dash-title">
@@ -425,63 +856,187 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                     Live
                   </span>
                 </h1>
-                <p className="dash-sub">Real-time insights & performance metrics</p>
+                <p className="dash-sub">
+                  Real-time insights & performance metrics
+                </p>
                 <div className="time-indicator">
                   <span className="time-icon">⏰</span>
-                  <span>{sunPhase === 'sunrise' ? 'Beautiful sunrise over the city' :
-                    sunPhase === 'morning' ? 'Bright morning sun warming up' :
-                      sunPhase === 'afternoon' ? 'High sun with scattered clouds' :
-                        sunPhase === 'sunset' ? 'Spectacular sunset colors' :
-                          'Starlit night over Colombo'}</span>
+                  <span>
+                    {sunPhase === "sunrise"
+                      ? "Beautiful sunrise over the city"
+                      : sunPhase === "morning"
+                        ? "Bright morning sun warming up"
+                        : sunPhase === "afternoon"
+                          ? "High sun with scattered clouds"
+                          : sunPhase === "sunset"
+                            ? "Spectacular sunset colors"
+                            : "Starlit night over Colombo"}
+                  </span>
                 </div>
               </div>
               <div className="dash-header-right">
                 <div className="weather-widget">
                   <span className="weather-icon">
-                    {sunPhase === 'night' ? '🌙' : sunPhase === 'sunset' ? '🌅' : sunPhase === 'sunrise' ? '🌄' : '☀️'}
+                    {sunPhase === "night"
+                      ? "🌙"
+                      : sunPhase === "sunset"
+                        ? "🌅"
+                        : sunPhase === "sunrise"
+                          ? "🌄"
+                          : "☀️"}
                   </span>
                   <span className="weather-temp">
-                    {sunPhase === 'night' ? '22°C' : sunPhase === 'morning' ? '26°C' : sunPhase === 'afternoon' ? '32°C' : sunPhase === 'sunset' ? '28°C' : '24°C'}
+                    {sunPhase === "night"
+                      ? "22°C"
+                      : sunPhase === "morning"
+                        ? "26°C"
+                        : sunPhase === "afternoon"
+                          ? "32°C"
+                          : sunPhase === "sunset"
+                            ? "28°C"
+                            : "24°C"}
                   </span>
                   <span className="weather-location">Colombo</span>
                 </div>
                 <div className="notification-wrapper">
-                  <button className="notification-btn" onClick={() => setShowNotifications(!showNotifications)}>
+                  <button
+                    className="notification-btn"
+                    onClick={() => setShowNotifications(!showNotifications)}
+                  >
                     <span className="bell-icon">🔔</span>
-                    {notifications.length > 0 && <span className="notification-dot" style={{ background: 'var(--danger)', right: '4px', top: '4px', width: '10px', height: '10px' }}></span>}
+                    {notifications.length > 0 && (
+                      <span
+                        className="notification-dot"
+                        style={{
+                          background: "var(--danger)",
+                          right: "4px",
+                          top: "4px",
+                          width: "10px",
+                          height: "10px",
+                        }}
+                      ></span>
+                    )}
                   </button>
                   {showNotifications && (
-                    <div className="notification-dropdown" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div
+                      className="notification-dropdown"
+                      style={{ maxHeight: "400px", overflowY: "auto" }}
+                    >
+                      <div
+                        className="notification-header"
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
                         <span>Notifications</span>
                         {notifications.length > 0 && (
-                          <button onClick={clearAll} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>Clear</button>
+                          <button
+                            onClick={clearAll}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#3b82f6",
+                              fontSize: "0.8rem",
+                              cursor: "pointer",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                       {notifications.length === 0 ? (
-                        <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>No new notifications</div>
+                        <div
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            color: "#94a3b8",
+                            fontSize: "0.9rem",
+                          }}
+                        >
+                          No new notifications
+                        </div>
                       ) : (
-                        notifications.map(n => (
-                          <div key={n.id} className={`notification-item notif-${n.type}`} style={{ alignItems: 'flex-start', gap: '10px', padding: '12px' }}>
-                            <span className="notif-icon" style={{ marginTop: '2px' }}>{n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : 'ℹ️'}</span>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ lineHeight: '1.4', whiteSpace: 'normal', wordBreak: 'break-word' }}>{n.msg}</span>
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`notification-item notif-${n.type}`}
+                            style={{
+                              alignItems: "flex-start",
+                              gap: "10px",
+                              padding: "12px",
+                            }}
+                          >
+                            <span
+                              className="notif-icon"
+                              style={{ marginTop: "2px" }}
+                            >
+                              {n.type === "warning"
+                                ? "⚠️"
+                                : n.type === "success"
+                                  ? "✅"
+                                  : "ℹ️"}
+                            </span>
+                            <div
+                              style={{
+                                flex: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "4px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  lineHeight: "1.4",
+                                  whiteSpace: "normal",
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {n.msg}
+                              </span>
                               <span className="notif-time">{n.time}</span>
                             </div>
-                            <button onClick={(e) => { e.stopPropagation(); removeNotification(n.id); }} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', fontSize: '1rem' }}>×</button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeNotification(n.id);
+                              }}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#cbd5e1",
+                                cursor: "pointer",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              ×
+                            </button>
                           </div>
                         ))
                       )}
                     </div>
                   )}
                 </div>
-                <div className="last-update"><span className="update-icon">🕐</span>Updated {lastUpdated.toLocaleTimeString()}</div>
-                <button className="refresh-btn" onClick={fetchData} disabled={loading}>
-                  <span className={loading ? 'spinning' : ''}>↻</span><span>Refresh</span>
+                <div className="last-update">
+                  <span className="update-icon">🕐</span>Updated{" "}
+                  {lastUpdated.toLocaleTimeString()}
+                </div>
+                <button
+                  className="refresh-btn"
+                  onClick={fetchData}
+                  disabled={loading}
+                >
+                  <span className={loading ? "spinning" : ""}>↻</span>
+                  <span>Refresh</span>
                 </button>
                 <div className="logout-wrapper">
-                  <button className="logout-btn" onClick={() => setShowLogoutConfirm(true)}>
-                    <span className="logout-icon">🚪</span><span>Logout</span>
+                  <button
+                    className="logout-btn"
+                    onClick={() => setShowLogoutConfirm(true)}
+                  >
+                    <span className="logout-icon">🚪</span>
+                    <span>Logout</span>
                   </button>
                   {showLogoutConfirm && (
                     <div className="logout-confirm-modal">
@@ -489,8 +1044,18 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                         <span className="logout-confirm-icon">⚠️</span>
                         <p>Are you sure you want to logout?</p>
                         <div className="logout-confirm-buttons">
-                          <button onClick={() => setShowLogoutConfirm(false)} className="logout-cancel">Cancel</button>
-                          <button onClick={handleLogout} className="logout-confirm">Logout</button>
+                          <button
+                            onClick={() => setShowLogoutConfirm(false)}
+                            className="logout-cancel"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleLogout}
+                            className="logout-confirm"
+                          >
+                            Logout
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -499,68 +1064,190 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
               </div>
             </div>
 
-            {selectedBranch !== 'all' && (
-              <div className="branch-hero" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${selectedBranchData?.image})` }}>
+            {selectedBranch !== "all" && (
+              <div
+                className="branch-hero"
+                style={{
+                  backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${selectedBranchData?.image})`,
+                }}
+              >
                 <div className="branch-hero-content">
-                  <span className="branch-hero-icon">{selectedBranchData?.icon}</span>
-                  <div className="branch-hero-info"><h2>{selectedBranchData?.name}</h2><p>Branch Performance Overview</p></div>
+                  <span className="branch-hero-icon">
+                    {selectedBranchData?.icon}
+                  </span>
+                  <div className="branch-hero-info">
+                    <h2>{selectedBranchData?.name}</h2>
+                    <p>Branch Performance Overview</p>
+                  </div>
                   <div className="branch-stats">
-                    <div className="branch-stat"><span>Today's Revenue</span><strong>$12,450</strong></div>
-                    <div className="branch-stat"><span>Growth</span><strong className="positive">+8.2%</strong></div>
+                    <div className="branch-stat">
+                      <span>Today's Revenue</span>
+                      <strong>Rs. 12,450</strong>
+                    </div>
+                    <div className="branch-stat">
+                      <span>Growth</span>
+                      <strong className="positive">+8.2%</strong>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             <div className="filters-bar">
-              <div className="filter-group"><label className="filter-label">📍 Location</label>
-                <select className="filter-select" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
-                  {BRANCHES.map(b => (<option key={b.id} value={b.id}>{b.icon} {b.name}</option>))}
+              <div className="filter-group">
+                <label className="filter-label">📍 Location</label>
+                <select
+                  className="filter-select"
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                >
+                  {BRANCHES.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.icon} {b.name}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <div className="filter-group"><label className="filter-label">📅 Time Period</label>
-                <div className="date-presets">{DATE_PRESETS.map(p => (
-                  <button key={p.value} className={`preset-btn ${datePreset === p.value ? 'active' : ''}`} onClick={() => handlePreset(p.value)}>
-                    <span className="preset-icon">{p.icon}</span><span>{p.label}</span>
-                  </button>
-                ))}</div>
+              <div className="filter-group">
+                <label className="filter-label">📅 Time Period</label>
+                <div className="date-presets">
+                  {DATE_PRESETS.map((p) => (
+                    <button
+                      key={p.value}
+                      className={`preset-btn ${datePreset === p.value ? "active" : ""}`}
+                      onClick={() => handlePreset(p.value)}
+                    >
+                      <span className="preset-icon">{p.icon}</span>
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {datePreset === 'custom' && (
-                <div className="filter-group custom-date-group"><label className="filter-label">📆 Custom Range</label>
+              {datePreset === "custom" && (
+                <div className="filter-group custom-date-group">
+                  <label className="filter-label">📆 Custom Range</label>
                   <div className="date-range-inputs">
-                    <input type="date" className="filter-input" value={dateRange.startDate} onChange={e => setDateRange(p => ({ ...p, startDate: e.target.value }))} />
+                    <input
+                      type="date"
+                      className="filter-input"
+                      value={dateRange.startDate}
+                      onChange={(e) =>
+                        setDateRange((p) => ({
+                          ...p,
+                          startDate: e.target.value,
+                        }))
+                      }
+                    />
                     <span className="date-separator">→</span>
-                    <input type="date" className="filter-input" value={dateRange.endDate} onChange={e => setDateRange(p => ({ ...p, endDate: e.target.value }))} />
+                    <input
+                      type="date"
+                      className="filter-input"
+                      value={dateRange.endDate}
+                      onChange={(e) =>
+                        setDateRange((p) => ({ ...p, endDate: e.target.value }))
+                      }
+                    />
                   </div>
                 </div>
               )}
-              <div className="filter-group ml-auto"><div className="connection-status"><span className={`status-dot ${wsConnected ? 'connected' : 'disconnected'}`}></span><span className="status-text">{wsConnected ? 'Live Connection' : 'Reconnecting...'}</span></div></div>
-            </div>
-
-            <div className="dash-section"><KPICards data={dashboardData} loading={loading} role={role} /></div>
-
-            <div className="dash-section chart-section">
-              <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">📊</span><h2 className="section-title">Sales Analytics</h2><span className="section-badge">Real-time</span></div>
-                <div className="chart-controls"><button className="chart-control">Daily</button><button className="chart-control active">Weekly</button><button className="chart-control">Monthly</button></div>
+              <div className="filter-group ml-auto">
+                <div className="connection-status">
+                  <span
+                    className={`status-dot ${wsConnected ? "connected" : "disconnected"}`}
+                  ></span>
+                  <span className="status-text">
+                    {wsConnected ? "Live Connection" : "Reconnecting..."}
+                  </span>
+                </div>
               </div>
-              <div className="chart-container"><SalesChart data={dashboardData} /></div>
             </div>
 
             <div className="dash-section">
-              <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🏪</span><h2 className="section-title">Branch Performance</h2></div><button className="view-all-btn">View All Branches →</button></div>
+              <KPICards data={dashboardData} loading={loading} role={role} />
+            </div>
+
+            {/* <div className="dash-section chart-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">📊</span>
+                  <h2 className="section-title">Sales Analytics</h2>
+                  <span className="section-badge">Real-time</span>
+                </div>
+                <div className="chart-controls">
+                  <button className="chart-control">Daily</button>
+                  <button className="chart-control active">Weekly</button>
+                  <button className="chart-control">Monthly</button>
+                </div>
+              </div>
+              <div className="chart-container">
+                <SalesChart data={dashboardData} />
+              </div>
+            </div> */}
+
+            <div className="dash-section chart-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">📊</span>
+                  <h2 className="section-title">Sales Analytics</h2>
+                  <span className="section-badge">Real-time</span>
+                </div>
+                <div className="chart-controls">
+                  {['daily', 'weekly', 'monthly'].map((g) => (
+                    <button
+                      key={g}
+                      className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                      onClick={() => setChartGroupBy(g)}
+                    >
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="chart-container">
+                <SalesChart data={dashboardData} groupBy={chartGroupBy} />
+              </div>
+            </div>
+
+            <div className="dash-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">🏪</span>
+                  <h2 className="section-title">Branch Performance</h2>
+                </div>
+                <button
+                  className="view-all-btn"
+                  onClick={() => showModule("branch-mgmt")}
+                >
+                  {role === "manager"
+                    ? "View Your Branch →"
+                    : "View All Branches →"}
+                </button>
+              </div>
               <BranchPerformance data={dashboardData} />
             </div>
 
             <div className="dash-section">
-              <div className="section-header"><div className="section-title-wrapper"><span className="section-icon">📦</span><h2 className="section-title">Inventory Status</h2></div>
-                {role?.toUpperCase() !== 'CASHIER' && (
-                  <div className="inventory-badge"><span className="badge-icon">⚠️</span><span>{dashboardData.low_stock_alerts?.count || 0} Low Stock Alerts</span></div>
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">📦</span>
+                  <h2 className="section-title">Inventory Status</h2>
+                </div>
+                {role?.toUpperCase() !== "CASHIER" && (
+                  <div className="inventory-badge">
+                    <span className="badge-icon">⚠️</span>
+                    <span>
+                      {dashboardData.low_stock_alerts?.count || 0} Low Stock
+                      Alerts
+                    </span>
+                  </div>
                 )}
               </div>
-              <div className="inventory-grid"><InventoryStatus data={dashboardData} role={role} />
-                <div className="quick-stats"><div className="quick-stat-card"><div className="stat-icon">📈</div><div className="stat-info"><span className="stat-value">94%</span><span className="stat-label">Stock Accuracy</span></div></div>
-                  <div className="quick-stat-card"><div className="stat-icon">🚚</div><div className="stat-info"><span className="stat-value">3</span><span className="stat-label">Pending Orders</span></div></div>
-                </div>
+              <div className="inventory-grid">
+                <InventoryStatus
+                  data={dashboardData}
+                  role={role}
+                  onViewAll={handleViewAllInventory}
+                />
               </div>
             </div>
 
@@ -569,10 +1256,25 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                 <div className="section-title-wrapper">
                   <span className="section-icon">🧠</span>
                   <h2 className="section-title">AI ML Recommendations</h2>
-                  <span className="section-badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid rgba(16,185,129,0.3)' }}>Live Models</span>
+                  <span
+                    className="section-badge"
+                    style={{
+                      background: "rgba(16,185,129,0.15)",
+                      color: "#059669",
+                      border: "1px solid rgba(16,185,129,0.3)",
+                    }}
+                  >
+                    Live Models
+                  </span>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "32px",
+                }}
+              >
                 <SmartRecommendations />
                 <PersonalizedRecommendations />
               </div>
@@ -580,159 +1282,174 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
             <section className="dash-section">
               <div className="tp-live-grid">
-                <div className="top-products-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">⭐</span><h2 className="section-title">Top Performing Products</h2></div></div><TopProducts data={dashboardData} /></div>
-                <div className="live-feed-wrapper"><div className="section-header"><div className="section-title-wrapper"><span className="section-icon">🔴</span><h2 className="section-title">Live Activity</h2>{wsConnected && <span className="live-badge">LIVE</span>}</div></div><LiveFeed wsConnected={wsConnected} liveTransaction={liveTransaction} /></div>
+                <div className="top-products-wrapper">
+                  <div className="section-header">
+                    <div className="section-title-wrapper">
+                      <span className="section-icon">⭐</span>
+                      <h2 className="section-title">Top Performing Products</h2>
+                    </div>
+                  </div>
+                  <TopProducts
+                    data={dashboardData}
+                    dateRange={dateRange}
+                    selectedBranch={selectedBranch}
+                  />
+                </div>
+                <div className="live-feed-wrapper">
+                  <div className="section-header">
+                    <div className="section-title-wrapper">
+                      <span className="section-icon">🔴</span>
+                      <h2 className="section-title">Live Activity</h2>
+                      {wsConnected && <span className="live-badge">LIVE</span>}
+                    </div>
+                  </div>
+                  <LiveFeed
+                    wsConnected={wsConnected}
+                    liveTransaction={liveTransaction}
+                  />
+                </div>
               </div>
             </section>
           </>
         );
 
-      // case 'auth':
-      //   return <ModuleDetail title="Authentication & Authorization" icon="🔐" page={1} description="Secure authentication system with role-based access control. Manage user sessions, permissions, and security policies. Implement JWT tokens and multi-factor authentication." features={['User Login & Registration', 'Role-Based Access Control (RBAC)', 'JWT Token Authentication', 'Session Management', 'Password Reset & Recovery', 'Multi-Factor Authentication Support', 'Permission Management', 'Security Policy Enforcement']} />;
-      case 'ai-assistant':
+      case "ai-assistant":
         return <AIRetailAssistantModule />;
-      case 'ai-forecast':
+      case "ai-forecast":
         return <AIDemandForecastModule />;
-      // case 'user-mgmt':
-      //   return <ModuleDetail title="User Management" icon="👥" page={1} description="CRUD APIs for user management. Store user information securely. Assign and update user roles. Track account status and activity. Validate data before storage." features={['Add/Edit/Remove Users', 'User Profiles & Account Status', 'Search & Filtering', 'Role & Permissions Assignment', 'Profile Updates', 'Activity Tracking']} />;
-      //case 'branch-mgmt':
-       // return <ModuleDetail title="Branch Management" icon="🏢" page={1} description="Manage branch records and configurations. Link branches with employees and inventory. Store branch-level settings. Generate branch performance statistics. Handle branch-related business logic." features={['Branch Information Display', 'Performance Metrics', 'Branch Creation & Updates', 'Branch-specific Inventory & Sales', 'Branch Search Functionality']} />;
-      
-      case 'user-mgmt':
+
+      case "user-mgmt":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <UserListPage />
           </Suspense>
-          );
-      case 'branch-mgmt':
+        );
+      case "branch-mgmt":
         return (
           <Suspense fallback={<ModuleLoading />}>
-        <BranchListPage />
+            <BranchListPage />
           </Suspense>
-      );
-      case 'employee-mgmt':
+        );
+      case "employee-mgmt":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <EmployeesPage />
           </Suspense>
         );
-      /* case 'customer-mgmt':
-        return <ModuleDetail title="Customer Management" icon="👤" page={2} description="Manage customer data and transactions. Track loyalty rewards and points. Store customer purchase histories. Generate customer insights. Handle customer-related CRUD operations." features={['Customer Profiles', 'Purchase History', 'Loyalty Points', 'Customer Search & Filtering', 'Customer Analytics']} />; */
-
-      case 'customer-mgmt':
+      case "customer-mgmt":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <CustomerListPage />
           </Suspense>
         );
-      case 'supplier-mgmt':
+      case "supplier-mgmt":
         return (
-          <Suspense fallback={<ModuleLoading />}>
-            <InventoryProvider>
+          <InventoryProvider>
+            <Suspense fallback={<ModuleLoading />}>
               <SuppliersPage />
-            </InventoryProvider>
-          </Suspense>
+            </Suspense>
+          </InventoryProvider>
         );
-      case 'product-mgmt':
+      case "product-mgmt":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <ProductListPage
-              onOpenCategories={() => showModule('product-categories')}
-              onAddProduct={() => showModule('product-add')}
+              onOpenCategories={() => showModule("product-categories")}
+              onAddProduct={() => showModule("product-add")}
               onViewProduct={(id) => {
                 setSelectedProductId(id);
-                showModule('product-view');
+                showModule("product-view");
               }}
               onEditProduct={(id) => {
                 setSelectedProductId(id);
-                showModule('product-edit');
+                showModule("product-edit");
               }}
             />
           </Suspense>
         );
 
-      case 'product-categories':
+      case "product-categories":
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <CategoryManagementPage onBack={() => showModule('product-mgmt')} />
+            <CategoryManagementPage onBack={() => showModule("product-mgmt")} />
           </Suspense>
         );
 
-      case 'product-add':
+      case "product-add":
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <AddProductPage onBack={() => showModule('product-mgmt')} />
+            <AddProductPage onBack={() => showModule("product-mgmt")} />
           </Suspense>
         );
 
-      case 'product-view':
-  if (!selectedProductId) {
-    return (
-      <Suspense fallback={<ModuleLoading />}>
-        <ProductListPage
-          onOpenCategories={() => showModule('product-categories')}
-          onAddProduct={() => showModule('product-add')}
-          onViewProduct={(id) => {
-            setSelectedProductId(id);
-            showModule('product-view');
-          }}
-          onEditProduct={(id) => {
-            setSelectedProductId(id);
-            showModule('product-edit');
-          }}
-        />
-      </Suspense>
-    );
-  }
+      case "product-view":
+        if (!selectedProductId) {
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <ProductListPage
+                onOpenCategories={() => showModule("product-categories")}
+                onAddProduct={() => showModule("product-add")}
+                onViewProduct={(id) => {
+                  setSelectedProductId(id);
+                  showModule("product-view");
+                }}
+                onEditProduct={(id) => {
+                  setSelectedProductId(id);
+                  showModule("product-edit");
+                }}
+              />
+            </Suspense>
+          );
+        }
 
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <ProductDetailsPage
-        productId={selectedProductId}
-        onBack={() => showModule('product-mgmt')}
-        onEdit={(id) => {
-          setSelectedProductId(id);
-          showModule('product-edit');
-        }}
-      />
-    </Suspense>
-  );
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <ProductDetailsPage
+              productId={selectedProductId}
+              onBack={() => showModule("product-mgmt")}
+              onEdit={(id) => {
+                setSelectedProductId(id);
+                showModule("product-edit");
+              }}
+            />
+          </Suspense>
+        );
 
-case 'product-edit':
-  if (!selectedProductId) {
-    return (
-      <Suspense fallback={<ModuleLoading />}>
-        <ProductListPage
-          onOpenCategories={() => showModule('product-categories')}
-          onAddProduct={() => showModule('product-add')}
-          onViewProduct={(id) => {
-            setSelectedProductId(id);
-            showModule('product-view');
-          }}
-          onEditProduct={(id) => {
-            setSelectedProductId(id);
-            showModule('product-edit');
-          }}
-        />
-      </Suspense>
-    );
-  }
+      case "product-edit":
+        if (!selectedProductId) {
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <ProductListPage
+                onOpenCategories={() => showModule("product-categories")}
+                onAddProduct={() => showModule("product-add")}
+                onViewProduct={(id) => {
+                  setSelectedProductId(id);
+                  showModule("product-view");
+                }}
+                onEditProduct={(id) => {
+                  setSelectedProductId(id);
+                  showModule("product-edit");
+                }}
+              />
+            </Suspense>
+          );
+        }
 
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <EditProductPage
-        productId={selectedProductId}
-        onBack={() => showModule('product-mgmt')}
-      />
-    </Suspense>
-  );
-      case 'inventory-mgmt':
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <EditProductPage
+              productId={selectedProductId}
+              onBack={() => showModule("product-mgmt")}
+            />
+          </Suspense>
+        );
+      case "inventory-mgmt":
         return (
           <InventoryProvider>
             <InventoryDashboard />
           </InventoryProvider>
         );
-      case 'warehouse-mgmt':
+      case "warehouse-mgmt":
         if (warehouseDetailId) {
           return (
             <Suspense fallback={<ModuleLoading />}>
@@ -745,138 +1462,210 @@ case 'product-edit':
         }
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <WarehouseList
-              onView={(id) => setWarehouseDetailId(id)}
-            />
+            <WarehouseList onView={(id) => setWarehouseDetailId(id)} />
           </Suspense>
         );
-      case 'purchase-order':
+      case "purchase-order":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <PurchaseOrdersPage />
           </Suspense>
         );
-      // case 'pos-sales':
-      //   return <ModuleDetail title="POS Sales & Billing" icon="🛒" page={3} description="Handle sales transactions. Process payments securely. Update inventory automatically. Store transaction records. Generate sales summaries." features={['Cashier POS Screens', 'Barcode Scanning', 'Shopping Cart Management', 'Digital Receipts', 'Multiple Payment Methods']} />;
-      // case 'pos-sales':
-      //   navigate('/pos');
-      // return null;
-  //     case 'pos-sales':
-  // return (
-  //   <Suspense fallback={<ModuleLoading />}>
-  //     <POSPage />
-  //   </Suspense>
-  // );
-  case 'pos-sales':
-  if (posView === 'checkout') return (
-    <Suspense fallback={<ModuleLoading />}>
-      <CheckoutPage
-        onBack={() => setPosView('pos')}
-        onComplete={(sale) => { setLastSale(sale); setPosView('receipt'); }}
-      />
-    </Suspense>
-  );
-  if (posView === 'receipt') return (
-    <Suspense fallback={<ModuleLoading />}>
-      <ReceiptPage
-        sale={lastSale}
-        onNewSale={() => { setLastSale(null); setPosView('pos'); }}
-      />
-    </Suspense>
-  );
-  if (posView === 'history') return (
-  <Suspense fallback={<ModuleLoading />}>
-    <SalesHistoryPage onBack={() => setPosView('pos')} />
-  </Suspense>
-);
-  return (
-    <Suspense fallback={<ModuleLoading />}>
-      <POSPage onCheckout={() => setPosView('checkout')} onViewHistory={() => setPosView('history')} />
-    </Suspense>
-  );
-
-      case 'returns-refund':
+      case "pos-sales":
+        if (posView === "checkout")
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <CheckoutPage
+                onBack={() => setPosView("pos")}
+                onComplete={(sale) => {
+                  setLastSale(sale);
+                  setPosView("receipt");
+                }}
+              />
+            </Suspense>
+          );
+        if (posView === "receipt")
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <ReceiptPage
+                sale={lastSale}
+                onNewSale={() => {
+                  setLastSale(null);
+                  setPosView("pos");
+                }}
+              />
+            </Suspense>
+          );
+        if (posView === "history")
+          return (
+            <Suspense fallback={<ModuleLoading />}>
+              <SalesHistoryPage onBack={() => setPosView("pos")} />
+            </Suspense>
+          );
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <ReturnsPage returnState={returnState} setReturnState={setReturnState} />
+            <POSPage
+              onCheckout={() => setPosView("checkout")}
+              onViewHistory={() => setPosView("history")}
+            />
           </Suspense>
         );
-      case 'stock-transfer':
+
+      case "returns-refund":
+        return (
+          <Suspense fallback={<ModuleLoading />}>
+            <ReturnsPage
+              returnState={returnState}
+              setReturnState={setReturnState}
+            />
+          </Suspense>
+        );
+      case "stock-transfer":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <StockTransferPage />
           </Suspense>
         );
-      case 'promotion':
+      case "promotion":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <PromotionsPage />
           </Suspense>
         );
-      case 'ai-reorder':
-        return <AISmartReorderingModule />;
-      case 'analytics':
+      case "ai-reorder":
+        return <AISmartReorderingModule token={token} />;
+      case "analytics":
         return (
           <Suspense fallback={<ModuleLoading />}>
-            <AnalyticsPageLazy />
+            <AnalyticsPage />
           </Suspense>
         );
-      case 'reporting':
+      case "reporting":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <ReportsPage />
           </Suspense>
         );
-      case 'notifications':
+      case "notifications":
         return <NotificationsModule />;
-      case 'audit-logs':
+      case "audit-logs":
         return (
           <Suspense fallback={<ModuleLoading />}>
             <AuditSecurityPage />
           </Suspense>
         );
-      case 'ai-intelligence':
+      case "ai-intelligence":
         return <AIIntelligenceHub />;
       default:
-        return <ModuleDetail title="Module Coming Soon" icon="🚀" page={0} description="This module is under development." features={['Full implementation coming in next update']} />;
+        return (
+          <ModuleDetail
+            title="Module Coming Soon"
+            icon="🚀"
+            page={0}
+            description="This module is under development."
+            features={["Full implementation coming in next update"]}
+          />
+        );
     }
   };
 
   return (
     <div className={`dashboard-page theme-${sunPhase}`}>
+      {/* Mobile Hamburger & Overlay */}
+      <button className="mobile-hamburger" onClick={() => setNavExpanded(true)}>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div
+        className={`mobile-overlay ${navExpanded ? "active" : ""}`}
+        onClick={() => setNavExpanded(false)}
+      />
       {/* Floating Navigation Menu */}
-      <div className={`floating-nav ${navExpanded ? 'expanded' : 'collapsed'}`}>
-        <button className="nav-toggle" onClick={() => setNavExpanded(!navExpanded)}>
-          {navExpanded ? '◀' : '▶'}
+      <div
+        className={`floating-nav ${navExpanded ? "expanded mobile-open" : "collapsed"}`}
+      >
+        <button
+          className="nav-toggle"
+          onClick={() => setNavExpanded(!navExpanded)}
+        >
+          {navExpanded ? "◀" : "▶"}
         </button>
         <div className="nav-header">
           <span className="nav-logo">📋</span>
           {navExpanded && <span className="nav-title">POS Modules</span>}
+          {navExpanded && (
+            <button
+              className="mobile-nav-close-btn"
+              onClick={() => setNavExpanded(false)}
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div className="nav-items">
-          {filteredNavItems.map(item => (
+          {filteredNavItems.map((item) => (
             <button
               key={item.id}
-              className={`nav-item ${activeModule === item.id ? 'active' : ''}`}
+              className={`nav-item ${activeModule === item.id ? "active" : ""}`}
               onClick={() => showModule(item.id)}
-              title={!navExpanded ? `${item.label} (Page ${item.page})` : ''}
+              title={!navExpanded ? `${item.label} (Page ${item.page})` : ""}
             >
               <span className="nav-icon">{item.icon}</span>
               {navExpanded && (
                 <>
                   <span className="nav-label">{item.label}</span>
-                  {item.isAI 
-                    ? <span style={{ fontSize: '9px', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color:'white', padding:'2px 6px', borderRadius:'999px', fontWeight:700 }}>AI</span>
-                    : <span className="nav-page">p.{item.page}</span>
-                  }
+                  {item.isAI ? (
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        background: "linear-gradient(135deg,#2563EB,#7C3AED)",
+                        color: "white",
+                        padding: "2px 6px",
+                        borderRadius: "999px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      AI
+                    </span>
+                  ) : (
+                    <span className="nav-page">p.{item.page}</span>
+                  )}
                 </>
               )}
             </button>
           ))}
           {/* AI Section Divider */}
           {navExpanded && (
-            <div style={{ padding: '10px 16px 4px', marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <span style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>✨ AI Intelligence</span>
+            <div
+              style={{
+                padding: "10px 16px 4px",
+                marginTop: "6px",
+                borderTop: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "10px",
+                  color: "#7C3AED",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                }}
+              >
+                ✨ AI Intelligence
+              </span>
             </div>
           )}
         </div>
@@ -884,7 +1673,9 @@ case 'product-edit':
           {navExpanded && (
             <>
               <div className="nav-badge">Multi-Branch POS</div>
-              <div className="nav-module-count">{filteredNavItems.length} Active Modules</div>
+              <div className="nav-module-count">
+                {filteredNavItems.length} Active Modules
+              </div>
             </>
           )}
         </div>
@@ -902,8 +1693,18 @@ case 'product-edit':
             <div className="moon-crater small"></div>
           </div>
         )}
-        {clouds.map(cloud => (
-          <div key={cloud.id} className="cloud" style={{ left: `${cloud.left}%`, top: `${cloud.top}%`, width: `${cloud.width}px`, opacity: cloud.opacity, animationDelay: `${cloud.delay}s` }} />
+        {clouds.map((cloud) => (
+          <div
+            key={cloud.id}
+            className="cloud"
+            style={{
+              left: `${cloud.left}%`,
+              top: `${cloud.top}%`,
+              width: `${cloud.width}px`,
+              opacity: cloud.opacity,
+              animationDelay: `${cloud.delay}s`,
+            }}
+          />
         ))}
         <div className="city-skyline">
           <div className="building"></div>
@@ -917,13 +1718,12 @@ case 'product-edit':
       </div>
 
       {/* Page Content */}
-      <div className="content-wrapper">
-        {renderModuleContent()}
-      </div>
+      <div className="content-wrapper">{renderModuleContent()}</div>
 
       {/* Floating AI Chatbot — only on Dashboard & Business Overview */}
-      {visibleModule === 'dashboard' && <Chatbot />}
+      {visibleModule === "dashboard" && <Chatbot />}
 
+      {/* Rest of the styles remain the same... */}
       <style>{`
         :root {
           /* Default Theme (Morning) */
@@ -1035,12 +1835,15 @@ case 'product-edit':
         .floating-nav.collapsed + .sky-background + .content-wrapper { margin-left: 70px; }
         .floating-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); border-right: 1px solid rgba(255,255,255,0.1); z-index: 100; display: flex; flex-direction: column; transition: width 0.3s ease; box-shadow: 2px 0 20px rgba(0,0,0,0.2); }
         .floating-nav.collapsed { width: 70px; }
-        .nav-toggle { position: absolute; right: -12px; top: 20px; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; cursor: pointer; border: 2px solid white; z-index: 101; transition: transform 0.2s; }
-        .nav-toggle:hover { transform: scale(1.1); }
-        .nav-header { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
-        .nav-logo { font-size: 28px; }
-        .nav-title { font-size: 18px; font-weight: 700; color: white; }
-        .nav-items { flex: 1; overflow-y: auto; padding: 12px 0; }
+        .nav-toggle { position: absolute; right: -14px; top: 30px; width: 28px; height: 28px; background: #2563eb; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 4px 12px rgba(37,99,235,0.4); z-index: 101; transition: all 0.3s; }
+        .nav-toggle:hover { transform: scale(1.1); background: #1d4ed8; }
+        .nav-header { padding: 24px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-logo { font-size: 1.5rem; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2)); }
+        .nav-title { font-weight: 800; font-size: 1.1rem; color: white; letter-spacing: 0.5px; white-space: nowrap; }
+        .mobile-nav-close-btn { display: none; margin-left: auto; background: rgba(255,255,255,0.1); border: none; color: white; width: 28px; height: 28px; border-radius: 6px; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        .nav-items { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-items::-webkit-scrollbar { width: 4px; }
+        .nav-items::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         .nav-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: transparent; border: none; color: #94a3b8; cursor: pointer; transition: all 0.2s; text-align: left; font-size: 13px; border-radius: 0; }
         .nav-item:hover { background: rgba(59,130,246,0.2); color: #60a5fa; }
         .nav-item.active { background: linear-gradient(90deg, rgba(59,130,246,0.3), transparent); color: #3b82f6; border-left: 3px solid #3b82f6; }
@@ -1059,7 +1862,7 @@ case 'product-edit':
         .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .greeting-badge { display: inline-flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 30px; margin-bottom: 16px; font-size: 0.85rem; font-weight: 500; color: #1e293b; border: 1px solid rgba(255,255,255,0.5); }
         .time-display { color: #3b82f6; font-weight: 600; }
-        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 12px; }
+        .dash-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); -webkit-background-clip: text; background-clip: text; color: lightBlue; display: flex; align-items: center; gap: 12px; }
         .title-badge { position: relative; font-size: 0.7rem; background: linear-gradient(135deg, #10b981, #059669); padding: 4px 12px; border-radius: 20px; color: white; font-weight: 600; display: flex; align-items: center; gap: 6px; overflow: hidden; }
         .title-badge::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: shimmer 3s infinite; }
         @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
@@ -1085,11 +1888,12 @@ case 'product-edit':
         .branch-stat span { font-size: 0.75rem; opacity: 0.8; display: block; }
         .branch-stat strong { font-size: 1.25rem; font-weight: 700; }
         .positive { color: #10b981; }
-        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; }
+        .filters-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px 24px; margin-bottom: 24px; color: #1e293b; }
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .ml-auto { margin-left: auto; }
         .filter-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
-        .filter-select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer; }
+        .filter-select, .filter-input { padding: 8px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: white; font-size: 0.85rem; color: #1e293b; }
+        .filter-select { cursor: pointer; }
         .date-presets { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 12px; flex-wrap: wrap; }
         .preset-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; background: none; cursor: pointer; transition: all 0.2s; }
         .preset-btn.active { background: white; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -1117,6 +1921,7 @@ case 'product-edit':
         .stat-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; }
         .stat-label { font-size: 0.75rem; color: #64748b; }
         .tp-live-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+        .tp-live-grid > div { min-width: 0; max-width: 100vw; overflow: hidden; }
         .top-products-wrapper, .live-feed-wrapper { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .live-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; animation: blink 1s ease-in-out infinite; }
         .view-all-btn { padding: 8px 16px; border-radius: 10px; background: #f1f5f9; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: none; }
@@ -1175,9 +1980,11 @@ case 'product-edit':
 
         .reorder-filters { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; align-items: flex-end; }
         .reorder-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 24px; }
+        .reorder-grid > div { min-width: 0; max-width: 100vw; overflow: hidden; }
         .recommendation-card, .alert-card, .history-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
-        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 100%; }
-        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; }
+        .recommendation-card, .history-card { overflow-x: auto; padding-bottom: 8px; }
+        .recommendation-table { width: 100%; border-collapse: collapse; min-width: 750px; }
+        .recommendation-table th, .recommendation-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.92rem; color: #1e293b; }
         .recommendation-table th { color: #475569; font-weight: 700; background: #f8fafc; }
         .recommendation-table tbody tr:last-child td { border-bottom: none; }
         .approved-row { background: rgba(16,185,129,0.08); }
@@ -1196,7 +2003,7 @@ case 'product-edit':
         .alert-time { font-size: 0.78rem; color: #64748b; }
         .alert-dismiss { border: none; background: #eef2ff; color: #3730a3; padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all 0.2s; }
         .alert-dismiss:hover { background: #c7d2fe; }
-        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 400px; }
         .history-table th, .history-table td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
         .history-table th { color: #475569; font-weight: 700; background: #f8fafc; }
         .history-table tbody tr:last-child td { border-bottom: none; }
@@ -1247,6 +2054,8 @@ case 'product-edit':
         @media (max-width: 1100px) {
           .content-wrapper { margin-left: 70px; padding: 16px; }
           .floating-nav { width: 70px; }
+          .floating-nav.expanded { width: 280px; }
+          .floating-nav.expanded + .sky-background + .content-wrapper { margin-left: 280px; }
           .tp-live-grid { grid-template-columns: 1fr; }
           .inventory-grid { grid-template-columns: 1fr; }
           .branch-hero-content { flex-direction: column; text-align: center; }
@@ -1266,6 +2075,20 @@ case 'product-edit':
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
         }
+        @media (max-width: 768px) {
+          .floating-nav { transform: translateX(-100%); width: 280px; }
+          .floating-nav.expanded { transform: translateX(0); }
+          .content-wrapper { margin-left: 0 !important; width: 100% !important; padding: 16px; margin-top: 60px; }
+          .mobile-hamburger { display: flex; }
+          .nav-toggle { display: none; }
+          .mobile-nav-close-btn { display: flex; }
+          .reorder-grid { grid-template-columns: 1fr; }
+          .filters-bar, .reorder-filters { flex-direction: column; align-items: stretch; }
+          .search-group { width: 100%; }
+        }
+        @media (max-width: 768px) {
+          .nav-toggle { display: none !important; }
+        }
       `}</style>
     </div>
   );
@@ -1277,110 +2100,235 @@ const AIDemandForecastModule = () => (
     <div className="forecast-header">
       <div className="forecast-icon">🤖</div>
       <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Demand Forecasting</h1>
+        <h1 style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}>
+          AI Demand Forecasting
+        </h1>
         <span className="module-page">📄 Page 3 of PDF Document</span>
       </div>
     </div>
 
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Train forecasting models. Predict future product demand. Analyze historical sales data. Generate forecast reports. Continuously update models using machine learning algorithms.
+      <strong>📋 Module Overview:</strong>
+      <br />
+      Train forecasting models. Predict future product demand. Analyze
+      historical sales data. Generate forecast reports. Continuously update
+      models using machine learning algorithms.
     </div>
 
     <div className="forecast-stats">
-      <div className="forecast-card"><div className="value">↑ 15%</div><div className="label">Next Month Demand Increase</div></div>
-      <div className="forecast-card"><div className="value">94%</div><div className="label">Forecast Accuracy</div></div>
-      <div className="forecast-card"><div className="value">2,450</div><div className="label">Predicted Sales (units)</div></div>
-      <div className="forecast-card"><div className="value">$52.8K</div><div className="label">Expected Revenue</div></div>
+      <div className="forecast-card">
+        <div className="value">↑ 15%</div>
+        <div className="label">Next Month Demand Increase</div>
+      </div>
+      <div className="forecast-card">
+        <div className="value">94%</div>
+        <div className="label">Forecast Accuracy</div>
+      </div>
+      <div className="forecast-card">
+        <div className="value">2,450</div>
+        <div className="label">Predicted Sales (units)</div>
+      </div>
+      <div className="forecast-card">
+        <div className="value">Rs.52.8K</div>
+        <div className="label">Expected Revenue</div>
+      </div>
     </div>
 
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>📈 Product Demand Forecast (Next 30 Days)</h3>
+    <h3 style={{ marginBottom: "16px", color: "#1e293b" }}>
+      📈 Product Demand Forecast (Next 30 Days)
+    </h3>
     <div className="forecast-list">
-      <div className="forecast-item"><span className="product">Premium Basmati Rice</span><span className="trend-up">↑ 18% demand increase</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 96%</span></div>
-      <div className="forecast-item"><span className="product">Organic Coconut Oil</span><span className="trend-up">↑ 23% demand increase</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 92%</span></div>
-      <div className="forecast-item"><span className="product">Ceylon Tea Gift Pack</span><span className="trend-up">↑ 31% demand increase</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 89%</span></div>
-      <div className="forecast-item"><span className="product">Fresh Milk (1L)</span><span className="trend-up">↑ 8% demand increase</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 94%</span></div>
-      <div className="forecast-item"><span className="product">Spice Assortment Pack</span><span className="trend-up">↑ 27% demand increase</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 88%</span></div>
-      <div className="forecast-item"><span className="product">Sugar (1kg)</span><span className="trend-down">↓ 3% demand decrease</span><span style={{ fontSize: '12px', color: '#64748b' }}>Confidence: 91%</span></div>
+      <div className="forecast-item">
+        <span className="product">Premium Basmati Rice</span>
+        <span className="trend-up">↑ 18% demand increase</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 96%
+        </span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">Organic Coconut Oil</span>
+        <span className="trend-up">↑ 23% demand increase</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 92%
+        </span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">Ceylon Tea Gift Pack</span>
+        <span className="trend-up">↑ 31% demand increase</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 89%
+        </span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">Fresh Milk (1L)</span>
+        <span className="trend-up">↑ 8% demand increase</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 94%
+        </span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">Spice Assortment Pack</span>
+        <span className="trend-up">↑ 27% demand increase</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 88%
+        </span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">Sugar (1kg)</span>
+        <span className="trend-down">↓ 3% demand decrease</span>
+        <span style={{ fontSize: "12px", color: "#64748b" }}>
+          Confidence: 91%
+        </span>
+      </div>
     </div>
 
-    <h3 style={{ margin: '24px 0 16px', color: '#1e293b' }}>✨ Key Features</h3>
+    <h3 style={{ margin: "24px 0 16px", color: "#1e293b" }}>✨ Key Features</h3>
     <div className="features-grid">
       {[
-        'Sales Forecasts Display with Visual Charts',
-        'Demand Trends Visualization by Category',
-        'Branch-specific Predictions and Comparisons',
-        'Interactive Forecasting Filters (Date, Category, Branch)',
-        'AI-generated Business Insights & Recommendations',
-        'Historical Data Analysis & Pattern Recognition',
-        'Export Forecast Reports (PDF/Excel)',
-        'Continuous Model Updates & Retraining'
+        "Sales Forecasts Display with Visual Charts",
+        "Demand Trends Visualization by Category",
+        "Branch-specific Predictions and Comparisons",
+        "Interactive Forecasting Filters (Date, Category, Branch)",
+        "AI-generated Business Insights & Recommendations",
+        "Historical Data Analysis & Pattern Recognition",
+        "Export Forecast Reports (PDF/Excel)",
+        "Continuous Model Updates & Retraining",
       ].map((feature, idx) => (
-        <div key={idx} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{feature}</span></div>
+        <div key={idx} className="feature-card">
+          <span className="feature-icon">✓</span>
+          <span className="feature-text">{feature}</span>
+        </div>
       ))}
     </div>
   </div>
 );
 
-// AI Smart Reordering Module
+// AI Smart Reordering Module - FIXED
 const AISmartReorderingModule = () => {
-  const [selectedBranch, setSelectedBranch] = useState('all');
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [recommendations, setRecommendations] = useState([
-    { id: 1, name: 'Premium Basmati Rice', branch: 'All Branches', currentStock: 50, suggestedQty: 500, reorderPoint: 120, risk: 'High', confidence: 96, approved: false },
-    { id: 2, name: 'Organic Coconut Oil', branch: 'Kandy City Branch', currentStock: 23, suggestedQty: 200, reorderPoint: 80, risk: 'High', confidence: 92, approved: false },
-    { id: 3, name: 'Sugar (1kg)', branch: 'Colombo Head Office', currentStock: 35, suggestedQty: 300, reorderPoint: 90, risk: 'Medium', confidence: 89, approved: false },
-    { id: 4, name: 'Milk Powder', branch: 'Negombo Branch', currentStock: 42, suggestedQty: 150, reorderPoint: 70, risk: 'Medium', confidence: 94, approved: false },
-    { id: 5, name: 'Ceylon Tea Gift Pack', branch: 'Galle Fort Branch', currentStock: 80, suggestedQty: 180, reorderPoint: 100, risk: 'Low', confidence: 91, approved: false },
-  ]);
+  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [recommendations, setRecommendations] = useState([]);
+  const [approvalHistory, setApprovalHistory] = useState([]);
+  const [procurementAlerts, setProcurementAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [approvalHistory, setApprovalHistory] = useState([
-    { id: 101, item: 'Premium Basmati Rice', branch: 'Colombo Head Office', quantity: 250, approvedBy: 'Manager Kaushal', timestamp: '2026-06-02 16:30', status: 'Approved' },
-    { id: 102, item: 'Organic Coconut Oil', branch: 'Kandy City Branch', quantity: 120, approvedBy: 'Manager Kaushal', timestamp: '2026-06-01 11:45', status: 'Approved' },
-  ]);
+  // ✅ Moved fetchRecommendations BEFORE useEffect
+  const fetchRecommendations = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (selectedBranch !== "all") params.branchId = selectedBranch;
 
-  const [procurementAlerts, setProcurementAlerts] = useState([
-    { id: 201, title: 'Low stock detected for Fresh Milk', description: 'Current stock is 42 units. Suggested reorder in 2 days.', severity: 'High', time: '5 mins ago', dismissed: false },
-    { id: 202, title: 'Rice inventory below threshold', description: 'Premium Basmati Rice requires supplier follow-up.', severity: 'High', time: '12 mins ago', dismissed: false },
-    { id: 203, title: 'Coconut Oil reorder window opening', description: 'Lead time is 4 days. Prepare PO.', severity: 'Medium', time: '22 mins ago', dismissed: false },
-  ]);
+      const res = await axiosInstance.get("/reorders/suggestions", { params });
+      if (res.data && res.data.success) {
+        setRecommendations(
+          res.data.data.map((item) => {
+            let riskLabel = "Low";
+            if (item.urgency === "CRITICAL" || item.urgency === "HIGH")
+              riskLabel = "High";
+            else if (item.urgency === "MEDIUM") riskLabel = "Medium";
 
-  const handleApprove = (recommendation) => {
+            return {
+              id: item.id,
+              name: item.product?.name || "Unknown Product",
+              branch: item.branch?.name || "Unknown Branch",
+              currentStock: item.currentStock,
+              suggestedQty: item.recommendedQuantity,
+              reorderPoint: item.reorderPoint,
+              risk: riskLabel,
+              confidence: Math.min(
+                99,
+                Math.round((item.avgDailySales || 1) * 5 + 75),
+              ),
+              approved: item.status === "APPROVED",
+            };
+          }),
+        );
+
+        const criticalItems = res.data.data.filter(
+          (i) => i.urgency === "CRITICAL" && i.status !== "APPROVED",
+        );
+        setProcurementAlerts(
+          criticalItems.map((item, idx) => ({
+            id: item.id + "-" + idx,
+            title: `Critical stock for ${item.product?.name || "Product"}`,
+            description: `Current stock: ${item.currentStock}. Below reorder point (${item.reorderPoint}).`,
+            severity: "High",
+            time: "Live",
+            dismissed: false,
+          })),
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching reorder recommendations:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ useEffect now comes AFTER fetchRecommendations is declared
+  useEffect(() => {
+    fetchRecommendations();
+  }, [selectedBranch, selectedPeriod]);
+
+  const handleApprove = async (recommendation) => {
     if (recommendation.approved) return;
 
-    setRecommendations(prev => prev.map(item => item.id === recommendation.id ? { ...item, approved: true } : item));
-    setApprovalHistory(prev => [
-      {
-        id: Date.now(),
-        item: recommendation.name,
-        branch: recommendation.branch,
-        quantity: recommendation.suggestedQty,
-        approvedBy: 'AI Manager',
-        timestamp: new Date().toLocaleString('en-US', { hour12: false }),
-        status: 'Approved',
-      },
-      ...prev,
-    ]);
+    try {
+      const res = await axiosInstance.post(
+        `/reorders/suggestions/${recommendation.id}/approve`,
+      );
+      if (res.data && res.data.success) {
+        setRecommendations((prev) =>
+          prev.map((item) =>
+            item.id === recommendation.id ? { ...item, approved: true } : item,
+          ),
+        );
+        setApprovalHistory((prev) => [
+          {
+            id: Date.now(),
+            item: recommendation.name,
+            branch: recommendation.branch,
+            quantity: recommendation.suggestedQty,
+            approvedBy: "Current User",
+            timestamp: new Date().toLocaleString("en-US", { hour12: false }),
+            status: "Approved",
+          },
+          ...prev,
+        ]);
+      }
+    } catch (error) {
+      console.error("Failed to approve recommendation:", error);
+      alert("Failed to approve reorder recommendation.");
+    }
   };
 
   const handleDismissAlert = (id) => {
-    setProcurementAlerts(prev => prev.map(alert => (alert.id === id ? { ...alert, dismissed: true } : alert)));
+    setProcurementAlerts((prev) =>
+      prev.map((alert) =>
+        alert.id === id ? { ...alert, dismissed: true } : alert,
+      ),
+    );
   };
 
-  const filteredRecommendations = recommendations.filter(item => {
+  const filteredRecommendations = recommendations.filter((item) => {
     const query = searchTerm.trim().toLowerCase();
     return (
-      (selectedBranch === 'all' || item.branch === BRANCHES.find(b => b.id === selectedBranch)?.name || selectedBranch === 'all') &&
-      (!query || item.name.toLowerCase().includes(query) || item.branch.toLowerCase().includes(query))
+      (selectedBranch === "all" ||
+        item.branch === BRANCHES.find((b) => b.id === selectedBranch)?.name ||
+        selectedBranch === "all") &&
+      (!query ||
+        item.name.toLowerCase().includes(query) ||
+        item.branch.toLowerCase().includes(query))
     );
   });
 
-  const visibleAlerts = procurementAlerts.filter(alert => !alert.dismissed);
+  const visibleAlerts = procurementAlerts.filter((alert) => !alert.dismissed);
   const riskSummary = {
-    high: recommendations.filter(item => item.risk === 'High').length,
-    medium: recommendations.filter(item => item.risk === 'Medium').length,
-    low: recommendations.filter(item => item.risk === 'Low').length,
+    high: recommendations.filter((item) => item.risk === "High").length,
+    medium: recommendations.filter((item) => item.risk === "Medium").length,
+    low: recommendations.filter((item) => item.risk === "Low").length,
   };
 
   return (
@@ -1388,28 +2336,46 @@ const AISmartReorderingModule = () => {
       <div className="module-header-custom">
         <div className="module-icon-custom">📈</div>
         <div>
-          <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Smart Reordering</h1>
-          <span className="module-page">Page 3 · AI Inventory Intelligence</span>
+          <h1
+            style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}
+          >
+            AI Smart Reordering
+          </h1>
+          <span className="module-page">
+            Page 3 · AI Inventory Intelligence
+          </span>
         </div>
       </div>
 
       <div className="module-description">
-        <strong>📋 Module Overview:</strong><br />
-        Display reorder recommendations with stock risk indicators, approval workflow, procurement alerts, and action history for managers.
+        <strong>📋 Module Overview:</strong>
+        <br />
+        Display reorder recommendations with stock risk indicators, approval
+        workflow, procurement alerts, and action history for managers.
       </div>
 
       <div className="reorder-filters">
         <div className="filter-group">
           <label className="filter-label">Branch</label>
-          <select className="filter-select" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
-            {BRANCHES.map(branch => (
-              <option key={branch.id} value={branch.id}>{branch.icon} {branch.name}</option>
+          <select
+            className="filter-select"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+          >
+            {BRANCHES.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.icon} {branch.name}
+              </option>
             ))}
           </select>
         </div>
         <div className="filter-group">
           <label className="filter-label">Time Period</label>
-          <select className="filter-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+          <select
+            className="filter-select"
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+          >
             <option value="today">Today</option>
             <option value="week">This Week</option>
             <option value="month">This Month</option>
@@ -1418,15 +2384,33 @@ const AISmartReorderingModule = () => {
         </div>
         <div className="filter-group search-group">
           <label className="filter-label">Search</label>
-          <input className="filter-input" type="text" placeholder="Search products or branch" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input
+            className="filter-input"
+            type="text"
+            placeholder="Search products or branch"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <div className="stat-card"><div className="value">{recommendations.length}</div><div className="label">Recommended Reorders</div></div>
-        <div className="stat-card"><div className="value">{riskSummary.high}</div><div className="label">High Risk Items</div></div>
-        <div className="stat-card"><div className="value">{riskSummary.medium}</div><div className="label">Medium Risk Items</div></div>
-        <div className="stat-card"><div className="value">{riskSummary.low}</div><div className="label">Low Risk Items</div></div>
+        <div className="stat-card">
+          <div className="value">{recommendations.length}</div>
+          <div className="label">Recommended Reorders</div>
+        </div>
+        <div className="stat-card">
+          <div className="value">{riskSummary.high}</div>
+          <div className="label">High Risk Items</div>
+        </div>
+        <div className="stat-card">
+          <div className="value">{riskSummary.medium}</div>
+          <div className="label">Medium Risk Items</div>
+        </div>
+        <div className="stat-card">
+          <div className="value">{riskSummary.low}</div>
+          <div className="label">Low Risk Items</div>
+        </div>
       </div>
 
       <div className="reorder-grid">
@@ -1453,21 +2437,53 @@ const AISmartReorderingModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecommendations.map(item => (
-                  <tr key={item.id} className={item.approved ? 'approved-row' : ''}>
-                    <td>{item.name}</td>
-                    <td>{item.branch}</td>
-                    <td>{item.currentStock}</td>
-                    <td>{item.suggestedQty}</td>
-                    <td><span className={`risk-pill risk-${item.risk.toLowerCase()}`}>{item.risk}</span></td>
-                    <td>{item.confidence}%</td>
-                    <td>
-                      <button className={`approve-btn ${item.approved ? 'approved' : ''}`} onClick={() => handleApprove(item)}>
-                        {item.approved ? 'Approved' : 'Approve'}
-                      </button>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      style={{ textAlign: "center", padding: "20px" }}
+                    >
+                      Loading real-time ML recommendations...
                     </td>
                   </tr>
-                ))}
+                ) : filteredRecommendations.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      style={{ textAlign: "center", padding: "20px" }}
+                    >
+                      No recommendations found for this criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRecommendations.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={item.approved ? "approved-row" : ""}
+                    >
+                      <td>{item.name}</td>
+                      <td>{item.branch}</td>
+                      <td>{item.currentStock}</td>
+                      <td>{item.suggestedQty}</td>
+                      <td>
+                        <span
+                          className={`risk-pill risk-${item.risk.toLowerCase()}`}
+                        >
+                          {item.risk}
+                        </span>
+                      </td>
+                      <td>{item.confidence}%</td>
+                      <td>
+                        <button
+                          className={`approve-btn ${item.approved ? "approved" : ""}`}
+                          onClick={() => handleApprove(item)}
+                        >
+                          {item.approved ? "Approved" : "Approve"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1481,16 +2497,30 @@ const AISmartReorderingModule = () => {
                 <h2 className="section-title">Procurement Alerts</h2>
               </div>
             </div>
-            {visibleAlerts.length ? visibleAlerts.map(alert => (
-              <div key={alert.id} className={`alert-item alert-${alert.severity.toLowerCase()}`}>
-                <div>
-                  <p className="alert-title">{alert.title}</p>
-                  <p className="alert-description">{alert.description}</p>
-                  <p className="alert-time">{alert.time}</p>
+            {visibleAlerts.length ? (
+              visibleAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`alert-item alert-${alert.severity.toLowerCase()}`}
+                >
+                  <div>
+                    <p className="alert-title">{alert.title}</p>
+                    <p className="alert-description">{alert.description}</p>
+                    <p className="alert-time">{alert.time}</p>
+                  </div>
+                  <button
+                    className="alert-dismiss"
+                    onClick={() => handleDismissAlert(alert.id)}
+                  >
+                    Dismiss
+                  </button>
                 </div>
-                <button className="alert-dismiss" onClick={() => handleDismissAlert(alert.id)}>Dismiss</button>
-              </div>
-            )) : <p style={{ color: '#64748b', fontSize: '0.95rem' }}>No active procurement alerts.</p>}
+              ))
+            ) : (
+              <p style={{ color: "#64748b", fontSize: "0.95rem" }}>
+                No active procurement alerts.
+              </p>
+            )}
           </div>
 
           <div className="history-card">
@@ -1510,14 +2540,29 @@ const AISmartReorderingModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {approvalHistory.map(entry => (
-                  <tr key={entry.id}>
-                    <td>{entry.item}</td>
-                    <td>{entry.quantity}</td>
-                    <td>{entry.branch}</td>
-                    <td>{entry.timestamp}</td>
+                {approvalHistory.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      style={{
+                        textAlign: "center",
+                        padding: "20px",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      No approval history yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  approvalHistory.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>{entry.item}</td>
+                      <td>{entry.quantity}</td>
+                      <td>{entry.branch}</td>
+                      <td>{entry.timestamp}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1533,23 +2578,51 @@ const BusinessAnalyticsModule = () => (
     <div className="module-header-custom">
       <div className="module-icon-custom">📉</div>
       <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Business Analytics</h1>
+        <h1 style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}>
+          Business Analytics
+        </h1>
         <span className="module-page">📄 Page 3 of PDF Document</span>
       </div>
     </div>
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Aggregate business data. Calculate business KPIs. Generate analytical insights. Support complex queries. Provide reporting APIs.
+      <strong>📋 Module Overview:</strong>
+      <br />
+      Aggregate business data. Calculate business KPIs. Generate analytical
+      insights. Support complex queries. Provide reporting APIs.
     </div>
     <div className="stats-grid">
-      <div className="stat-card"><div className="value">$48,250</div><div className="label">Total Revenue</div></div>
-      <div className="stat-card"><div className="value">30.7%</div><div className="label">Profit Margin</div></div>
-      <div className="stat-card"><div className="value">842</div><div className="label">Unique Customers</div></div>
-      <div className="stat-card"><div className="value">4.2x</div><div className="label">Stock Turnover</div></div>
+      <div className="stat-card">
+        <div className="value">$48,250</div>
+        <div className="label">Total Revenue</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">30.7%</div>
+        <div className="label">Profit Margin</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">842</div>
+        <div className="label">Unique Customers</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">4.2x</div>
+        <div className="label">Stock Turnover</div>
+      </div>
     </div>
     <div className="features-grid" style={{ marginTop: 24 }}>
-      {['Advanced Analytics Dashboards', 'Sales & Profit Trends Visualization', 'Branch Performance Comparison', 'Interactive Charts & Graphs', 'Drill-down Analysis', 'Custom KPI Tracking', 'Period-over-period Comparisons', 'Export Analytics Reports'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
+      {[
+        "Advanced Analytics Dashboards",
+        "Sales & Profit Trends Visualization",
+        "Branch Performance Comparison",
+        "Interactive Charts & Graphs",
+        "Drill-down Analysis",
+        "Custom KPI Tracking",
+        "Period-over-period Comparisons",
+        "Export Analytics Reports",
+      ].map((f) => (
+        <div key={f} className="feature-card">
+          <span className="feature-icon">✓</span>
+          <span className="feature-text">{f}</span>
+        </div>
       ))}
     </div>
   </div>
@@ -1561,23 +2634,38 @@ const ReportingModule = () => (
     <div className="module-header-custom">
       <div className="module-icon-custom">📄</div>
       <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Reporting Management</h1>
+        <h1 style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}>
+          Reporting Management
+        </h1>
         <span className="module-page">📄 Page 4 of PDF Document</span>
       </div>
     </div>
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Generate reports dynamically. Export data in multiple formats. Manage scheduled reports. Process large datasets efficiently. Store report history.
+      <strong>📋 Module Overview:</strong>
+      <br />
+      Generate reports dynamically. Export data in multiple formats. Manage
+      scheduled reports. Process large datasets efficiently. Store report
+      history.
     </div>
     <div className="features-grid">
-      {['Downloadable Reports (PDF/Excel/CSV)', 'Advanced Report Filters', 'Live Report Previews', 'Scheduled Report Generation', 'Email Report Delivery', 'Custom Report Builder', 'Report Templates Library', 'Historical Report Archive'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
+      {[
+        "Downloadable Reports (PDF/Excel/CSV)",
+        "Advanced Report Filters",
+        "Live Report Previews",
+        "Scheduled Report Generation",
+        "Email Report Delivery",
+        "Custom Report Builder",
+        "Report Templates Library",
+        "Historical Report Archive",
+      ].map((f) => (
+        <div key={f} className="feature-card">
+          <span className="feature-icon">✓</span>
+          <span className="feature-text">{f}</span>
+        </div>
       ))}
     </div>
   </div>
 );
-
-
 
 // Audit Logs Module
 const AuditLogsModule = () => (
@@ -1585,17 +2673,33 @@ const AuditLogsModule = () => (
     <div className="module-header-custom">
       <div className="module-icon-custom">🛡️</div>
       <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>Audit Logs & Security</h1>
+        <h1 style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}>
+          Audit Logs & Security
+        </h1>
         <span className="module-page">📄 Page 4 of PDF Document</span>
       </div>
     </div>
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Record all system activities. Monitor suspicious actions. Store audit trails. Implement security policies. Generate compliance reports.
+      <strong>📋 Module Overview:</strong>
+      <br />
+      Record all system activities. Monitor suspicious actions. Store audit
+      trails. Implement security policies. Generate compliance reports.
     </div>
     <div className="features-grid">
-      {['Complete Activity Logs Display', 'User Login History Tracking', 'Security Monitoring Dashboard', 'Audit Record Filtering & Search', 'Security Reports Generation', 'Compliance Monitoring', 'Suspicious Activity Alerts', 'Data Access Logs'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
+      {[
+        "Complete Activity Logs Display",
+        "User Login History Tracking",
+        "Security Monitoring Dashboard",
+        "Audit Record Filtering & Search",
+        "Security Reports Generation",
+        "Compliance Monitoring",
+        "Suspicious Activity Alerts",
+        "Data Access Logs",
+      ].map((f) => (
+        <div key={f} className="feature-card">
+          <span className="feature-icon">✓</span>
+          <span className="feature-text">{f}</span>
+        </div>
       ))}
     </div>
   </div>
@@ -1607,30 +2711,73 @@ const AIRetailAssistantModule = () => (
     <div className="module-header-custom">
       <div className="module-icon-custom">🧠</div>
       <div>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px', color: '#1e293b' }}>AI Retail Assistant & Recommendation Engine</h1>
+        <h1 style={{ fontSize: "28px", marginBottom: "8px", color: "#1e293b" }}>
+          AI Retail Assistant & Recommendation Engine
+        </h1>
         <span className="module-page">📄 Page 4 of PDF Document</span>
       </div>
     </div>
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
-      Provide intelligent chat-based assistance for retail operations. Generate product recommendations. Answer business queries. Analyze customer behavior. Offer personalized suggestions using machine learning.
+      <strong>📋 Module Overview:</strong>
+      <br />
+      Provide intelligent chat-based assistance for retail operations. Generate
+      product recommendations. Answer business queries. Analyze customer
+      behavior. Offer personalized suggestions using machine learning.
     </div>
     <div className="stats-grid">
-      <div className="stat-card"><div className="value">24/7</div><div className="label">AI Availability</div></div>
-      <div className="stat-card"><div className="value">89%</div><div className="label">Query Resolution Rate</div></div>
-      <div className="stat-card"><div className="value">2.3s</div><div className="label">Avg Response Time</div></div>
-      <div className="stat-card"><div className="value">15+</div><div className="label">Query Categories</div></div>
+      <div className="stat-card">
+        <div className="value">24/7</div>
+        <div className="label">AI Availability</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">89%</div>
+        <div className="label">Query Resolution Rate</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">2.3s</div>
+        <div className="label">Avg Response Time</div>
+      </div>
+      <div className="stat-card">
+        <div className="value">15+</div>
+        <div className="label">Query Categories</div>
+      </div>
     </div>
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>🤖 AI Assistant Capabilities</h3>
+    <h3 style={{ marginBottom: "16px", color: "#1e293b" }}>
+      🤖 AI Assistant Capabilities
+    </h3>
     <div className="recommendation-list">
-      <div className="forecast-item"><span className="product">💬 Natural Language Queries</span><span>Ask about sales, inventory, forecasts in plain English</span></div>
-      <div className="forecast-item"><span className="product">📊 Real-time Business Insights</span><span>Get instant analytics and performance metrics</span></div>
-      <div className="forecast-item"><span className="product">🎯 Smart Product Recommendations</span><span>AI suggests products based on customer patterns</span></div>
-      <div className="forecast-item"><span className="product">⚠️ Proactive Alerts</span><span>Get notified about low stock, anomalies, opportunities</span></div>
+      <div className="forecast-item">
+        <span className="product">💬 Natural Language Queries</span>
+        <span>Ask about sales, inventory, forecasts in plain English</span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">📊 Real-time Business Insights</span>
+        <span>Get instant analytics and performance metrics</span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">🎯 Smart Product Recommendations</span>
+        <span>AI suggests products based on customer patterns</span>
+      </div>
+      <div className="forecast-item">
+        <span className="product">⚠️ Proactive Alerts</span>
+        <span>Get notified about low stock, anomalies, opportunities</span>
+      </div>
     </div>
     <div className="features-grid" style={{ marginTop: 24 }}>
-      {['Natural Language Processing', 'Contextual Conversation Memory', 'Product Recommendation Engine', 'Sales Query Resolution', 'Inventory Status Checks', 'Branch Performance Analysis', 'Demand Forecasting Insights', 'Automated Report Generation'].map(f => (
-        <div key={f} className="feature-card"><span className="feature-icon">✓</span><span className="feature-text">{f}</span></div>
+      {[
+        "Natural Language Processing",
+        "Contextual Conversation Memory",
+        "Product Recommendation Engine",
+        "Sales Query Resolution",
+        "Inventory Status Checks",
+        "Branch Performance Analysis",
+        "Demand Forecasting Insights",
+        "Automated Report Generation",
+      ].map((f) => (
+        <div key={f} className="feature-card">
+          <span className="feature-icon">✓</span>
+          <span className="feature-text">{f}</span>
+        </div>
       ))}
     </div>
   </div>
@@ -1642,14 +2789,17 @@ const ModuleDetail = ({ title, icon, page, description, features }) => (
       <div className="module-icon">{icon}</div>
       <div className="module-title-info">
         <h1 className="module-title">{title}</h1>
-        {page > 0 && <span className="module-page">📄 Page {page} of PDF Document</span>}
+        {page > 0 && (
+          <span className="module-page">📄 Page {page} of PDF Document</span>
+        )}
       </div>
     </div>
     <div className="module-description">
-      <strong>📋 Module Overview:</strong><br />
+      <strong>📋 Module Overview:</strong>
+      <br />
       {description}
     </div>
-    <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>✨ Key Features</h3>
+    <h3 style={{ marginBottom: "16px", color: "#1e293b" }}>✨ Key Features</h3>
     <div className="features-grid">
       {features.map((feature, idx) => (
         <div key={idx} className="feature-card">

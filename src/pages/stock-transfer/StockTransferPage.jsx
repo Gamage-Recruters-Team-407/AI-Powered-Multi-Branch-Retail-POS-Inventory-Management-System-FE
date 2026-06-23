@@ -190,6 +190,10 @@ function StockTransferPage() {
   const [progressSearch, setProgressSearch] = useState('');
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('All');
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 8;
+  const [stockPage, setStockPage] = useState(1);
+  const STOCK_PAGE_SIZE = 8;
   const [stockBranch, setStockBranch] = useState('All');
   const [stockSearch, setStockSearch] = useState('');
   const [editingTransferId, setEditingTransferId] = useState(null);
@@ -550,6 +554,17 @@ function StockTransferPage() {
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   }, [visibleTransfers, historySearch, historyStatus]);
 
+  const historyTotalPages = Math.max(1, Math.ceil(historyTransfers.length / HISTORY_PAGE_SIZE));
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyStatus, historyTransfers.length]);
+
+  const paginatedHistoryTransfers = useMemo(() => {
+    const start = (historyPage - 1) * HISTORY_PAGE_SIZE;
+    return historyTransfers.slice(start, start + HISTORY_PAGE_SIZE);
+  }, [historyTransfers, historyPage]);
+
   const catalogProducts = useMemo(() => {
     if (products.length) return products;
     const map = new Map();
@@ -616,6 +631,14 @@ function StockTransferPage() {
       return matchBranch && matchesStockRowSearch(row, stockSearch);
     });
   }, [stockRows, stockBranch, stockSearch, perms.viewScope, userBranchIds, branches]);
+
+  const stockTotalPages = Math.max(1, Math.ceil(filteredStockRows.length / STOCK_PAGE_SIZE));
+
+  
+  const paginatedStockRows = useMemo(() => {
+    const start = (stockPage - 1) * STOCK_PAGE_SIZE;
+    return filteredStockRows.slice(start, start + STOCK_PAGE_SIZE);
+  }, [filteredStockRows, stockPage]); 
 
   const kpis = useMemo(() => {
     const inTransit = visibleTransfers.filter((t) => t.status === 'In Transit').length;
@@ -1063,19 +1086,21 @@ function StockTransferPage() {
 
         {activeTab === 'logs' && perms.tabs.logs ? (
           <TransferLogsTab
-            perms={perms}
-            logsLoading={logsLoading}
-            logsError={logsError}
-            movementLogs={movementLogs}
-            scopedTransfers={filterTransfersByScope(
-              transfers,
-              perms,
-              userBranchIds,
-              branches,
-              user,
-            )}
-            onRefresh={loadTransferLogs}
-          />
+  perms={perms}
+  logsLoading={logsLoading}
+  logsError={logsError}
+  movementLogs={movementLogs}
+  scopedTransfers={filterTransfersByScope(
+    transfers,
+    perms,
+    userBranchIds,
+    branches,
+    user,
+  )}
+  branches={branches}
+  products={products}
+  onRefresh={loadTransferLogs}
+/>
         ) : null}
 
         {activeTab === 'logs' && !perms.tabs.logs ? (
@@ -1623,7 +1648,7 @@ function StockTransferPage() {
                   'Transfer hint',
                 ]}
               >
-                {filteredStockRows.map((row) => {
+                {paginatedStockRows.map((row) => {
                   const low = row.reorder > 0 && row.qty < row.reorder;
                   const surplus = row.reorder > 0 && row.qty > row.reorder * 2;
                   return (
@@ -1657,6 +1682,57 @@ function StockTransferPage() {
                   );
                 })}
               </TransferTable>
+            )}
+            {filteredStockRows.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-4">
+                <span className={stMetaText}>
+                  Page {stockPage} of {stockTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={stockPage <= 1}
+                    onClick={() => setStockPage((p) => Math.max(1, p - 1))}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: stockTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === stockTotalPages || Math.abs(p - stockPage) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push(`gap-${p}`);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p) =>
+                      typeof p === 'string' ? (
+                        <span key={p} className="px-2 text-sm text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          className={cn(
+                            'min-w-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                            p === stockPage
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50',
+                          )}
+                          onClick={() => setStockPage(p)}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={stockPage >= stockTotalPages}
+                    onClick={() => setStockPage((p) => Math.min(stockTotalPages, p + 1))}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         )}
@@ -1756,18 +1832,27 @@ function StockTransferPage() {
                   'Status',
                 ]}
               >
-                {historyTransfers.map((t) => (
+                {paginatedHistoryTransfers.map((t) => (
                   <tr key={t._id ?? t.id} className={transferTableRowClass}>
                     <td className={transferTableCellClass}>
                       <span className={stTransferId}>{t.id}</span>
                     </td>
-                    <td className={transferTableCellClass}>{formatLogDate(t.date)}</td>
-                    <td className={transferTableCellClass}>{toDisplayString(t.product)}</td>
                     <td className={transferTableCellClass}>
-                      <span className={stRoutePill}>
-                        {toDisplayString(t.from)} → {toDisplayString(t.to)}
-                      </span>
-                    </td>
+  {products.find(p => String(p.id) === String(t.product?._id ?? t.product))?.name
+    ?? t.product?.name
+    ?? toDisplayString(t.product)}
+</td>
+<td className={transferTableCellClass}>
+  <span className={stRoutePill}>
+    {branches.find(b => b.id === (t.from?._id ?? t.from))?.name
+      ?? t.from?.name
+      ?? toDisplayString(t.from)}
+    {' → '}
+    {branches.find(b => b.id === (t.to?._id ?? t.to))?.name
+      ?? t.to?.name
+      ?? toDisplayString(t.to)}
+  </span>
+</td>
                     <td className={transferTableCellClass}>{t.qty}</td>
                     <td className={transferTableCellClass}>{formatUserLabel(t.requestedBy)}</td>
                     <td className={transferTableCellClass}>
@@ -1776,6 +1861,57 @@ function StockTransferPage() {
                   </tr>
                 ))}
               </TransferTable>
+            )}
+            {historyTransfers.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-4">
+                <span className={stMetaText}>
+                  Page {historyPage} of {historyTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={historyPage <= 1}
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: historyTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === historyTotalPages || Math.abs(p - historyPage) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push(`gap-${p}`);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p) =>
+                      typeof p === 'string' ? (
+                        <span key={p} className="px-2 text-sm text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          className={cn(
+                            'min-w-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                            p === historyPage
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50',
+                          )}
+                          onClick={() => setHistoryPage(p)}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    type="button"
+                    className={stBtnGhost}
+                    disabled={historyPage >= historyTotalPages}
+                    onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         )}

@@ -38,6 +38,18 @@ export const InventoryDashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (sessionStorage.getItem("scroll_to_inventory_table") === "true") {
+      sessionStorage.removeItem("scroll_to_inventory_table");
+      setTimeout(() => {
+        const el = document.getElementById("live-inventory-registers");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 400);
+    }
+  }, []);
+
+  useEffect(() => {
     refreshAll(selectedBranch, lowStockOnly);
   }, [refreshAll, selectedBranch, lowStockOnly]);
 
@@ -313,6 +325,7 @@ export const InventoryDashboard = () => {
 
         {/* ── INVENTORY TABLE ───────────────────────────────────────── */}
         <motion.div
+          id="live-inventory-registers"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.32 }}

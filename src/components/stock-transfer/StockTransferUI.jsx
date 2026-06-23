@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import './stockTransferTable.css';
+import { useEffect, useRef, useState } from 'react';
 import {
   FiAlertTriangle,
   FiChevronDown,
@@ -328,9 +329,26 @@ export const transferBtnPrimaryClass = stBtnPrimary;
 export const transferBtnGhostClass = stBtnGhost;
 
 export function TransferTable({ columns, children, caption }) {
+  const scrollRef = useRef(null);
+  const [canScroll, setCanScroll] = useState(false);
+
+  useEffect(() => {
+    const checkScroll = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      setCanScroll(el.scrollWidth > el.clientWidth + 4);
+    };
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [children]);
+
   return (
     <div className={stTableWrap}>
-      <div className="overflow-x-auto">
+      <div
+        ref={scrollRef}
+        className="st-table-scroll overflow-x-auto"
+      >
         <table className={stTable}>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
@@ -345,6 +363,11 @@ export function TransferTable({ columns, children, caption }) {
           <tbody>{children}</tbody>
         </table>
       </div>
+      {canScroll ? (
+        <p className="mt-2 text-center text-xs text-slate-400">
+          ← scroll to see more →
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -28,60 +28,6 @@
 // export default ProductCard;
 
 
-// const ProductCard = ({ product, onAddToCart }) => {
-//   const price = product.price ?? product.sellingPrice ?? 0;
-//   const stock = product.stock ?? product.quantity ?? null;
-//   const lowStock = stock !== null && stock < 10;
-
-//   return (
-//     <div
-//       onClick={() => onAddToCart(product)}
-//       className="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md hover:border-blue-400 transition group select-none"
-//     >
-//       {/* Image / Placeholder */}
-//       <div className="h-16 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-//         {product.image ? (
-//           <img
-//             src={product.image}
-//             alt={product.name}
-//             className="h-full w-full object-cover rounded-lg"
-//           />
-//         ) : (
-//           <span className="text-2xl">🛍️</span>
-//         )}
-//       </div>
-
-//       {/* Barcode */}
-//       {(product.barcode || product.sku) && (
-//         <p className="text-[10px] text-gray-400 font-mono truncate">
-//           {product.barcode || product.sku}
-//         </p>
-//       )}
-
-//       {/* Name */}
-//       <h3 className="font-semibold text-xs mt-0.5 leading-tight line-clamp-2 text-gray-800">
-//         {product.name}
-//       </h3>
-
-//       {/* Price + Stock */}
-//       <div className="flex justify-between items-center mt-1.5">
-//         <span className="text-blue-600 font-bold text-sm">
-//           Rs.{price.toLocaleString()}
-//         </span>
-//         {stock !== null && (
-//           <span className={`text-[10px] font-medium ${lowStock ? "text-red-500" : "text-gray-400"}`}>
-//             {lowStock ? `⚠ ${stock}` : stock}
-//           </span>
-//         )}
-//       </div>
-
-//       {/* Add Button */}
-//       <button className="w-full mt-2 bg-blue-600 text-white py-1 rounded-lg text-[11px] font-medium group-hover:bg-blue-700 transition">
-//         + Add to Cart
-//       </button>
-//     </div>
-//   );import { Package } from "lucide-react";
-
 import { Package, Plus } from "lucide-react";
 
 const ProductCard = ({ product, onAddToCart }) => {
@@ -103,9 +49,11 @@ const ProductCard = ({ product, onAddToCart }) => {
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md border uppercase ${getBadgeColor(product.category?.name || product.category || "Item")}`}>
-            {product.category?.name || product.category || "Retail"}
-          </span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+              {product.category && typeof product.category === 'object' 
+                ? product.category.name 
+                : (product.category && !product.category.match(/^[0-9a-fA-F]{24}$/) ? product.category : "Other")}
+            </span>
           
           {stock !== null && (
             <span className={`text-[10px] font-bold flex items-center gap-1 ${lowStock ? "text-rose-500 animate-pulse" : "text-slate-400"}`}>

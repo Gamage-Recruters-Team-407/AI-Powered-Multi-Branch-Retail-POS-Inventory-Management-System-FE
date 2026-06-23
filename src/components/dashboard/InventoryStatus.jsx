@@ -8,7 +8,7 @@ const DEMO_LOW_STOCK = [
   { id: 5, name: 'Coconut Milk 400ml', sku: 'GRC-201', stock: 9, threshold: 35, branch: 'Kandy', category: 'Groceries' },
 ];
 
-const InventoryStatus = ({ data, role }) => {
+const InventoryStatus = ({ data, role, onViewAll }) => {
   const inventory = data?.inventory || {};
   const lowStock = data?.low_stock_alerts?.items || DEMO_LOW_STOCK;
   const lowCount = data?.low_stock_alerts?.count || DEMO_LOW_STOCK.length;
@@ -19,6 +19,8 @@ const InventoryStatus = ({ data, role }) => {
     { label: 'Total Stock Units', value: inventory.total_stock?.toLocaleString() || '32,610', icon: '📦', color: 'green' },
     ...(!isCashier ? [{ label: 'Low Stock Items', value: lowCount, icon: '⚠️', color: 'warning', alert: true }] : []),
     { label: 'Avg Stock Level', value: inventory.avg_stock_level || '67.1', icon: '📊', color: 'purple' },
+    { label: 'Stock Accuracy', value: '94%', icon: '📈', color: 'teal' },
+    { label: 'Pending Orders', value: '3', icon: '🚚', color: 'orange' },
   ];
 
   return (
@@ -48,7 +50,7 @@ const InventoryStatus = ({ data, role }) => {
             <div className="lsc-title">
               <span className="alert-badge">⚠️ {lowCount} Low Stock Alerts</span>
             </div>
-            <button className="view-all-btn">View All →</button>
+            <button className="view-all-btn" onClick={onViewAll}>View All →</button>
           </div>
           <div className="stock-table">
             <div className="st-head">
@@ -84,54 +86,55 @@ const InventoryStatus = ({ data, role }) => {
 
       <style>{`
         .inv-section {}
-        .inv-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
-        @media (max-width: 900px) { .inv-stats-row { grid-template-columns: repeat(2, 1fr); } }
+        .inv-stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+        @media (max-width: 1100px) { .inv-stats-row { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .inv-stats-row { grid-template-columns: repeat(2, 1fr); } }
         .inv-stat-card {
-          background: white; border-radius: var(--radius); padding: 18px;
+          background: white; border-radius: var(--radius); padding: 12px 8px;
           border: 1.5px solid var(--gray-200); text-align: center;
           transition: all var(--transition); animation: fadeIn .4s ease both;
         }
         .inv-stat-card:hover { border-color: var(--blue-200); box-shadow: var(--shadow); }
-        .inv-stat-card.alert-card { border-color: var(--warning); background: var(--warning-light); }
-        .inv-stat-icon { font-size: 1.5rem; }
-        .inv-stat-val { font-size: 1.6rem; font-weight: 800; color: var(--gray-900); font-family: 'Syne', sans-serif; margin: 6px 0 2px; }
-        .inv-stat-label { font-size: .75rem; color: var(--gray-500); font-weight: 500; }
+        .inv-stat-card.alert-card { border-color: transparent; background: white; }
+        .inv-stat-icon { font-size: 1.25rem; }
+        .inv-stat-val { font-size: 1.35rem; font-weight: 800; color: var(--gray-900); font-family: 'Syne', sans-serif; margin: 4px 0 2px; }
+        .inv-stat-label { font-size: .72rem; color: var(--gray-500); font-weight: 500; }
 
-        .low-stock-card { background: white; border-radius: var(--radius); border: 1.5px solid var(--gray-200); overflow: hidden; }
-        .lsc-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--gray-100); }
+        .low-stock-card { width: 100%; background: white; border-radius: var(--radius); border: 1.5px solid var(--gray-200); overflow: hidden; }
+        .lsc-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--gray-100); }
         .lsc-title {}
-        .alert-badge { font-size: .85rem; font-weight: 700; color: #92400e; background: var(--warning-light); padding: 5px 12px; border-radius: 8px; }
-        .view-all-btn { font-size: .82rem; font-weight: 600; color: var(--blue-600); background: var(--blue-50); padding: 7px 14px; border-radius: 8px; transition: all var(--transition); border: 1px solid var(--blue-200); }
+        .alert-badge { font-size: .92rem; font-weight: 700; color: #92400e; background: var(--warning-light); padding: 6px 14px; border-radius: 8px; }
+        .view-all-btn { font-size: .88rem; font-weight: 600; color: var(--blue-600); background: var(--blue-50); padding: 8px 16px; border-radius: 8px; transition: all var(--transition); border: 1px solid var(--blue-200); }
         .view-all-btn:hover { background: var(--blue-100); }
 
-        .stock-table {}
+        .stock-table { width: 100%; overflow-x: auto; }
         .st-head {
-          display: grid; grid-template-columns: 2fr 1fr 0.6fr 0.8fr 1fr 1.2fr;
-          padding: 10px 20px;
-          background: var(--gray-50); font-size: .72rem; font-weight: 700;
+          display: grid; grid-template-columns: 3fr 1.5fr 1fr 1.2fr 1.5fr 2fr;
+          padding: 14px 24px; min-width: 800px;
+          background: var(--gray-50); font-size: .8rem; font-weight: 700;
           color: var(--gray-400); text-transform: uppercase; letter-spacing: .05em;
         }
         .st-row {
-          display: grid; grid-template-columns: 2fr 1fr 0.6fr 0.8fr 1fr 1.2fr;
-          padding: 12px 20px;
+          display: grid; grid-template-columns: 3fr 1.5fr 1fr 1.2fr 1.5fr 2fr;
+          padding: 16px 24px; min-width: 800px;
           border-bottom: 1px solid var(--gray-50);
           align-items: center;
           transition: background var(--transition);
-          font-size: .83rem;
+          font-size: .92rem;
         }
         .st-row:hover { background: var(--gray-50); }
         .st-name { font-weight: 600; color: var(--gray-800); }
-        .st-cat { font-size: .7rem; color: var(--gray-400); margin-top: 1px; }
-        .st-sku { color: var(--gray-400); font-family: monospace; font-size: .78rem; }
+        .st-cat { font-size: .78rem; color: var(--gray-400); margin-top: 2px; }
+        .st-sku { color: var(--gray-400); font-family: monospace; font-size: .85rem; }
         .st-stock { font-weight: 800; }
         .st-stock.critical { color: var(--danger); }
         .st-stock.low { color: var(--warning); }
         .st-threshold { color: var(--gray-500); }
         .st-branch { color: var(--blue-600); font-weight: 600; }
-        .st-bar-wrap { display: flex; align-items: center; gap: 6px; }
-        .st-bar-bg { flex: 1; height: 6px; background: var(--gray-100); border-radius: 99px; overflow: hidden; }
+        .st-bar-wrap { display: flex; align-items: center; gap: 8px; }
+        .st-bar-bg { flex: 1; height: 8px; background: var(--gray-100); border-radius: 99px; overflow: hidden; }
         .st-bar-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }
-        .st-pct { font-size: .72rem; color: var(--gray-400); font-weight: 600; min-width: 28px; }
+        .st-pct { font-size: .8rem; color: var(--gray-400); font-weight: 600; min-width: 28px; }
       `}</style>
     </div>
   );
