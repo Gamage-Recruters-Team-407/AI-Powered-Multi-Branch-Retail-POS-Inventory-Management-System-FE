@@ -25,65 +25,64 @@ import api from '../../api/axiosInstance'
 const statuses = ['All', 'Pending', 'Approved', 'Received', 'Rejected']
 const priorities = ['All', 'High', 'Medium', 'Normal', 'Low']
 
-const demoReorderRecommendations = [
-  {
-    id: 'demo-rec-001',
-    item: 'Parle-G Value Pack',
-    branch: 'Colombo Central',
-    stock: 4,
-    reorder: 36,
-    confidence: '93%',
-    supplier: 'BlueLine Wholesale',
-    urgency: 'CRITICAL',
-  },
-  {
-    id: 'demo-rec-002',
-    item: 'Anchor Full Cream Milk Powder 400g',
-    branch: 'Kandy City',
-    stock: 6,
-    reorder: 28,
-    confidence: '89%',
-    supplier: 'Prime Foods Lanka',
-    urgency: 'HIGH',
-  },
-  {
-    id: 'demo-rec-003',
-    item: 'Signal Herbal Toothpaste',
-    branch: 'Galle Fort',
-    stock: 8,
-    reorder: 24,
-    confidence: '84%',
-    supplier: 'Metro Retail Supply',
-    urgency: 'HIGH',
-  },
-]
+const REORDER_CACHE_KEY = 'purchaseOrderReorderRecommendations'
+const SUPPLIER_SCORECARD_CACHE_KEY = 'purchaseOrderSupplierScorecards'
+const PURCHASE_ORDER_CACHE_KEY = 'purchaseOrderRecords'
+const PURCHASE_ORDER_SELECTION_CACHE_KEY = 'purchaseOrderSelectedId'
 
-const demoSupplierScorecards = [
-  {
-    id: 'demo-supplier-001',
-    name: 'BlueLine Wholesale',
-    score: 96,
-    metric: 'On-time delivery',
-    open: 18450,
-    purchaseOrders: 8,
-  },
-  {
-    id: 'demo-supplier-002',
-    name: 'Prime Foods Lanka',
-    score: 92,
-    metric: 'Quality score',
-    open: 7360,
-    purchaseOrders: 5,
-  },
-  {
-    id: 'demo-supplier-003',
-    name: 'NorthStar Distributors',
-    score: 88,
-    metric: 'Supplier rating',
-    open: 9780,
-    purchaseOrders: 4,
-  },
-]
+const readCachedList = (key) => {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const writeCachedList = (key, value) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Ignore storage write issues and keep the UI working.
+  }
+}
+
+const readCachedValue = (key) => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+const writeCachedValue = (key, value) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    if (value === null || value === undefined || value === '') {
+      window.localStorage.removeItem(key)
+      return
+    }
+
+    window.localStorage.setItem(key, String(value))
+  } catch {
+    // Ignore storage write issues and keep the UI working.
+  }
+}
+
+const isDemoRecommendation = (item) => String(item?.id ?? '').startsWith('demo-rec-')
+const isDemoSupplierScorecard = (item) => String(item?.id ?? '').startsWith('demo-supplier-')
+
+const readLiveCachedList = (key, predicate) => readCachedList(key).filter((item) => !predicate(item))
 
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
@@ -179,23 +178,29 @@ const normalizeBranchOption = (branch) => ({
   label: branch.name ?? branch.branchName ?? branch.code ?? 'Unknown branch',
 })
 
-const normalizeRecommendation = (recommendation) => ({
-  id: recommendation.id,
-  item: recommendation.product?.name ?? 'Unknown product',
-  branch: recommendation.branch?.name ?? 'Unknown branch',
-  stock: Number(recommendation.currentStock ?? 0),
-  reorder: Number(recommendation.recommendedQuantity ?? 0),
-  confidence: formatPercent(
-    recommendation.avgDailySales > 0
-      ? Math.min(99, Math.max(55, (recommendation.stock <= recommendation.reorderPoint ? 90 : 72) + recommendation.avgDailySales))
-      : recommendation.lowStock
-        ? 88
-        : 70,
-    70,
-  ),
-  supplier: recommendation.product?.supplierName ?? recommendation.supplierName ?? 'Assigned supplier pending',
-  urgency: recommendation.urgency ?? 'MEDIUM',
-})
+const normalizeRecommendation = (recommendation) => {
+  const stock = Number(recommendation.currentStock ?? recommendation.quantity ?? 0)
+  const reorderPoint = Number(recommendation.reorderPoint ?? recommendation.reorderLevel ?? 0)
+  const avgDailySales = Number(recommendation.avgDailySales ?? 0)
+
+  return {
+    id: recommendation.id ?? recommendation._id ?? recommendation.productId ?? recommendation.name,
+    item: recommendation.product?.name ?? recommendation.name ?? 'Unknown product',
+    branch: recommendation.branch?.name ?? recommendation.branchName ?? 'All branches',
+    stock,
+    reorder: Number(recommendation.recommendedQuantity ?? recommendation.suggestedOrderQty ?? 0),
+    confidence: formatPercent(
+      avgDailySales > 0
+        ? Math.min(99, Math.max(55, (stock <= reorderPoint ? 90 : 72) + avgDailySales))
+        : recommendation.lowStock || stock <= reorderPoint
+          ? 88
+          : 70,
+      70,
+    ),
+    supplier: recommendation.product?.supplierName ?? recommendation.supplierName ?? 'Assigned supplier pending',
+    urgency: String(recommendation.urgency ?? 'MEDIUM').toUpperCase(),
+  }
+}
 
 const normalizeSupplierScorecard = (supplier) => ({
   id: supplier.id,
@@ -226,11 +231,19 @@ const getWorkflowStage = (status) => {
 }
 
 function PurchaseOrdersPage() {
-  const [purchaseOrders, setPurchaseOrders] = useState([])
+  const [purchaseOrders, setPurchaseOrders] = useState(() => readCachedList(PURCHASE_ORDER_CACHE_KEY))
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [reorderRecommendations, setReorderRecommendations] = useState([])
-  const [supplierScorecards, setSupplierScorecards] = useState([])
+  const [selectedOrder, setSelectedOrder] = useState(() => {
+    const cachedOrders = readCachedList(PURCHASE_ORDER_CACHE_KEY)
+    const cachedSelectedId = readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)
+    return cachedOrders.find((item) => item.id === cachedSelectedId) ?? cachedOrders[0] ?? null
+  })
+  const [reorderRecommendations, setReorderRecommendations] = useState(() =>
+    readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation),
+  )
+  const [supplierScorecards, setSupplierScorecards] = useState(() =>
+    readLiveCachedList(SUPPLIER_SCORECARD_CACHE_KEY, isDemoSupplierScorecard),
+  )
   const [supplierOptions, setSupplierOptions] = useState([])
   const [branchOptions, setBranchOptions] = useState([])
   const [query, setQuery] = useState('')
@@ -257,14 +270,49 @@ function PurchaseOrdersPage() {
       if (orders.length > 0) {
         const normalized = orders.map(normalizeOrder)
         setPurchaseOrders(normalized)
-        setSelectedOrder((current) => normalized.find((item) => item.id === current?.id) ?? normalized[0])
+        writeCachedList(PURCHASE_ORDER_CACHE_KEY, normalized)
+        setSelectedOrder((current) => {
+          const cachedSelectedId = readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)
+          const nextSelected =
+            normalized.find((item) => item.id === current?.id) ??
+            normalized.find((item) => item.id === cachedSelectedId) ??
+            normalized[0]
+          writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, nextSelected?.id ?? '')
+          return nextSelected
+        })
       } else {
+        const cachedOrders = readCachedList(PURCHASE_ORDER_CACHE_KEY)
+        if (cachedOrders.length > 0) {
+          setPurchaseOrders(cachedOrders)
+          setSelectedOrder((current) =>
+            cachedOrders.find((item) => item.id === current?.id) ??
+            cachedOrders.find((item) => item.id === readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)) ??
+            cachedOrders[0] ??
+            null,
+          )
+          setApiMessage('Showing the last successful purchase order snapshot while MongoDB reloads')
+          return
+        }
+
         setPurchaseOrders([])
         setSelectedOrder(null)
       }
       setApiMessage('Connected to MongoDB purchase orders')
       setLastSync(`Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
     } catch (error) {
+      const cachedOrders = readCachedList(PURCHASE_ORDER_CACHE_KEY)
+      if (cachedOrders.length > 0) {
+        setPurchaseOrders(cachedOrders)
+        setSelectedOrder((current) =>
+          cachedOrders.find((item) => item.id === current?.id) ??
+          cachedOrders.find((item) => item.id === readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)) ??
+          cachedOrders[0] ??
+          null,
+        )
+        setApiMessage('Showing cached purchase orders because MongoDB could not be reached right now.')
+        return
+      }
+
       setPurchaseOrders([])
       setSelectedOrder(null)
       setApiMessage(
@@ -312,29 +360,104 @@ function PurchaseOrdersPage() {
 
   const loadInsightCards = useCallback(async () => {
     try {
-      const [reorderResult, supplierResult] = await Promise.all([
+      const [reorderResult, supplierResult] = await Promise.allSettled([
         api.get('/reorders/suggestions?limit=3&includeAll=true'),
         api.get('/suppliers/reports/performance'),
       ])
 
-      const reorderData = Array.isArray(reorderResult.data?.data) ? reorderResult.data.data : []
-      const supplierData = Array.isArray(supplierResult.data?.data) ? supplierResult.data.data : []
+      const reorderData =
+        reorderResult.status === 'fulfilled' && Array.isArray(reorderResult.value.data?.data)
+          ? reorderResult.value.data.data
+          : []
+      const shouldLoadRecommendationFallback = reorderData.length === 0
+      const supplierData =
+        supplierResult.status === 'fulfilled' && Array.isArray(supplierResult.value.data?.data)
+          ? supplierResult.value.data.data
+          : []
 
-      setReorderRecommendations(reorderData.map(normalizeRecommendation))
-      setSupplierScorecards(
-        supplierData
-          .map(normalizeSupplierScorecard)
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score
-            return b.purchaseOrders - a.purchaseOrders
-          })
-          .slice(0, 3),
+      let recommendationFallbackData = []
+      if (shouldLoadRecommendationFallback) {
+        try {
+          const fallbackResponse = await api.get('/recommendations/inventory/low-stock?limit=3')
+          recommendationFallbackData = Array.isArray(fallbackResponse.data?.data)
+            ? fallbackResponse.data.data
+            : []
+        } catch {
+          recommendationFallbackData = []
+        }
+      }
+
+      const normalizedRecommendations = (reorderData.length > 0 ? reorderData : recommendationFallbackData)
+        .map(normalizeRecommendation)
+        .filter((item) => item.id && item.item)
+      const normalizedSupplierScorecards = supplierData
+        .map(normalizeSupplierScorecard)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score
+          return b.purchaseOrders - a.purchaseOrders
+        })
+        .slice(0, 3)
+      const cachedRecommendations = readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation)
+      const cachedSupplierScorecards = readLiveCachedList(
+        SUPPLIER_SCORECARD_CACHE_KEY,
+        isDemoSupplierScorecard,
       )
-      setApiMessage('Connected to live reorder suggestions and supplier scorecards')
-    } catch {
-      setReorderRecommendations(demoReorderRecommendations)
-      setSupplierScorecards(demoSupplierScorecards)
-      setApiMessage('Using polished demo insights until secured MongoDB endpoints are available')
+      const resolvedRecommendations =
+        normalizedRecommendations.length > 0 ? normalizedRecommendations : cachedRecommendations
+      const resolvedSupplierScorecards =
+        normalizedSupplierScorecards.length > 0 ? normalizedSupplierScorecards : cachedSupplierScorecards
+
+      setReorderRecommendations(resolvedRecommendations)
+      setSupplierScorecards(resolvedSupplierScorecards)
+
+      if (normalizedRecommendations.length > 0) {
+        writeCachedList(REORDER_CACHE_KEY, normalizedRecommendations)
+      }
+
+      if (normalizedSupplierScorecards.length > 0) {
+        writeCachedList(SUPPLIER_SCORECARD_CACHE_KEY, normalizedSupplierScorecards)
+      }
+
+      if (reorderResult.status === 'fulfilled' && reorderData.length > 0 && supplierResult.status === 'fulfilled') {
+        setApiMessage('Connected to live reorder suggestions and supplier scorecards')
+        return
+      }
+
+      if (normalizedRecommendations.length > 0 && supplierResult.status === 'fulfilled') {
+        setApiMessage('Showing AI reorder suggestions from the recommendation engine and live supplier scorecards')
+        return
+      }
+
+      if (resolvedRecommendations.length > 0 && resolvedSupplierScorecards.length > 0) {
+        setApiMessage('Showing the last successful reorder suggestions and supplier scorecards while live data reloads')
+        return
+      }
+
+      if (supplierResult.status === 'fulfilled') {
+        setApiMessage('Connected to live supplier scorecards. Reorder suggestions are unavailable right now')
+        return
+      }
+
+      if (resolvedRecommendations.length > 0) {
+        setApiMessage('Connected to live reorder suggestions. Supplier scorecards are unavailable right now')
+        return
+      }
+
+      throw reorderResult.reason || supplierResult.reason || new Error('Insight endpoints are unavailable')
+    } catch (error) {
+      const cachedRecommendations = readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation)
+      const cachedSupplierScorecards = readLiveCachedList(
+        SUPPLIER_SCORECARD_CACHE_KEY,
+        isDemoSupplierScorecard,
+      )
+
+      setReorderRecommendations(cachedRecommendations)
+      setSupplierScorecards(cachedSupplierScorecards)
+      setApiMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Could not load live reorder suggestions or supplier scorecards from MongoDB.',
+      )
     }
   }, [])
 
@@ -349,6 +472,14 @@ function PurchaseOrdersPage() {
   useEffect(() => {
     loadInsightCards()
   }, [loadInsightCards])
+
+  useEffect(() => {
+    writeCachedList(PURCHASE_ORDER_CACHE_KEY, purchaseOrders)
+  }, [purchaseOrders])
+
+  useEffect(() => {
+    writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, selectedOrder?.id ?? '')
+  }, [selectedOrder])
 
   const branchFilterOptions = useMemo(
     () => ['All', ...new Set(purchaseOrders.map((order) => order.branch).filter(Boolean))],
@@ -472,8 +603,13 @@ function PurchaseOrdersPage() {
     try {
       const response = await api.patch(`/purchase-orders/${order.id}/status`, { status })
       const updatedOrder = normalizeOrder(response.data)
-      setPurchaseOrders((orders) => orders.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)))
+      setPurchaseOrders((orders) => {
+        const nextOrders = orders.map((item) => (item.id === updatedOrder.id ? updatedOrder : item))
+        writeCachedList(PURCHASE_ORDER_CACHE_KEY, nextOrders)
+        return nextOrders
+      })
       setSelectedOrder(updatedOrder)
+      writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, updatedOrder.id)
       setApiMessage(`${updatedOrder.po} saved as ${status}`)
     } catch (error) {
       const message =
@@ -511,8 +647,13 @@ function PurchaseOrdersPage() {
     try {
       const response = await api.post('/purchase-orders', orderPayload)
       const createdOrder = normalizeOrder(response.data)
-      setPurchaseOrders((orders) => [createdOrder, ...orders])
+      setPurchaseOrders((orders) => {
+        const nextOrders = [createdOrder, ...orders]
+        writeCachedList(PURCHASE_ORDER_CACHE_KEY, nextOrders)
+        return nextOrders
+      })
       setSelectedOrder(createdOrder)
+      writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, createdOrder.id)
       setApiMessage(`${createdOrder.po} saved to MongoDB`)
       setForm({
         supplierId: supplierOptions[0]?.id || '',
@@ -819,7 +960,7 @@ function PurchaseOrdersPage() {
             </div>
             <div className="grid gap-3">
               {reorderRecommendations.length > 0 ? reorderRecommendations.map((item) => (
-                <div className="rounded-[20px] border border-[#e2e9f5] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4" key={item.item}>
+                <div className="rounded-[20px] border border-[#e2e9f5] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4" key={item.id}>
                   <div className="flex items-start justify-between gap-3">
                     <strong className="block font-black text-[#1b2340]">{item.item}</strong>
                     <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.08em]', urgencyBadgeClasses[item.urgency] || urgencyBadgeClasses.MEDIUM)}>{item.urgency}</span>

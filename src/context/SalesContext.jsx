@@ -8,6 +8,7 @@ export const SalesProvider = ({ children }) => {
 
   const addSale = (sale) => {
     setSales((prev) => [sale, ...prev]);
+    window.dispatchEvent(new CustomEvent('newSaleCompleted', { detail: sale }));
   };
 
   const removeSale = (id) => {

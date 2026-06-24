@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FiRefreshCw, FiSearch } from 'react-icons/fi';
 import {
   buildLogsFromTransfers,
@@ -38,6 +38,8 @@ function TransferLogsTab({
   onRefresh,
 }) {
   const [search, setSearch] = useState('');
+  const [logPage, setLogPage] = useState(1);
+  const LOG_PAGE_SIZE = 8;
 
   const transferRefMap = useMemo(() => {
     const map = new Map();
@@ -59,6 +61,17 @@ function TransferLogsTab({
       allRows.filter((log) => matchesMovementLogSearch(log, search, transferRefMap)),
     [allRows, search, transferRefMap],
   );
+
+  const logTotalPages = Math.max(1, Math.ceil(filteredRows.length / LOG_PAGE_SIZE));
+
+  useEffect(() => {
+    setLogPage(1);
+  }, [search, allRows.length]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (logPage - 1) * LOG_PAGE_SIZE;
+    return filteredRows.slice(start, start + LOG_PAGE_SIZE);
+  }, [filteredRows, logPage]);
 
   const hasSearch = normalizeSearchQuery(search).length > 0;
 
@@ -235,7 +248,7 @@ function TransferLogsTab({
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((log, idx) => {
+                {paginatedRows.map((log, idx) => {
                   const ref = formatTransferReference(
                     log.transferKey ?? log.transferId,
                     transferRefMap,
@@ -299,6 +312,57 @@ function TransferLogsTab({
           </div>
         )}
       </div>
+
+      {filteredRows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs font-medium text-slate-500">
+            Page {logPage} of {logTotalPages}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              className={`${transferBtnClass} ${transferBtnGhostClass}`}
+              disabled={logPage <= 1}
+              onClick={() => setLogPage((p) => Math.max(1, p - 1))}
+            >
+              ← Prev
+            </button>
+            {Array.from({ length: logTotalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === logTotalPages || Math.abs(p - logPage) <= 1)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push(`gap-${p}`);
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p) =>
+                typeof p === 'string' ? (
+                  <span key={p} className="px-2 text-sm text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`min-w-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      p === logPage
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setLogPage(p)}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+            <button
+              type="button"
+              className={`${transferBtnClass} ${transferBtnGhostClass}`}
+              disabled={logPage >= logTotalPages}
+              onClick={() => setLogPage((p) => Math.min(logTotalPages, p + 1))}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

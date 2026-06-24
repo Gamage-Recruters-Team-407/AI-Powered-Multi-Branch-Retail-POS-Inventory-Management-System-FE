@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { FiX, FiMapPin, FiPhone, FiBox, FiAlignLeft } from "react-icons/fi";
+import { FiX, FiMapPin, FiPhone, FiBox, FiAlignLeft, FiUser } from "react-icons/fi";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function WarehouseForm({ warehouse, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -8,13 +11,37 @@ export default function WarehouseForm({ warehouse, onSubmit, onClose }) {
     address: "",
     phone: "",
     capacity: 1000,
+    manager: "",
   });
+  const [managers, setManagers] = useState([]);
+  const [managersLoading, setManagersLoading] = useState(true);
 
   useEffect(() => {
     if (warehouse) {
-      setFormData(warehouse);
+      setFormData({
+        ...warehouse,
+        manager: warehouse.manager?._id || warehouse.manager || "",
+      });
     }
   }, [warehouse]);
+
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API_URL}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const raw = res.data; let userList = []; if (Array.isArray(raw)) userList = raw; else if (Array.isArray(raw?.users)) userList = raw.users; else if (Array.isArray(raw?.data)) userList = raw.data;
+        setManagers(userList);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+      } finally {
+        setManagersLoading(false);
+      }
+    };
+    fetchManagers();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -156,6 +183,40 @@ export default function WarehouseForm({ warehouse, onSubmit, onClose }) {
           </div>
           <p className="text-xs text-slate-400 mt-1.5 font-medium">
             Maximum number of items this facility can hold.
+          </p>
+        </div>
+
+        {/* Manager */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Warehouse Manager
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+              <FiUser size={18} />
+            </div>
+            {managersLoading ? (
+              <div className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-400 font-medium text-sm">
+                Loading managers...
+              </div>
+            ) : (
+              <select
+                name="manager"
+                value={formData.manager}
+                onChange={handleChange}
+                className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-blue-500 transition-all font-medium text-slate-700 appearance-none"
+              >
+                <option value="">-- Select a Manager --</option>
+                {managers.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.name} ({u.role})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-1.5 font-medium">
+            Optional — assign a manager to this facility.
           </p>
         </div>
 

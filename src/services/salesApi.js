@@ -1,6 +1,10 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const BASE_URL =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(
+    /\/api\/?$/,
+    ""
+  );
 
 const salesApi = axios.create({ baseURL: `${BASE_URL}/api/sales` });
 
@@ -24,8 +28,9 @@ export const getSaleById = (id) => salesApi.get(`/${id}`);
 export const voidSale = (id) => salesApi.patch(`/${id}/void`);
 
 // Sales summary (today / week / month)
-export const getSalesSummary = (period = "today") =>
-  salesApi.get("/summary", { params: { period } });
+export const getSalesSummary = (period = "today", startDate, endDate) =>
+  salesApi.get("/summary", { params: { period, startDate, endDate } });
+
 
 // Barcode product lookup
 export const getProductByBarcode = (barcode) =>
