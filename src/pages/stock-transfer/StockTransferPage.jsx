@@ -843,28 +843,78 @@ function StockTransferPage() {
     }
   };
 
-  const updateTransferInList = (updated) => {
-    setTransfers((prev) =>
-      prev.map((t) => (t._id === updated._id ? updated : t)),
-    );
-  };
+  // const updateTransferInList = (updated) => {
+  //   setTransfers((prev) =>
+  //     prev.map((t) => (t._id === updated._id ? updated : t)),
+  //   );
+  // };
+
+const updateTransferInList = (updated) => {
+  const updatedId = String(updated._id ?? updated.id ?? '');
+  setTransfers((prev) =>
+    prev.map((t) => {
+      const tId = String(t._id ?? t.id ?? '');
+      return tId === updatedId ? { ...t, ...updated } : t;
+    }),
+  );
+};
+
+  // const handleApprove = async (transfer) => {
+  //   if (!transfer._id || !perms.canApproveTransfer) return;
+  //   setSubmitting(true);
+  //   try {
+  //     const updated = await approveTransfer(transfer._id);
+  //     updateTransferInList(updated);
+  //     setMessage(
+  //       `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
+  //     );
+  //     await loadStockForBranches(branches);
+  //   } catch (err) {
+  //     setMessage(getApiErrorMessage(err, 'Approve failed.'));
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // };
 
   const handleApprove = async (transfer) => {
-    if (!transfer._id || !perms.canApproveTransfer) return;
-    setSubmitting(true);
-    try {
-      const updated = await approveTransfer(transfer._id);
-      updateTransferInList(updated);
-      setMessage(
-        `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
-      );
-      await loadStockForBranches(branches);
-    } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Approve failed.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  if (!transfer._id || !perms.canApproveTransfer) return;
+  setSubmitting(true);
+  
+  // Optimistic update — UI immediately reflects Approved
+  const optimisticId = String(transfer._id ?? transfer.id ?? '');
+  setTransfers((prev) =>
+    prev.map((t) => {
+      const tId = String(t._id ?? t.id ?? '');
+      return tId === optimisticId ? { ...t, status: 'Approved' } : t;
+    }),
+  );
+
+  try {
+const updated = await approveTransfer(transfer._id);
+const normalizedUpdated = {
+  ...updated,
+  status: mapStatusToUi(updated.status ?? 'Approved'),
+};
+updateTransferInList(normalizedUpdated);
+    setMessage(
+      `${updated.id} approved — manager can dispatch when ready; destination manager confirms receipt.`,
+    );
+    // Force refresh to sync latest server state
+    await loadTransfers('All', branches);
+    await loadStockForBranches(branches);
+  } catch (err) {
+    // Revert optimistic update on failure
+    setTransfers((prev) =>
+      prev.map((t) => {
+        const tId = String(t._id ?? t.id ?? '');
+        return tId === optimisticId ? { ...t, status: 'Pending' } : t;
+      }),
+    );
+    setMessage(getApiErrorMessage(err, 'Approve failed.'));
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const handleSaveEdit = async (transfer, editForm) => {
     if (!transfer._id || !canEditTransfer(transfer, perms)) {
