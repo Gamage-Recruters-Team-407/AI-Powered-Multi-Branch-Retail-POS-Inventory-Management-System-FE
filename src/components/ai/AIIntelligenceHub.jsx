@@ -7,10 +7,10 @@ import ChatHistoryPanel from './ChatHistoryPanel';
 
 const QUICK_PILLS = ['Low Stock Alerts', 'Top Sellers', 'Revenue Report', 'Branch Compare', 'AI Forecast'];
 const EXAMPLES = [
-  { icon: '📦', text: 'What products should I reorder today?' },
-  { icon: '📈', text: "Predict next month's sales trend" },
-  { icon: '🏪', text: 'Which branch generated highest profit?' },
-  { icon: '👥', text: 'Customers likely to buy electronics' },
+  { icon: '⚠️', text: 'Show me all items running low on stock' },
+  { icon: '📦', text: 'Which products should I restock immediately?' },
+  { icon: '🏪', text: 'Compare sales between branches today' },
+  { icon: '📈', text: 'What are the top 5 best-selling products?' },
 ];
 
 const ts = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -237,6 +237,48 @@ const AIIntelligenceHub = () => {
   );
 };
 
+const renderFormattedText = (text) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    // Parse bold text
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    const lineContent = parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+      // Remove the '* ' or '- ' prefix from the first part
+      const content = parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        }
+        if (i === 0) {
+           return part.replace(/^\s*[*|-]\s/, '');
+        }
+        return part;
+      });
+
+      return (
+        <div key={idx} style={{ display: 'flex', gap: '8px', margin: '6px 0 6px 8px' }}>
+          <span style={{ marginTop: '8px', width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor', opacity: 0.7, flexShrink: 0 }} />
+          <span>{content}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={idx} style={{ marginTop: idx > 0 && trimmedLine ? '12px' : '0', minHeight: '1em' }}>
+        {lineContent}
+      </div>
+    );
+  });
+};
+
 // ─── Connected Chat Panel (Full Height) ─────────────────────────────────────────
 const InlineChatPanelConnected = ({ messages, setMessages, input, setInput, isTyping, setIsTyping }) => {
   const endRef = useRef(null);
@@ -337,7 +379,7 @@ const InlineChatPanelConnected = ({ messages, setMessages, input, setInput, isTy
                   whiteSpace:'pre-wrap', wordBreak:'break-word',
                   boxShadow: msg.sender === 'user' ? '0 4px 16px rgba(37,99,235,0.25)' : '0 4px 12px rgba(0,0,0,0.05)',
                   border: msg.sender === 'ai' ? '1px solid rgba(255,255,255,0.3)' : 'none',
-                }}>{msg.text}</div>
+                }}>{msg.sender === 'ai' ? renderFormattedText(msg.text) : msg.text}</div>
                 <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.6)', marginTop:'4px', textAlign: msg.sender === 'user' ? 'right' : 'left', padding:'0 4px' }}>{msg.time}</div>
               </div>
             </motion.div>
