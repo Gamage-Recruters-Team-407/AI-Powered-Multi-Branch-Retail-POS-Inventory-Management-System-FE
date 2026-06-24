@@ -807,6 +807,27 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   }, [selectedBranch, dateRange, fetchData]);
 
 
+  // ── chart group-by handler ──────────
+const handleChartGroupBy = (g) => {
+  setChartGroupBy(g);
+  const now = new Date();
+  const end = now.toISOString().split('T')[0];
+  let start;
+  if (g === 'daily') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    start = d.toISOString().split('T')[0];
+  } else if (g === 'weekly') {
+    const d = new Date(now); d.setDate(d.getDate() - 84); // 12 weeks
+    start = d.toISOString().split('T')[0];
+  } else {
+    const d = new Date(now); d.setMonth(d.getMonth() - 12);
+    start = d.toISOString().split('T')[0];
+  }
+  setDateRange({ startDate: start, endDate: end });
+  setDatePreset('custom');
+};
+
+
   const handlePreset = (preset) => {
     setDatePreset(preset);
     if (preset !== "custom") setDateRange(_getDateRange(preset));
@@ -1193,12 +1214,25 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   <h2 className="section-title">Sales Analytics</h2>
                   <span className="section-badge">Real-time</span>
                 </div>
-                <div className="chart-controls">
+                {/* <div className="chart-controls">
                   {['daily', 'weekly', 'monthly'].map((g) => (
                     <button
                       key={g}
                       className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
                       onClick={() => setChartGroupBy(g)}
+                    >
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  
+                  ))}
+                </div> */}
+
+                <div className="chart-controls">
+                  {['daily', 'weekly', 'monthly'].map((g) => (
+                    <button
+                      key={g}
+                      className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                      onClick={() => handleChartGroupBy(g)}
                     >
                       {g.charAt(0).toUpperCase() + g.slice(1)}
                     </button>
