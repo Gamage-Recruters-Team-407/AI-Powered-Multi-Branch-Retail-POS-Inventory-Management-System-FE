@@ -25,66 +25,6 @@ import api from '../../api/axiosInstance'
 const statuses = ['All', 'Pending', 'Approved', 'Received', 'Rejected']
 const priorities = ['All', 'High', 'Medium', 'Normal', 'Low']
 
-const demoReorderRecommendations = [
-  {
-    id: 'demo-rec-001',
-    item: 'Parle-G Value Pack',
-    branch: 'Colombo Central',
-    stock: 4,
-    reorder: 36,
-    confidence: '93%',
-    supplier: 'BlueLine Wholesale',
-    urgency: 'CRITICAL',
-  },
-  {
-    id: 'demo-rec-002',
-    item: 'Anchor Full Cream Milk Powder 400g',
-    branch: 'Kandy City',
-    stock: 6,
-    reorder: 28,
-    confidence: '89%',
-    supplier: 'Prime Foods Lanka',
-    urgency: 'HIGH',
-  },
-  {
-    id: 'demo-rec-003',
-    item: 'Signal Herbal Toothpaste',
-    branch: 'Galle Fort',
-    stock: 8,
-    reorder: 24,
-    confidence: '84%',
-    supplier: 'Metro Retail Supply',
-    urgency: 'HIGH',
-  },
-]
-
-const demoSupplierScorecards = [
-  {
-    id: 'demo-supplier-001',
-    name: 'BlueLine Wholesale',
-    score: 96,
-    metric: 'On-time delivery',
-    open: 18450,
-    purchaseOrders: 8,
-  },
-  {
-    id: 'demo-supplier-002',
-    name: 'Prime Foods Lanka',
-    score: 92,
-    metric: 'Quality score',
-    open: 7360,
-    purchaseOrders: 5,
-  },
-  {
-    id: 'demo-supplier-003',
-    name: 'NorthStar Distributors',
-    score: 88,
-    metric: 'Supplier rating',
-    open: 9780,
-    purchaseOrders: 4,
-  },
-]
-
 const REORDER_CACHE_KEY = 'purchaseOrderReorderRecommendations'
 const SUPPLIER_SCORECARD_CACHE_KEY = 'purchaseOrderSupplierScorecards'
 const PURCHASE_ORDER_CACHE_KEY = 'purchaseOrderRecords'
@@ -138,6 +78,11 @@ const writeCachedValue = (key, value) => {
     // Ignore storage write issues and keep the UI working.
   }
 }
+
+const isDemoRecommendation = (item) => String(item?.id ?? '').startsWith('demo-rec-')
+const isDemoSupplierScorecard = (item) => String(item?.id ?? '').startsWith('demo-supplier-')
+
+const readLiveCachedList = (key, predicate) => readCachedList(key).filter((item) => !predicate(item))
 
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
@@ -293,8 +238,12 @@ function PurchaseOrdersPage() {
     const cachedSelectedId = readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)
     return cachedOrders.find((item) => item.id === cachedSelectedId) ?? cachedOrders[0] ?? null
   })
-  const [reorderRecommendations, setReorderRecommendations] = useState(() => readCachedList(REORDER_CACHE_KEY))
-  const [supplierScorecards, setSupplierScorecards] = useState(() => readCachedList(SUPPLIER_SCORECARD_CACHE_KEY))
+  const [reorderRecommendations, setReorderRecommendations] = useState(() =>
+    readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation),
+  )
+  const [supplierScorecards, setSupplierScorecards] = useState(() =>
+    readLiveCachedList(SUPPLIER_SCORECARD_CACHE_KEY, isDemoSupplierScorecard),
+  )
   const [supplierOptions, setSupplierOptions] = useState([])
   const [branchOptions, setBranchOptions] = useState([])
   const [query, setQuery] = useState('')
@@ -448,8 +397,11 @@ function PurchaseOrdersPage() {
           return b.purchaseOrders - a.purchaseOrders
         })
         .slice(0, 3)
-      const cachedRecommendations = readCachedList(REORDER_CACHE_KEY)
-      const cachedSupplierScorecards = readCachedList(SUPPLIER_SCORECARD_CACHE_KEY)
+      const cachedRecommendations = readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation)
+      const cachedSupplierScorecards = readLiveCachedList(
+        SUPPLIER_SCORECARD_CACHE_KEY,
+        isDemoSupplierScorecard,
+      )
       const resolvedRecommendations =
         normalizedRecommendations.length > 0 ? normalizedRecommendations : cachedRecommendations
       const resolvedSupplierScorecards =
@@ -492,10 +444,20 @@ function PurchaseOrdersPage() {
       }
 
       throw reorderResult.reason || supplierResult.reason || new Error('Insight endpoints are unavailable')
-    } catch {
-      setReorderRecommendations(demoReorderRecommendations)
-      setSupplierScorecards(demoSupplierScorecards)
-      setApiMessage('Using polished demo insights until secured MongoDB endpoints are available')
+    } catch (error) {
+      const cachedRecommendations = readLiveCachedList(REORDER_CACHE_KEY, isDemoRecommendation)
+      const cachedSupplierScorecards = readLiveCachedList(
+        SUPPLIER_SCORECARD_CACHE_KEY,
+        isDemoSupplierScorecard,
+      )
+
+      setReorderRecommendations(cachedRecommendations)
+      setSupplierScorecards(cachedSupplierScorecards)
+      setApiMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Could not load live reorder suggestions or supplier scorecards from MongoDB.',
+      )
     }
   }, [])
 
