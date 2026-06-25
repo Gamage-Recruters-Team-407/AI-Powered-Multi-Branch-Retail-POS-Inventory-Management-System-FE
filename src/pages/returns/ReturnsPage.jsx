@@ -222,7 +222,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       console.error('Invoice lookup failed:', error);
     }
 
-    setSearchError(`Invoice ID "${searchInvoiceId}" not found. Try INV-2026-004, INV-2026-005, or INV-2026-006.`);
+    setSearchError(`Invoice ID "${searchInvoiceId}" not found.`);
   };
 
   const handleQtyChange = (itemId, val, maxQty) => {

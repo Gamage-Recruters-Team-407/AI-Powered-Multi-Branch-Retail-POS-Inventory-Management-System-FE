@@ -384,7 +384,8 @@ export default function EmployeesPage() {
       email: emp.email || "",
       phone: emp.phone || "",
       role: emp.role ? emp.role.toLowerCase() : "cashier",
-      branch: emp.branch || "",
+      // branch: emp.branch || "",
+      branch: (typeof emp.branch === 'object' ? emp.branch?._id : emp.branch) || "",
       salary: emp.salary || "",
       hireDate: formattedDate,
       photo: emp.photo || "",
@@ -457,7 +458,11 @@ export default function EmployeesPage() {
                           (emp.email && emp.email.toLowerCase().includes(cleanSearch)) ||
                           (emp.phone && emp.phone.includes(cleanSearch));
     const matchesRole = selectedRole === "all" || (emp.role && emp.role.toLowerCase() === selectedRole.toLowerCase());
-    const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    // const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    const matchesBranch = selectedBranch === "all" || 
+    (typeof emp.branch === 'object' 
+        ? emp.branch?._id === selectedBranch 
+        : emp.branch === selectedBranch);
     return matchesSearch && matchesRole && matchesBranch;
   });
 
@@ -501,7 +506,10 @@ export default function EmployeesPage() {
             <tbody>
               ${employees.map(emp => {
                 const branchObj = branches.find(b => b._id === emp.branch);
-                const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                // const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                const displayBranch = typeof emp.branch === 'object'
+                ? emp.branch?.name
+                : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned");
                 return `
                   <tr>
                     <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
@@ -1007,7 +1015,10 @@ export default function EmployeesPage() {
                           <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
                           <div>
                             <span className="font-extrabold text-slate-800 block text-xs">{emp.firstName} {emp.lastName}</span>
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role} • Branch {emp.branch}</span>
+                            {/* <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role} • Branch {emp.branch}</span> */}
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">
+                              {emp.role} • {typeof emp.branch === 'object' ? emp.branch?.name : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned")}
+                            </span>
                           </div>
                         </div>
                         <div className="text-right">

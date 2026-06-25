@@ -2,7 +2,7 @@
 import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
 const ROLES = ["admin", "manager", "cashier"];
 const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
-const USERS_PER_PAGE = 6; // change this to control how many rows show per page
+const USERS_PER_PAGE = 6;
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
@@ -15,10 +15,7 @@ export default function UserListPage() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  // ========== PAGINATION STATE ==========
   const [currentPage, setCurrentPage] = useState(1);
-  // ========================================
 
   const fetchUsers = async () => {
     try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
@@ -30,7 +27,7 @@ export default function UserListPage() {
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
-    setCurrentPage(1); // reset to page 1 whenever the search changes
+    setCurrentPage(1);
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
@@ -63,10 +60,9 @@ export default function UserListPage() {
     catch { alert("Delete failed."); }
   };
 
-  const roleConfig = { admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
+  const roleConfig = { super_admin: { bg:"#f5f3ff", color:"#7c3aed", dot:"#7c3aed" }, admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
   const getRoleStyle = (r) => roleConfig[r] || roleConfig.cashier;
 
-  // ========== SEARCH FILTER (client-side) ==========
   const filteredUsers = users.filter(u => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -74,9 +70,7 @@ export default function UserListPage() {
     return fullName.toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
   });
 
-  // ========== PAGINATION LOGIC ==========
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
-  // keep currentPage valid if the users list shrinks (e.g. after delete/search)
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * USERS_PER_PAGE;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
@@ -86,7 +80,6 @@ export default function UserListPage() {
     setCurrentPage(page);
   };
 
-  // builds a compact page list like: 1, 2, ... , 14  (matches teammate's style)
   const getPageNumbers = () => {
     const pages = [];
     const maxButtons = 5;
@@ -103,17 +96,15 @@ export default function UserListPage() {
     }
     return pages;
   };
-  // ========================================
 
   return (
-<div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+    <div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
       `}</style>
-    
 
       {/* Header */}
       <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
@@ -155,93 +146,160 @@ export default function UserListPage() {
           </div>
         ) : (
           <div>
-          <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"0px" }}>
-          <table style={{ width:"100%", minWidth:"850px", borderCollapse:"collapse", fontSize:"14px" }}>
-            <thead>
-              <tr style={{ background:"rgba(248,250,252,0.8)" }}>
-                {["User","Email","Phone","Role","Status","Actions"].map(h => (
-                  <th key={h} style={{ padding:"12px 10px", textAlign:"left", fontWeight:"600", color:"#475569", fontSize:"12px", textTransform:"uppercase", letterSpacing:"0.5px", borderBottom:"1px solid #e2e8f0" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
-                  <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
-                  <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
-                  <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
-                </td></tr>
-              ) : paginatedUsers.map((user, i) => (
-                <tr key={user._id} style={{ transition:"background 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
-                  onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                  <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                      <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
-                        {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || ""}</div>
-                        <div style={{ fontSize:"12px", color:"#94a3b8", marginTop:"2px" }}>ID: {user._id?.slice(-6)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding:"16px 20px", color:"#475569" }}>{user.email}</td>
-                  <td style={{ padding:"16px 20px", color:"#64748b" }}>{user.phone || <span style={{ color:"#cbd5e1" }}>—</span>}</td>
-                  <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:getRoleStyle(user.role).bg, color:getRoleStyle(user.role).color }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:getRoleStyle(user.role).dot }}></span>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.isActive!==false?"#f0fdf4":"#f8fafc", color:user.isActive!==false?"#16a34a":"#94a3b8" }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1" }}></span>
-                      {user.isActive!==false?"active":"inactive"}
-                    </span>
-                  </td>
+            <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"0px" }}>
+              <table style={{ width:"100%", minWidth:"600px", borderCollapse:"collapse", fontSize:"14px", tableLayout:"fixed" }}>
+                <thead>
+                  <tr style={{ background:"rgba(248,250,252,0.8)" }}>
+                    {["User","Email","Phone","Role","Status","Actions"].map(h => (
+                      <th key={h} style={{
+                        padding:"12px 10px",
+                        textAlign:"left",
+                        fontWeight:"600",
+                        color:"#475569",
+                        fontSize:"12px",
+                        textTransform:"uppercase",
+                        letterSpacing:"0.5px",
+                        borderBottom:"1px solid #e2e8f0",
+                        // ── FIX: constrain User column width ──
+                        ...(h === "User"  && { width:"170px", maxWidth:"170px" }),
+                        // ── FIX: constrain Email column width ──
+                        ...(h === "Email" && { width:"200px", maxWidth:"200px" }),
+                        // ── FIX: constrain Phone column width ──
+                        ...(h === "Phone" && { width:"120px", maxWidth:"120px" }),
+                        // ── FIX: constrain Role column width ──
+                        ...(h === "Role"  && { width:"130px", maxWidth:"130px" }),
+                        // ── FIX: constrain Status column width ──
+                        ...(h === "Status" && { width:"100px", maxWidth:"100px" }),
+                        // ── FIX: constrain Actions column width ──
+                        ...(h === "Actions" && { width:"160px", maxWidth:"160px" }),
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
+                      <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
+                      <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
+                      <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
+                    </td></tr>
+                  ) : paginatedUsers.map((user, i) => (
+                    <tr key={user._id} style={{ transition:"background 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
+                      onMouseLeave={e => e.currentTarget.style.background="transparent"}>
 
-                  {/* ========== UPDATED BUTTONS ========== */}
-                  <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", gap:"6px" }}>
-                      <button onClick={()=>openEdit(user)}
-                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
-                        onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        Edit
-                      </button>
-                      <button onClick={()=>setDeleteConfirm(user)}
-                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
-                        onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6M14 11v6"/>
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                  {/* ========== END UPDATED BUTTONS ========== */}
+                      {/* User */}
+                      <td style={{ padding:"16px 10px", width:"170px", maxWidth:"170px" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                          <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
+                            {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || ""}</div>
+                            <div style={{ fontSize:"12px", color:"#94a3b8", marginTop:"2px" }}>ID: {user._id?.slice(-6)}</div>
+                          </div>
+                        </div>
+                      </td>
 
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          <div style={{ textAlign:"center", padding:"2px 0 0", fontSize:"11px", color:"#94a3b8" }}>
-            ← scroll to see more →
-          </div>
+                      {/* ── FIX: Email column with fixed width + ellipsis ── */}
+                      <td style={{
+                        padding:"16px 10px",
+                        color:"#475569",
+                        width:"200px",
+                        maxWidth:"200px",
+                        overflow:"hidden",
+                        textOverflow:"ellipsis",
+                        whiteSpace:"nowrap",
+                      }}>
+                        {user.email}
+                      </td>
+
+                      {/* Phone */}
+                      <td style={{ padding:"16px 8px", width:"120px", maxWidth:"120px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {user.phone
+                          ? <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                              </svg>
+                              <span style={{ color:"#475569", fontSize:"13px" }}>{user.phone}</span>
+                            </div>
+                          : <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                              </svg>
+                              <span style={{ color:"#94a3b8", fontSize:"13px", fontStyle:"italic" }}>No phone</span>
+                            </div>
+                        }
+                      </td>
+
+                      {/* Role */}
+                      <td style={{ padding:"16px 8px", width:"130px", maxWidth:"130px" }}>
+                        {(() => {
+                          const role = (user.role || "cashier").toLowerCase();
+                          const roleStyles = {
+                            super_admin: { bg:"linear-gradient(135deg,#7c3aed,#5b21b6)", shadow:"rgba(124,58,237,0.35)", icon:"👑" },
+                            admin:       { bg:"linear-gradient(135deg,#dc2626,#991b1b)", shadow:"rgba(220,38,38,0.35)",  icon:"🛡️" },
+                            manager:     { bg:"linear-gradient(135deg,#2563eb,#1d4ed8)", shadow:"rgba(37,99,235,0.35)",  icon:"💼" },
+                            cashier:     { bg:"linear-gradient(135deg,#0891b2,#0e7490)", shadow:"rgba(8,145,178,0.35)",  icon:"🏷️" },
+                          };
+                          const s = roleStyles[role] || roleStyles.cashier;
+                          return (
+                            <span style={{ display:"inline-flex", alignItems:"center", gap:"5px", padding:"5px 11px", borderRadius:"8px", fontSize:"11px", fontWeight:"700", whiteSpace:"nowrap", letterSpacing:"0.4px", background:s.bg, color:"#fff", boxShadow:`0 3px 10px ${s.shadow}` }}>
+                              <span style={{ fontSize:"11px", lineHeight:1 }}>{s.icon}</span>
+                              {(user.role || "").toUpperCase()}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Status */}
+                      <td style={{ padding:"16px 8px", width:"100px", maxWidth:"100px" }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", whiteSpace:"nowrap", border:`1.5px solid ${user.isActive!==false?"#16a34a":"#94a3b8"}`, color:user.isActive!==false?"#16a34a":"#94a3b8", background:"transparent" }}>
+                          <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1", flexShrink:0 }}></span>
+                          {user.isActive!==false?"active":"inactive"}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding:"16px 8px", width:"160px", maxWidth:"160px" }}>
+                        <div style={{ display:"flex", gap:"6px" }}>
+                          <button onClick={()=>openEdit(user)}
+                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            Edit
+                          </button>
+                          <button onClick={()=>setDeleteConfirm(user)}
+                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
+                            onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
+                            onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              <path d="M10 11v6M14 11v6"/>
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ textAlign:"center", padding:"2px 0 0", fontSize:"11px", color:"#94a3b8" }}>
+              ← scroll to see more →
+            </div>
           </div>
         )}
 
-        {/* ========== PAGINATION CONTROLS ========== */}
+        {/* Pagination */}
         {!loading && users.length > 0 && (
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", borderTop:"1px solid rgba(226,232,240,0.8)", background:"rgba(248,250,252,0.6)" }}>
             <div style={{ fontSize:"13px", color:"#64748b" }}>
@@ -252,7 +310,6 @@ export default function UserListPage() {
                 style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===1?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===1?"#cbd5e1":"#475569" }}>
                 ← Prev
               </button>
-
               {getPageNumbers().map((p, idx) => p === "..." ? (
                 <span key={`ellipsis-${idx}`} style={{ padding:"7px 6px", fontSize:"13px", color:"#94a3b8" }}>...</span>
               ) : (
@@ -261,7 +318,6 @@ export default function UserListPage() {
                   {p}
                 </button>
               ))}
-
               <button onClick={()=>goToPage(safePage + 1)} disabled={safePage === totalPages}
                 style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===totalPages?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===totalPages?"#cbd5e1":"#475569" }}>
                 Next →
@@ -269,7 +325,6 @@ export default function UserListPage() {
             </div>
           </div>
         )}
-        {/* ========== END PAGINATION CONTROLS ========== */}
       </div>
 
       {/* Add/Edit Modal */}
