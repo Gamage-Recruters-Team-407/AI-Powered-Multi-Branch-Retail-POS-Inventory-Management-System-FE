@@ -29,12 +29,23 @@ import {
   CreditCard,
   Eye,
   RefreshCcw,
+  Download,
+  ChevronDown,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 
 const SALES_PERIODS = [
   { id: "today", label: "Today" },
   { id: "week", label: "Week" },
   { id: "month", label: "Month" },
+];
+
+const EXPORT_PERIODS = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "This Week" },
+  { id: "month", label: "This Month" },
+  { id: "custom", label: "Custom Range" },
+  { id: "all", label: "All Time" },
 ];
 
 const STATUS_STYLES = {
@@ -74,6 +85,30 @@ function isWithinPeriod(dateValue, period) {
   return true;
 }
 
+function isWithinCustomRange(dateValue, startDate, endDate) {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    if (date < start) return false;
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    if (date > end) return false;
+  }
+  return true;
+}
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 export default function BranchDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,6 +124,14 @@ export default function BranchDetailsPage() {
   const [salesPeriod, setSalesPeriod] = useState("today");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [selectedSale, setSelectedSale] = useState(null);
+
+  // Export panel state
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportPeriod, setExportPeriod] = useState("today");
+  const [exportPayment, setExportPayment] = useState("ALL");
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+
   const SALES_PER_PAGE = 10;
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -144,10 +187,6 @@ export default function BranchDetailsPage() {
     return { revenue, transactions, avgValue, cash, card, qr };
   }, [periodSales]);
 
-  if (loading) return <div className="text-center p-8 text-lg">Loading...</div>;
-  if (!branch)
-    return <div className="text-center p-8 text-lg">Branch not found</div>;
-
   const getManagerName = (manager) => {
     if (!manager) return "N/A";
     if (typeof manager === "string") return manager;
@@ -168,6 +207,117 @@ export default function BranchDetailsPage() {
       "N/A"
     );
   };
+
+  const handleDownloadCsv = () => {
+    let exportSales = sales;
+
+    // Apply date filter
+    if (exportPeriod === "custom") {
+      exportSales = exportSales.filter((sale) =>
+        isWithinCustomRange(sale.createdAt, exportStartDate, exportEndDate)
+      );
+    } else if (exportPeriod !== "all") {
+      exportSales = exportSales.filter((sale) =>
+        isWithinPeriod(sale.createdAt, exportPeriod)
+      );
+    }
+
+    // Apply payment method filter
+    if (exportPayment !== "ALL") {
+      exportSales = exportSales.filter(
+        (sale) => sale.paymentMethod === exportPayment
+      );
+    }
+
+    const headers = [
+      "Invoice Number",
+      "Date & Time",
+      "Cashier",
+      "Item Name",
+      "Quantity",
+      "Unit Price",
+      "Line Total",
+      "Sale Subtotal",
+      "Discount",
+      "Tax",
+      "Sale Total",
+      "Payment Method",
+      "Status",
+    ];
+
+    const rows = [];
+
+    exportSales.forEach((sale) => {
+      const dateStr = sale.createdAt
+        ? new Date(sale.createdAt).toLocaleString()
+        : "N/A";
+      const cashierName = getCashierName(sale.cashier);
+
+      if (sale.items && sale.items.length > 0) {
+        sale.items.forEach((item) => {
+          rows.push([
+            sale.invoiceNumber || "N/A",
+            dateStr,
+            cashierName,
+            item.name || "N/A",
+            item.quantity ?? "",
+            Number(item.unitPrice ?? 0).toFixed(2),
+            Number(item.lineTotal ?? 0).toFixed(2),
+            Number(sale.subtotal ?? 0).toFixed(2),
+            Number(sale.discountAmount ?? 0).toFixed(2),
+            Number(sale.taxAmount ?? 0).toFixed(2),
+            Number(sale.totalAmount ?? 0).toFixed(2),
+            sale.paymentMethod || "N/A",
+            sale.status || "N/A",
+          ]);
+        });
+      } else {
+        rows.push([
+          sale.invoiceNumber || "N/A",
+          dateStr,
+          cashierName,
+          "",
+          "",
+          "",
+          "",
+          Number(sale.subtotal ?? 0).toFixed(2),
+          Number(sale.discountAmount ?? 0).toFixed(2),
+          Number(sale.taxAmount ?? 0).toFixed(2),
+          Number(sale.totalAmount ?? 0).toFixed(2),
+          sale.paymentMethod || "N/A",
+          sale.status || "N/A",
+        ]);
+      }
+    });
+
+    const csvContent = [
+      headers.map(csvEscape).join(","),
+      ...rows.map((row) => row.map(csvEscape).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const branchLabel = (branch?.code || branch?.name || "branch")
+      .toString()
+      .replace(/\s+/g, "_");
+    const fileName = `sales_${branchLabel}_${exportPeriod}_${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setShowExportPanel(false);
+  };
+
+  if (loading) return <div className="text-center p-8 text-lg">Loading...</div>;
+  if (!branch)
+    return <div className="text-center p-8 text-lg">Branch not found</div>;
 
   const salesTotalPages = Math.max(
     1,
@@ -451,13 +601,124 @@ export default function BranchDetailsPage() {
                     Sales recorded for this branch only
                   </p>
                 </div>
-                <button
-                  onClick={fetchData}
-                  className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs py-2 px-4 rounded-xl transition w-fit"
-                >
-                  <RefreshCcw className="w-3.5 h-3.5" />
-                  Refresh
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={fetchData}
+                    className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs py-2 px-4 rounded-xl transition w-fit"
+                  >
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                    Refresh
+                  </button>
+
+                  {/* Export dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowExportPanel((v) => !v)}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 px-4 rounded-xl transition w-fit"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export CSV
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          showExportPanel ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {showExportPanel && (
+                      <>
+                        {/* backdrop to close on outside click */}
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowExportPanel(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-slate-100 shadow-xl p-4 z-20">
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                            Export Filters
+                          </p>
+
+                          {/* Date range */}
+                          <div className="mb-3">
+                            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                              Date Range
+                            </label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {EXPORT_PERIODS.map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => setExportPeriod(p.id)}
+                                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                                    exportPeriod === p.id
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Custom range inputs */}
+                          {exportPeriod === "custom" && (
+                            <div className="mb-3 grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" />
+                                  Start
+                                </label>
+                                <input
+                                  type="date"
+                                  value={exportStartDate}
+                                  onChange={(e) => setExportStartDate(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" />
+                                  End
+                                </label>
+                                <input
+                                  type="date"
+                                  value={exportEndDate}
+                                  onChange={(e) => setExportEndDate(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Payment method */}
+                          <div className="mb-4">
+                            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                              Payment Method
+                            </label>
+                            <select
+                              value={exportPayment}
+                              onChange={(e) => setExportPayment(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                            >
+                              <option value="ALL">All Payment Methods</option>
+                              <option value="CASH">Cash</option>
+                              <option value="CARD">Card</option>
+                              <option value="QR">QR</option>
+                            </select>
+                          </div>
+
+                          <button
+                            onClick={handleDownloadCsv}
+                            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download CSV
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Stat Cards */}
