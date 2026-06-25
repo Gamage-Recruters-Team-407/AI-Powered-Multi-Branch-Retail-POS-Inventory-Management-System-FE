@@ -149,34 +149,138 @@ const MOCK_BRANCHES = [
   { _id: "4", name: "Negombo Branch" }
 ];
 
-export const getInventory = (branchId = "", lowStock = false) => {
-  return handleRequest(
-    () => inventoryApi.get("/", { params: { branch: branchId || undefined, lowStock: lowStock ? "true" : undefined } }),
-    () => {
-      let filtered = [...MOCK_INVENTORY];
-      if (branchId) {
-        filtered = filtered.filter(item => item.branch._id === branchId);
-      }
-      if (lowStock) {
-        filtered = filtered.filter(item => item.lowStockAlert);
-      }
-      return filtered;
+// Dynamic product-based inventory generator helper
+const generateProductInventory = async () => {
+  let branches = MOCK_BRANCHES;
+  const token = localStorage.getItem("token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  try {
+    const branchRes = await axios.get(`${API_BASE_URL}/branches`, { headers });
+    if (branchRes.data && branchRes.data.success) {
+      branches = branchRes.data.data;
     }
-  );
+  } catch (err) {
+    console.warn("Failed to fetch branches, using fallback branches:", err.message);
+  }
+
+  const productRes = await axios.get(`${API_BASE_URL}/products/status/active`, { headers });
+  const products = productRes.data?.products || [];
+
+  const inventoryList = [];
+  products.forEach(product => {
+    const stockCount = Number(
+      product.stock ??
+      product.quantity ??
+      product.availableStock ??
+      product.reorderLevel ??
+      0
+    );
+
+    branches.forEach(branch => {
+      inventoryList.push({
+        _id: `inv_${product._id}_${branch._id}`,
+        product: {
+          _id: product._id,
+          name: product.name,
+          reorderLevel: product.reorderLevel || 0,
+          costPrice: product.costPrice || 0
+        },
+        branch: {
+          _id: branch._id,
+          name: branch.name
+        },
+        quantity: stockCount,
+        lowStockAlert: stockCount <= (product.reorderLevel || 0)
+      });
+    });
+  });
+
+  return inventoryList;
 };
 
-export const getInventorySummary = () => {
-  return handleRequest(
-    () => inventoryApi.get("/summary"),
-    () => MOCK_SUMMARY
-  );
+export const getInventory = async (branchId = "", lowStock = false) => {
+  try {
+    const inventoryList = await generateProductInventory();
+    let filtered = inventoryList;
+    if (branchId) {
+      filtered = filtered.filter(item => item.branch._id === branchId);
+    }
+    if (lowStock) {
+      filtered = filtered.filter(item => item.lowStockAlert);
+    }
+    return {
+      success: true,
+      data: filtered
+    };
+  } catch (error) {
+    console.error("Failed to generate product-based inventory list:", error.message);
+    let filtered = [...MOCK_INVENTORY];
+    if (branchId) {
+      filtered = filtered.filter(item => item.branch._id === branchId);
+    }
+    if (lowStock) {
+      filtered = filtered.filter(item => item.lowStockAlert);
+    }
+    return {
+      success: true,
+      data: filtered,
+      warning: error.message
+    };
+  }
 };
 
-export const getLowStockAlerts = () => {
-  return handleRequest(
-    () => inventoryApi.get("/alerts"),
-    () => MOCK_ALERTS
-  );
+export const getInventorySummary = async () => {
+  try {
+    const inventoryList = await generateProductInventory();
+    const uniqueProducts = new Set();
+    let totalStockValue = 0;
+    let totalQuantity = 0;
+    let lowStockCount = 0;
+
+    inventoryList.forEach(item => {
+      uniqueProducts.add(item.product._id);
+      totalStockValue += item.quantity * (item.product.costPrice || 0);
+      totalQuantity += item.quantity;
+      if (item.lowStockAlert) {
+        lowStockCount++;
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        totalStockValue,
+        totalUniqueItems: uniqueProducts.size,
+        totalQuantity,
+        lowStockCount
+      }
+    };
+  } catch (error) {
+    console.error("Failed to compute inventory summary:", error.message);
+    return {
+      success: true,
+      data: MOCK_SUMMARY,
+      warning: error.message
+    };
+  }
+};
+
+export const getLowStockAlerts = async () => {
+  try {
+    const inventoryList = await generateProductInventory();
+    return {
+      success: true,
+      data: inventoryList.filter(item => item.lowStockAlert)
+    };
+  } catch (error) {
+    console.error("Failed to fetch low stock alerts:", error.message);
+    return {
+      success: true,
+      data: MOCK_ALERTS,
+      warning: error.message
+    };
+  }
 };
 
 export const getMovementHistory = (inventoryId = "", branchId = "", startDate = "", endDate = "") => {

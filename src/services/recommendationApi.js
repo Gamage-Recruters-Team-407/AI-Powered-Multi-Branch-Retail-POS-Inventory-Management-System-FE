@@ -1,20 +1,15 @@
 import axios from 'axios';
 
-const apiHost =
-  import.meta.env.VITE_RECOMMENDATION_API_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:5000';
-
-const API_BASE_URL = apiHost.endsWith('/api')
-  ? apiHost
-  : `${apiHost.replace(/\/$/, '')}/api`;
+// Flask ML API URL is hardcoded here to ensure it bypasses the Node.js backend
+const API_BASE_URL = 'http://localhost:5001/predict';
 
 const recommendationApi = axios.create({
-  baseURL: `${API_BASE_URL}/recommendations`,
+  baseURL: API_BASE_URL,
   timeout: 8000,
 });
 
-const unwrapRecommendationData = (response) => response.data?.data || [];
+// The Flask API returns data directly in response.data, without an extra 'data' property
+const unwrapRecommendationData = (response) => response.data || [];
 
 export const getTopProducts = async (limit = 10) => {
   const response = await recommendationApi.get('/sales/top-products', {
@@ -25,7 +20,7 @@ export const getTopProducts = async (limit = 10) => {
 };
 
 export const getTrendingProducts = async (limit = 10) => {
-  const response = await recommendationApi.get('/trending/products', {
+  const response = await recommendationApi.get('/trending', {
     params: { limit },
   });
 
