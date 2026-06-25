@@ -613,7 +613,7 @@ function EditProductPage({ productId, onBack }) {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Stock
+                  Reorder Level
                 </label>
                 <input
                   type="number"
