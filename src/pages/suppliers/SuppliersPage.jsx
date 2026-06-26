@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useInventory } from '../../context/InventoryContext';
+import { useProducts } from '../../context/ProductContext';
 import StockAlertPanel from '../../components/inventory/StockAlertPanel';
 import {
   getAllSuppliers,
@@ -78,6 +79,7 @@ const SuppliersPage = () => {
   const isAdminOrManager = useMemo(() => userRole === 'admin' || userRole === 'manager', [userRole]);
 
   const { alerts = [], refreshAll } = useInventory();
+  const { products = [] } = useProducts();
 
   const mapProductToCategory = (productName) => {
     const name = String(productName || '').toLowerCase();
@@ -550,7 +552,9 @@ const SuppliersPage = () => {
       date: new Date().toISOString().substring(0, 10),
       itemsCount: suggestedUnits,
       amount: computedCost,
-      status: 'Pending'
+      status: 'Pending',
+      productId: alert.product?._id || alert.product?.id,
+      branchId: alert.branch?._id || alert.branch?.id
     });
     setIsTransactionModalOpen(true);
   };
@@ -578,7 +582,9 @@ const SuppliersPage = () => {
       id: `TXN-${Math.floor(100 + Math.random() * 900)}`,
       itemsCount: suggestedUnits,
       amount: computedCost,
-      status: 'Pending'
+      status: 'Pending',
+      productId: alert.product?._id || alert.product?.id,
+      branchId: alert.branch?._id || alert.branch?.id
     });
     setClickedAlert(alert);
   };
@@ -596,7 +602,9 @@ const SuppliersPage = () => {
         date: new Date().toISOString().substring(0, 10),
         itemsCount: restockFormData.itemsCount,
         amount: restockFormData.amount,
-        status: restockFormData.status
+        status: restockFormData.status,
+        productId: restockFormData.productId,
+        branchId: restockFormData.branchId
       });
 
       if (res.success) {
@@ -1080,7 +1088,14 @@ const SuppliersPage = () => {
                             ) : (
                               procurementHistory.history.map(tx => (
                                 <tr key={tx.id}>
-                                  <td className="order-id">📋 {tx.id}</td>
+                                  <td className="order-id">
+                                    📋 {tx.id}
+                                    {tx.productName && (
+                                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>
+                                        Product: {tx.productName}
+                                      </div>
+                                    )}
+                                  </td>
                                   <td>{formatDate(tx.date)}</td>
                                   <td>{tx.itemsCount} units</td>
                                   <td><strong>Rs. {tx.amount.toLocaleString()}</strong></td>
@@ -1541,6 +1556,36 @@ const SuppliersPage = () => {
 
             <form onSubmit={handleTransactionSubmit}>
               <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Restocked Product <span className="required">*</span></label>
+                  <select
+                    value={transactionFormData.productId || ""}
+                    onChange={e => {
+                      const prodId = e.target.value;
+                      const selectedProd = products.find(p => p._id === prodId || p.id === prodId);
+                      setTransactionFormData(prev => {
+                        const costPrice = selectedProd ? (selectedProd.costPrice || selectedProd.price || 100) : 100;
+                        return {
+                          ...prev,
+                          productId: prodId,
+                          amount: prev.itemsCount ? prev.itemsCount * costPrice : prev.amount
+                        };
+                      });
+                    }}
+                    required
+                  >
+                    <option value="">-- Select Product --</option>
+                    {products.map(p => {
+                      const isMatch = mapProductToCategory(p.name) === viewingSupplier?.category;
+                      return (
+                        <option key={p._id || p.id} value={p._id || p.id}>
+                          {p.name} {isMatch ? "⭐ (Matches Category)" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
                 <div className="form-group">
                   <label>Transaction/Ref ID <span className="required">*</span></label>
                   <input
@@ -1567,7 +1612,18 @@ const SuppliersPage = () => {
                   <input
                     type="number"
                     value={transactionFormData.itemsCount}
-                    onChange={e => setTransactionFormData(prev => ({ ...prev, itemsCount: parseInt(e.target.value) || 0 }))}
+                    onChange={e => {
+                      const count = parseInt(e.target.value) || 0;
+                      setTransactionFormData(prev => {
+                        const selectedProd = products.find(p => p._id === prev.productId || p.id === prev.productId);
+                        const costPrice = selectedProd ? (selectedProd.costPrice || selectedProd.price || 100) : 100;
+                        return {
+                          ...prev,
+                          itemsCount: count,
+                          amount: prev.productId ? count * costPrice : prev.amount
+                        };
+                      });
+                    }}
                     min="1"
                     required
                   />
