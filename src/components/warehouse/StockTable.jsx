@@ -9,14 +9,34 @@ import {
 // Zone kaipa thiyanam zones sum karanawa — product ekak eka row.
 // ─────────────────────────────────────────────────────────────────
 
-export default function StockTable({ stocks }) {
+export default function StockTable({ stocks, zones = [] }) {
   const [search, setSearch] = useState("");
 
   // ── Group by product, sum quantity across zones ───────────────
   const products = useMemo(() => {
     const map = new Map();
 
+    const flatStocks = [];
     stocks.forEach((s) => {
+      if (s.zone) {
+        flatStocks.push(s);
+      } else if (s.zones && Array.isArray(s.zones)) {
+        s.zones.forEach((z) => {
+          const zoneId = z.zone?._id || z.zone;
+          const zoneObj = zones.find((x) => x._id === zoneId) || { _id: zoneId, zoneName: "—" };
+          flatStocks.push({
+            product: s.product,
+            zone: zoneObj,
+            quantity: z.quantity,
+            minStock: s.minStock,
+            isLowStock: s.isLowStock,
+            isUnstocked: s.isUnstocked,
+          });
+        });
+      }
+    });
+
+    flatStocks.forEach((s) => {
       const p = s.product;
       if (!p) return;
       const key = p._id || p;
@@ -51,8 +71,32 @@ export default function StockTable({ stocks }) {
       }
     });
 
+    // Also include products that have no stock entries
+    stocks.forEach((s) => {
+      const p = s.product;
+      if (!p) return;
+      const key = p._id || p;
+      if (!map.has(key)) {
+        map.set(key, {
+          productId:     key,
+          name:          p.name          || "—",
+          barcode:       p.barcode       || "—",
+          sku:           p.sku           || null,
+          image:         p.image         || null,
+          price:         p.price         ?? null,
+          unit:          p.unit          || null,
+          reorderLevel:  p.reorderLevel  ?? null,
+          totalQuantity: 0,
+          minStock:      s.minStock      ?? 10,
+          isLowStock:    false,
+          isUnstocked:   true,
+          zones:         [],
+        });
+      }
+    });
+
     return Array.from(map.values());
-  }, [stocks]);
+  }, [stocks, zones]);
 
   // ── Search filter ─────────────────────────────────────────────
   const filtered = useMemo(() => {

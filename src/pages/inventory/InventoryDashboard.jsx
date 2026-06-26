@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiRefreshCw, FiSearch, FiFilter, FiAlertTriangle,
-  FiPackage, FiChevronRight, FiWifi, FiWifiOff
+  FiPackage, FiChevronRight, FiWifi, FiWifiOff, FiMapPin, FiTruck
 } from "react-icons/fi";
 import { useInventory } from "../../context/InventoryContext";
 import { useInventorySocket } from "../../hooks/useInventorySocket";
@@ -11,6 +11,7 @@ import InventorySummaryCards from "../../components/inventory/InventorySummaryCa
 import StockAlertPanel from "../../components/inventory/StockAlertPanel";
 import InventoryTable from "../../components/inventory/InventoryTable";
 import MovementHistoryModal from "../../components/inventory/MovementHistoryModal";
+import WarehouseDistributeModal from "../../components/inventory/WarehouseDistributeModal";
 
 export const InventoryDashboard = () => {
   const { inventory, summary, alerts, loading, error, refreshAll } = useInventory();
@@ -20,6 +21,7 @@ export const InventoryDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [branches, setBranches] = useState([]);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState(null);
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline] = useState(true);
 
@@ -130,14 +132,23 @@ export const InventoryDashboard = () => {
                   {isOnline ? "Live" : "Offline"}
                 </span>
               </div>
-              <button
-                onClick={handleManualSync}
-                disabled={loading || isSyncing}
-                className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 px-4 py-2.5 text-white text-xs font-bold transition-all disabled:opacity-60 shadow-lg active:scale-95 cursor-pointer"
-              >
-                <FiRefreshCw className={`text-sm ${isSyncing ? "animate-spin" : ""}`} />
-                {isSyncing ? "Syncing…" : "Manual Sync"}
-              </button>
+              <div className="flex flex-wrap gap-2.5 justify-end">
+                <button
+                  onClick={() => setShowDistributeModal(true)}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-600/50 hover:bg-indigo-600/70 backdrop-blur-sm border border-indigo-500/40 px-4 py-2.5 text-white text-xs font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+                >
+                  <FiTruck className="text-sm" />
+                  Distribute Stock
+                </button>
+                <button
+                  onClick={handleManualSync}
+                  disabled={loading || isSyncing}
+                  className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 px-4 py-2.5 text-white text-xs font-bold transition-all disabled:opacity-60 shadow-lg active:scale-95 cursor-pointer"
+                >
+                  <FiRefreshCw className={`text-sm ${isSyncing ? "animate-spin" : ""}`} />
+                  {isSyncing ? "Syncing…" : "Manual Sync"}
+                </button>
+              </div>
               <div className="hidden sm:block text-right">
                 <div className="text-blue-100 text-[9px] font-bold uppercase tracking-wider">Last refreshed</div>
                 <div className="text-white text-[10px] font-bold mt-0.5">{timeString}</div>
@@ -201,6 +212,87 @@ export const InventoryDashboard = () => {
         {/* ── SUMMARY CARDS ────────────────────────────────────────── */}
         <InventorySummaryCards summary={summary} loading={loading} />
 
+        {/* ── BRANCH SELECTION GRID ────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-3.5"
+        >
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-lg bg-[var(--accent-light)] flex items-center justify-center">
+              <FiMapPin className="text-[var(--accent-color)] text-xs" />
+            </div>
+            <span className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider">
+              Branch Registers ({branches.length})
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
+            {/* All Branches button */}
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedBranch("")}
+              className={`relative overflow-hidden p-4 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[105px] shadow-xs ${
+                selectedBranch === ""
+                  ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
+                  : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--accent-color)]/50"
+              }`}
+            >
+              <div className="flex justify-between items-start w-full">
+                <div className={`p-2 rounded-xl text-lg flex items-center justify-center ${selectedBranch === "" ? "bg-white/20" : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"}`}>
+                  🏢
+                </div>
+                <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${selectedBranch === "" ? "bg-white/25 text-white" : "bg-[var(--bg-tertiary)] text-[var(--text-muted)]"}`}>
+                  Global
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="font-extrabold text-xs leading-snug">All Branches</div>
+                <div className={`text-[10px] mt-0.5 font-semibold ${selectedBranch === "" ? "text-blue-100" : "text-[var(--text-muted)]"}`}>
+                  Unified stock view
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Branch list buttons */}
+            {branches.map((b, idx) => {
+              const isSelected = selectedBranch === b._id;
+              const icons = ["📍", "🏬", "🏪", "🏢", "🏛️", "🏠", "🎪", "⚓", "🌇", "🌅"];
+              const icon = icons[idx % icons.length];
+              return (
+                <motion.button
+                  key={b._id}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedBranch(b._id)}
+                  className={`relative overflow-hidden p-4 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[105px] shadow-xs ${
+                    isSelected
+                      ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
+                      : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--accent-color)]/50"
+                  }`}
+                >
+                  <div className="flex justify-between items-start w-full gap-2">
+                    <div className={`p-2 rounded-xl text-lg flex items-center justify-center ${isSelected ? "bg-white/20" : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"}`}>
+                      {icon}
+                    </div>
+                    <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${isSelected ? "bg-white/25 text-white" : "bg-[var(--bg-tertiary)] text-[var(--text-muted)]"}`}>
+                      {b.code || `BR-${b.name.substring(0, 2).toUpperCase()}`}
+                    </span>
+                  </div>
+                  <div className="mt-3 min-w-0">
+                    <div className="font-extrabold text-xs leading-tight truncate">{b.name}</div>
+                    <div className={`text-[10px] mt-0.5 font-semibold truncate ${isSelected ? "text-blue-100" : "text-[var(--text-muted)]"}`}>
+                      {b.city || "Sri Lanka"}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {/* ── FILTERS & SEARCH ─────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -219,7 +311,7 @@ export const InventoryDashboard = () => {
 
           <div className="grid gap-3 sm:grid-cols-12 items-end">
             {/* Search input */}
-            <div className="sm:col-span-5">
+            <div className="sm:col-span-9">
               <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
                 Search Products
               </label>
@@ -233,23 +325,6 @@ export const InventoryDashboard = () => {
                   className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] pl-9 pr-4 py-2.5 text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent-color)] focus:ring-2 focus:ring-[var(--accent-light)] transition-all"
                 />
               </div>
-            </div>
-
-            {/* Branch select */}
-            <div className="sm:col-span-4">
-              <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
-                Branch Location
-              </label>
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-3.5 py-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)] focus:ring-2 focus:ring-[var(--accent-light)] transition-all"
-              >
-                <option value="">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b._id} value={b._id}>{b.name}</option>
-                ))}
-              </select>
             </div>
 
             {/* Low stock toggle */}
@@ -368,6 +443,20 @@ export const InventoryDashboard = () => {
             onClose={() => setSelectedItemForHistory(null)}
           />
         )}
+
+        {/* ── WAREHOUSE DISTRIBUTE MODAL ─────────────────────────────── */}
+        <AnimatePresence>
+          {showDistributeModal && (
+            <WarehouseDistributeModal
+              branches={branches}
+              onClose={() => setShowDistributeModal(false)}
+              onSuccess={() => {
+                setShowDistributeModal(false);
+                refreshAll(selectedBranch, lowStockOnly);
+              }}
+            />
+          )}
+        </AnimatePresence>
     </div>
   );
 };

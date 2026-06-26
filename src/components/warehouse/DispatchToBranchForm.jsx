@@ -34,8 +34,41 @@ export default function DispatchToBranchForm({ warehouseId, zones, stocks, onSuc
 
   // Available products based on selected zone (or all stocked products)
   const availableProducts = form.zoneId
-    ? stocks.filter((s) => !s.isUnstocked && (s.zone?._id === form.zoneId || s.zone === form.zoneId))
-    : stocks.filter((s) => !s.isUnstocked && s.quantity > 0);
+    ? stocks
+        .map((s) => {
+          if (s.isUnstocked) return null;
+          // Raw stock item
+          if (s.zone && (s.zone === form.zoneId || s.zone?._id === form.zoneId)) {
+            return s;
+          }
+          // Aggregated stock item with zones array
+          if (s.zones && Array.isArray(s.zones)) {
+            const alloc = s.zones.find(
+              (z) => z.zone === form.zoneId || z.zone?._id === form.zoneId
+            );
+            if (alloc) {
+              return {
+                ...s,
+                quantity: alloc.quantity, // actual quantity in this zone
+              };
+            }
+          }
+          return null;
+        })
+        .filter(Boolean)
+    : stocks
+        .map((s) => {
+          if (s.isUnstocked) return null;
+          let totalQty = s.quantity;
+          if (s.zones && Array.isArray(s.zones)) {
+            totalQty = s.zones.reduce((sum, z) => sum + (z.quantity || 0), 0);
+          }
+          return {
+            ...s,
+            quantity: totalQty,
+          };
+        })
+        .filter((s) => s && s.quantity > 0);
 
   const selectedStock = availableProducts.find(
     (s) => (s.product?._id || s.product) === form.productId
