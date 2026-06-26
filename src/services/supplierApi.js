@@ -639,3 +639,29 @@ export const updateTransactionStatus = (supplierId, transactionId, status) => {
     () => fallbackUpdateTransactionStatus(supplierId, transactionId, status)
   );
 };
+
+export const deleteTransaction = (supplierId, transactionId) => {
+  return handleRequest(
+    () => supplierApi.delete(`/${supplierId}/transactions/${transactionId}`),
+    () => {
+      // Mock fallback: remove the cancelled transaction from localStorage
+      const sups = getMockSuppliers();
+      const idx = sups.findIndex(s => s.id === supplierId || s._id === supplierId);
+      if (idx !== -1) {
+        const supplier = sups[idx];
+        if (supplier.transactions) {
+          const tIdx = supplier.transactions.findIndex(t => t.id === transactionId);
+          if (tIdx !== -1) {
+            if (supplier.transactions[tIdx].status !== "Cancelled") {
+              return { success: false, message: "Only cancelled transactions can be deleted." };
+            }
+            supplier.transactions.splice(tIdx, 1);
+            setLocalStorageDb("pos_suppliers", sups);
+            return { success: true, message: "Cancelled transaction deleted successfully" };
+          }
+        }
+      }
+      return { success: false, message: "Transaction not found" };
+    }
+  );
+};
