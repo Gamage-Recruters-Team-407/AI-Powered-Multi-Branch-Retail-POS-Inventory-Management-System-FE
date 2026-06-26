@@ -50,7 +50,9 @@ export default function UserListPage() {
       };
       if (editUser && !payload.password) delete payload.password;
       editUser ? await updateUser(editUser._id, payload) : await createUser(payload);
-      setShowModal(false); fetchUsers();
+      setShowModal(false);
+      await fetchUsers();
+      setCurrentPage(1);
     } catch (err) { setFormError(err?.response?.data?.message || "Save failed."); }
     finally { setSaving(false); }
   };
