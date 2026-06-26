@@ -1936,8 +1936,17 @@ const handleChartGroupBy = (g) => {
           --text-secondary: #cbd5e1;
           --text-muted: #94a3b8;
           --border-color: #334155;
-          --accent-light: rgba(59, 130, 246, 0.1);
+          --accent-light: rgba(59, 130, 246, 0.2);
+          --danger-color: #f87171;
+          --danger-light: rgba(248, 113, 113, 0.2);
+          --success-color: #34d399;
+          --success-light: rgba(52, 211, 153, 0.2);
+          --warning-color: #fbbf24;
+          --warning-light: rgba(251, 191, 36, 0.2);
+          --info-color: #22d3ee;
+          --info-light: rgba(34, 211, 238, 0.2);
         }
+
 
         .dashboard-page { min-height: 100vh; position: relative; overflow-x: hidden; color: var(--text-primary); }
         .sky-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; transition: background 0.5s ease; }
