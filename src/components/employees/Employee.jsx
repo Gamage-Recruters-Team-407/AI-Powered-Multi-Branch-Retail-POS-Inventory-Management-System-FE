@@ -21,8 +21,9 @@ export const EmployeeCard = ({ employee, onViewDetails, onEdit }) => {
     "4": "Negombo",
   };
 
-  const branchObj = branches.find(b => b._id === branch);
-  const displayBranch = branchObj ? branchObj.name : (branchNames[branch] || (branch ? `Branch ${branch}` : "Not Assigned"));
+  const displayBranch = typeof branch === 'object'
+    ? (branch?.name || "Not Assigned")
+    : (branches.find(b => b._id === branch)?.name || branchNames[branch] || (branch ? `Branch ${branch}` : "Not Assigned"));
   const empName = name || `${firstName || ""} ${lastName || ""}`.trim() || "Unnamed User";
 
   return (
@@ -103,8 +104,9 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
     "4": "Negombo Branch",
   };
 
-  const branchObj = branches.find(b => b._id === branch);
-  const displayBranch = branchObj ? branchObj.name : (branchNames[branch] || (branch ? `Branch ${branch}` : "Not Assigned"));
+  const displayBranch = typeof branch === 'object'
+    ? (branch?.name || "Not Assigned")
+    : (branches.find(b => b._id === branch)?.name || branchNames[branch] || (branch ? `Branch ${branch}` : "Not Assigned"));
   const empName = name || `${firstName || ""} ${lastName || ""}`.trim() || "Unnamed User";
 
   const attendanceRate = employeeLogs.length > 0 

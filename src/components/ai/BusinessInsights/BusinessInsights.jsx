@@ -16,18 +16,18 @@ const BusinessInsights = ({ darkMode }) => {
   useEffect(() => {
     const fetchInsights = async () => {
       try {
-        // Fetch current period data
-        const res = await fetch('http://localhost:5000/api/recommendations/analytics/insights');
+        // Fetch current period data from Flask ML API
+        const res = await fetch('http://localhost:5001/predict/analytics');
         const json = await res.json();
-        if (json.success) {
-          setData(json.data);
+        if (json.kpis) {
+          setData(json);
         }
 
         // Fetch previous period data for computing change%
-        const prevRes = await fetch('http://localhost:5000/api/recommendations/analytics/insights?period=previous');
+        const prevRes = await fetch('http://localhost:5001/predict/analytics?period=previous');
         const prevJson = await prevRes.json();
-        if (prevJson.success) {
-          setPrevData(prevJson.data);
+        if (prevJson.kpis) {
+          setPrevData(prevJson);
         }
       } catch (error) {
         console.error('Error fetching insights:', error);
@@ -80,7 +80,7 @@ const BusinessInsights = ({ darkMode }) => {
             <KpiCard title="Total Revenue" value={`Rs ${data.kpis.totalRevenue.toLocaleString()}`} change={revenueChange.text} isPositive={revenueChange.isPositive} neutral={revenueChange.neutral} darkMode={darkMode} />
             <KpiCard title="Avg Order Value" value={`Rs ${data.kpis.averageOrderValue}`} change={orderValueChange.text} isPositive={orderValueChange.isPositive} neutral={orderValueChange.neutral} darkMode={darkMode} />
             <KpiCard title="Orders" value={data.kpis.totalOrders} change={ordersChange.text} isPositive={ordersChange.isPositive} neutral={ordersChange.neutral} darkMode={darkMode} />
-            <KpiCard title="Low Stock" value={`${data.kpis.lowStockCount} items`} change={`${data.kpis.lowStockCount} alerts`} neutral={true} darkMode={darkMode} />
+            <KpiCard title="Low Stock Alerts" value={`${data.kpis.lowStockCount} alerts`} change="Across all branches" neutral={true} darkMode={darkMode} />
             <KpiCard title="Top Product" value={data.kpis.topProduct} change="Best Seller" neutral={true} darkMode={darkMode} />
           </div>
 

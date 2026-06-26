@@ -145,10 +145,10 @@ export default function EmployeesPage() {
 
   // Performance Form State
   const [perfEmpId, setPerfEmpId] = useState("");
-  const [perfPunctuality, setPerfPunctuality] = useState(90);
-  const [perfSales, setPerfSales] = useState(90);
-  const [perfRating, setPerfRating] = useState(4.5);
-  const [perfTasks, setPerfTasks] = useState(90);
+  const [perfPunctuality, setPerfPunctuality] = useState(0);
+  const [perfSales, setPerfSales] = useState(0);
+  const [perfRating, setPerfRating] = useState(0.0);
+  const [perfTasks, setPerfTasks] = useState(0);
 
   // Form Fields State
   const [formData, setFormData] = useState({
@@ -384,7 +384,8 @@ export default function EmployeesPage() {
       email: emp.email || "",
       phone: emp.phone || "",
       role: emp.role ? emp.role.toLowerCase() : "cashier",
-      branch: emp.branch || "",
+      // branch: emp.branch || "",
+      branch: (typeof emp.branch === 'object' ? emp.branch?._id : emp.branch) || "",
       salary: emp.salary || "",
       hireDate: formattedDate,
       photo: emp.photo || "",
@@ -424,6 +425,32 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleEmployeeSelect = (empId) => {
+    setPerfEmpId(empId);
+    if (!empId) {
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
+      return;
+    }
+    const empMetrics = performanceMetrics
+      .filter((m) => m.employeeId === empId)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    if (empMetrics.length > 0) {
+      const latest = empMetrics[0];
+      setPerfPunctuality(latest.punctuality || 0);
+      setPerfSales(latest.salesAchievement || 0);
+      setPerfRating(latest.customerRating || 0.0);
+      setPerfTasks(latest.taskCompletion || 0);
+    } else {
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
+    }
+  };
+
   const handlePerfSubmit = async (e) => {
     e.preventDefault();
     if (!perfEmpId || isPerfSubmitting) return;
@@ -440,6 +467,10 @@ export default function EmployeesPage() {
       alert("Performance record updated successfully!");
       // Reset
       setPerfEmpId("");
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
     } catch (err) {
       console.error("Performance log submission error:", err);
       alert("Error logging performance details");
@@ -457,7 +488,11 @@ export default function EmployeesPage() {
                           (emp.email && emp.email.toLowerCase().includes(cleanSearch)) ||
                           (emp.phone && emp.phone.includes(cleanSearch));
     const matchesRole = selectedRole === "all" || (emp.role && emp.role.toLowerCase() === selectedRole.toLowerCase());
-    const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    // const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    const matchesBranch = selectedBranch === "all" || 
+    (typeof emp.branch === 'object' 
+        ? emp.branch?._id === selectedBranch 
+        : emp.branch === selectedBranch);
     return matchesSearch && matchesRole && matchesBranch;
   });
 
@@ -501,7 +536,10 @@ export default function EmployeesPage() {
             <tbody>
               ${employees.map(emp => {
                 const branchObj = branches.find(b => b._id === emp.branch);
-                const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                // const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                const displayBranch = typeof emp.branch === 'object'
+                ? emp.branch?.name
+                : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned");
                 return `
                   <tr>
                     <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
@@ -1007,7 +1045,10 @@ export default function EmployeesPage() {
                           <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
                           <div>
                             <span className="font-extrabold text-slate-800 block text-xs">{emp.firstName} {emp.lastName}</span>
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role} • Branch {emp.branch}</span>
+                            {/* <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role} • Branch {emp.branch}</span> */}
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">
+                              {emp.role} • {typeof emp.branch === 'object' ? emp.branch?.name : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned")}
+                            </span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -1036,7 +1077,7 @@ export default function EmployeesPage() {
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Employee</label>
                     <select
                       value={perfEmpId}
-                      onChange={e => setPerfEmpId(e.target.value)}
+                      onChange={e => handleEmployeeSelect(e.target.value)}
                       required
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                     >
@@ -1052,7 +1093,7 @@ export default function EmployeesPage() {
                       <span className="text-slate-500">Punctuality Score</span>
                       <span className="text-blue-600">{perfPunctuality}%</span>
                     </div>
-                    <input type="range" min="10" max="100" value={perfPunctuality} onChange={e => setPerfPunctuality(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="0" max="100" value={perfPunctuality} onChange={e => setPerfPunctuality(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
@@ -1060,7 +1101,7 @@ export default function EmployeesPage() {
                       <span className="text-slate-500">Productivity Targets Achievement</span>
                       <span className="text-emerald-600">{perfSales}%</span>
                     </div>
-                    <input type="range" min="10" max="100" value={perfSales} onChange={e => setPerfSales(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="0" max="100" value={perfSales} onChange={e => setPerfSales(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
@@ -1068,7 +1109,7 @@ export default function EmployeesPage() {
                       <span className="text-slate-500">Customer Rating (Avg)</span>
                       <span className="text-amber-600">{perfRating} ★</span>
                     </div>
-                    <input type="range" min="1" max="5" step="0.1" value={perfRating} onChange={e => setPerfRating(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="0" max="5" step="0.1" value={perfRating} onChange={e => setPerfRating(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
@@ -1076,7 +1117,7 @@ export default function EmployeesPage() {
                       <span className="text-slate-500">Task Completion Rate</span>
                       <span className="text-purple-600">{perfTasks}%</span>
                     </div>
-                    <input type="range" min="10" max="100" value={perfTasks} onChange={e => setPerfTasks(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="0" max="100" value={perfTasks} onChange={e => setPerfTasks(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <button

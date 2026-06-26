@@ -16,7 +16,6 @@ supplierApi.interceptors.request.use((config) => {
   return config;
 });
 
-// Helper to determine if we should fallback to localStorage/mock data
 const handleRequest = async (apiCall, fallbackFn) => {
   try {
     const response = await apiCall();
@@ -330,7 +329,11 @@ const fallbackAddTransaction = (id, transactionData) => {
     if (!supplier.transactions) {
       supplier.transactions = [];
     }
-    supplier.transactions.push(transactionData);
+    supplier.transactions.push({
+      ...transactionData,
+      productId: transactionData.productId || null,
+      branchId: transactionData.branchId || null
+    });
 
     if (transactionData.status === "Delivered") {
       supplier.totalSpend = (supplier.totalSpend || 0) + Number(transactionData.amount || 0);
@@ -634,5 +637,31 @@ export const updateTransactionStatus = (supplierId, transactionId, status) => {
   return handleRequest(
     () => supplierApi.patch(`/${supplierId}/transactions/${transactionId}`, { status }),
     () => fallbackUpdateTransactionStatus(supplierId, transactionId, status)
+  );
+};
+
+export const deleteTransaction = (supplierId, transactionId) => {
+  return handleRequest(
+    () => supplierApi.delete(`/${supplierId}/transactions/${transactionId}`),
+    () => {
+      // Mock fallback: remove the cancelled transaction from localStorage
+      const sups = getMockSuppliers();
+      const idx = sups.findIndex(s => s.id === supplierId || s._id === supplierId);
+      if (idx !== -1) {
+        const supplier = sups[idx];
+        if (supplier.transactions) {
+          const tIdx = supplier.transactions.findIndex(t => t.id === transactionId);
+          if (tIdx !== -1) {
+            if (supplier.transactions[tIdx].status !== "Cancelled") {
+              return { success: false, message: "Only cancelled transactions can be deleted." };
+            }
+            supplier.transactions.splice(tIdx, 1);
+            setLocalStorageDb("pos_suppliers", sups);
+            return { success: true, message: "Cancelled transaction deleted successfully" };
+          }
+        }
+      }
+      return { success: false, message: "Transaction not found" };
+    }
   );
 };

@@ -55,7 +55,27 @@ export default function TransferForm({ currentWarehouseId, currentZones, current
 
   // Products available in selected source zone
   const availableProducts = formData.fromZone
-    ? currentStocks.filter((s) => s.zone?._id === formData.fromZone || s.zone === formData.fromZone)
+    ? currentStocks
+        .map((s) => {
+          // Raw stock item
+          if (s.zone && (s.zone === formData.fromZone || s.zone?._id === formData.fromZone)) {
+            return s;
+          }
+          // Aggregated stock item with zones array
+          if (s.zones && Array.isArray(s.zones)) {
+            const alloc = s.zones.find(
+              (z) => z.zone === formData.fromZone || z.zone?._id === formData.fromZone
+            );
+            if (alloc) {
+              return {
+                ...s,
+                quantity: alloc.quantity, // actual quantity in this zone
+              };
+            }
+          }
+          return null;
+        })
+        .filter(Boolean)
     : [];
 
   const selectedStock = availableProducts.find(
