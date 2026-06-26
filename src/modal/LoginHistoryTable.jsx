@@ -223,12 +223,9 @@ const LoginHistoryTable = ({
         </table>
       </div>
 
-      {/* ✅ Pagination */}
+      {/* ✅ Pagination - Without "Showing X to Y of Z entries" */}
       {totalPages > 1 && (
         <div className="lh-pagination">
-          <div className="page-info">
-            Showing <b>{startIdx}</b> to <b>{endIdx}</b> of <b>{total}</b> entries
-          </div>
           <div className="page-btns">
             <button 
               className="page-btn" 
@@ -280,7 +277,6 @@ const LoginHistoryTable = ({
         </div>
       )}
 
-      {/* ✅ Dark/Light Theme Styles */}
       <style>{`
         .lh-wrap {
           background: var(--card-bg, #ffffff);
@@ -548,7 +544,7 @@ const LoginHistoryTable = ({
         }
 
         /* ========================================
-           PAGINATION
+           PAGINATION - Without "Showing" text
            ======================================== */
         .lh-pagination {
           display: flex;
@@ -564,23 +560,6 @@ const LoginHistoryTable = ({
         .theme-dark .lh-pagination {
           border-top-color: #334155;
           background: #1e293b;
-        }
-
-        .page-info {
-          font-size: .82rem;
-          color: var(--text-secondary, #64748b);
-        }
-
-        .theme-dark .page-info {
-          color: #94a3b8;
-        }
-
-        .page-info b {
-          color: var(--text-primary, #0f172a);
-        }
-
-        .theme-dark .page-info b {
-          color: #f1f5f9;
         }
 
         .page-btns {

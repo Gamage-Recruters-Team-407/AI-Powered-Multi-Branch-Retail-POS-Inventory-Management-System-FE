@@ -690,6 +690,11 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
   const [localLoading, setLocalLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // ✅ Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
   const context = useContext(ThemeContext);
   const theme = context?.theme || 'light';
   const isDark = theme === 'dark';
@@ -700,6 +705,7 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
       const response = await getSecurityEvents({ limit: 100 });
       const eventsData = response.data || response.events || [];
       setLocalEvents(eventsData);
+      setCurrentPage(1);
     } catch (err) {
       console.error('Failed to fetch security events:', err);
       setLocalEvents([]);
@@ -711,6 +717,7 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
   useEffect(() => {
     if (propEvents && propEvents.length > 0) {
       setLocalEvents(propEvents);
+      setCurrentPage(1);
     } else {
       fetchEvents();
     }
@@ -744,6 +751,26 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
     };
   }, [eventsArray]);
 
+  // ✅ Pagination calculations
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedData = filtered.slice(startIndex, endIndex);
+
+  // ✅ Handle page change
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // ✅ Handle page size change
+  const handlePageSizeChange = (e) => {
+    const newSize = parseInt(e.target.value);
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
   const isLoading = propLoading || localLoading;
 
   const handleViewEvent = (event) => {
@@ -756,17 +783,14 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
     setTimeout(() => setSelectedEvent(null), 300);
   };
 
-  // ✅ Get severity badge class
   const getSeverityClass = (severity) => {
     return severity?.toLowerCase() || 'medium';
   };
 
-  // ✅ Get status badge class
   const getStatusBadge = (resolved) => {
     return resolved ? 'resolved' : 'active';
   };
 
-  // ✅ Format timestamp
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return '—';
     try {
@@ -860,58 +884,114 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
           <p>All systems operational. No active threats detected.</p>
         </div>
       ) : (
-        <div className="sec-table-wrap">
-          <table className="sec-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Severity</th>
-                <th>User</th>
-                <th>IP Address</th>
-                <th>Time</th>
-                <th>Status</th>
-                <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((ev) => {
-                const config = EVENT_TYPE_CONFIG[ev.type] || { icon: '⚠️', label: ev.type || 'Security Threat' };
-                return (
-                  <tr key={ev._id} className={`sec-row ${ev.resolved ? 'resolved' : ''}`}>
-                    <td>
-                      <div className="sec-type-cell">
-                        <span className="sec-type-icon">{config.icon}</span>
-                        <span className="sec-type-label">{config.label}</span>
-                      </div>
-                    </td>
-                    <td className="sec-desc-cell" title={ev.description}>
-                      {ev.description}
-                    </td>
-                    <td>
-                      <span className={`severity-badge ${getSeverityClass(ev.severity || config.severity)}`}>
-                        {ev.severity || config.severity}
-                      </span>
-                    </td>
-                    <td className="sec-user-cell">{ev.userName || ev.userId?.name || 'System'}</td>
-                    <td className="sec-ip-cell">{ev.ipAddress || '—'}</td>
-                    <td className="sec-time-cell">{formatTimestamp(ev.createdAt)}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusBadge(ev.resolved)}`}>
-                        {ev.resolved ? 'Resolved' : 'Active'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button className="sec-view-btn" onClick={() => handleViewEvent(ev)}>
-                        View
+        <>
+          <div className="sec-table-wrap">
+            <table className="sec-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Severity</th>
+                  <th>User</th>
+                  <th>IP Address</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((ev) => {
+                  const config = EVENT_TYPE_CONFIG[ev.type] || { icon: '⚠️', label: ev.type || 'Security Threat' };
+                  return (
+                    <tr key={ev._id} className={`sec-row ${ev.resolved ? 'resolved' : ''}`}>
+                      <td>
+                        <div className="sec-type-cell">
+                          <span className="sec-type-icon">{config.icon}</span>
+                          <span className="sec-type-label">{config.label}</span>
+                        </div>
+                      </td>
+                      <td className="sec-desc-cell" title={ev.description}>
+                        {ev.description}
+                      </td>
+                      <td>
+                        <span className={`severity-badge ${getSeverityClass(ev.severity || config.severity)}`}>
+                          {ev.severity || config.severity}
+                        </span>
+                      </td>
+                      <td className="sec-user-cell">{ev.userName || ev.userId?.name || 'System'}</td>
+                      <td className="sec-ip-cell">{ev.ipAddress || '—'}</td>
+                      <td className="sec-time-cell">{formatTimestamp(ev.createdAt)}</td>
+                      <td>
+                        <span className={`status-badge ${getStatusBadge(ev.resolved)}`}>
+                          {ev.resolved ? 'Resolved' : 'Active'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="sec-view-btn" onClick={() => handleViewEvent(ev)}>
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ✅ Pagination - Without "Showing" text */}
+          {totalPages > 1 && (
+            <div className="sec-pagination">
+              <div className="page-btns">
+                <button 
+                  className="page-btn" 
+                  disabled={currentPage <= 1} 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                >
+                  ← Previous
+                </button>
+                
+                {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .map((p, index, array) => (
+                    <React.Fragment key={`page-wrapper-${p}`}>
+                      {index > 0 && array[index - 1] !== p - 1 && (
+                        <span className="page-ellipsis">…</span>
+                      )}
+                      <button 
+                        className={`page-btn ${currentPage === p ? 'active' : ''}`} 
+                        onClick={() => handlePageChange(p)}
+                      >
+                        {p}
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </React.Fragment>
+                  ))}
+                
+                <button 
+                  className="page-btn" 
+                  disabled={currentPage >= totalPages} 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                >
+                  Next →
+                </button>
+              </div>
+              
+              <div className="page-size-selector">
+                <select 
+                  value={pageSize} 
+                  onChange={handlePageSizeChange}
+                  className="page-size-select"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="page-size-label">per page</span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ✅ Security Event Modal */}
@@ -1279,6 +1359,120 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
           color: #94a3b8;
         }
 
+        /* ========================================
+           PAGINATION - Without "Showing" text
+           ======================================== */
+        .sec-pagination {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 16px 20px;
+          border-top: 1px solid var(--border-color, #f1f5f9);
+          background: var(--bg-secondary, #fafafa);
+          border-radius: 0 0 12px 12px;
+        }
+
+        .theme-dark .sec-pagination {
+          border-top-color: #334155;
+          background: #1e293b;
+        }
+
+        .page-btns {
+          display: flex;
+          gap: 5px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .page-btn {
+          padding: 6px 14px;
+          border: 1.5px solid var(--border-color, #e2e8f0);
+          border-radius: 7px;
+          font-size: .8rem;
+          font-weight: 500;
+          color: var(--text-secondary, #475569);
+          background: var(--card-bg, #ffffff);
+          transition: all .15s;
+          cursor: pointer;
+          min-width: 36px;
+          text-align: center;
+        }
+
+        .theme-dark .page-btn {
+          border-color: #475569;
+          background: #2d3a4f;
+          color: #cbd5e1;
+        }
+
+        .page-btn:hover:not(:disabled):not(.active) {
+          background: var(--bg-secondary, #f8fafc);
+          border-color: var(--text-muted, #94a3b8);
+        }
+
+        .theme-dark .page-btn:hover:not(:disabled):not(.active) {
+          background: #3d4a5f;
+          border-color: #94a3b8;
+        }
+
+        .page-btn.active {
+          background: #1e3a5f;
+          color: white;
+          border-color: #1e3a5f;
+        }
+
+        .page-btn:disabled {
+          opacity: .4;
+          cursor: not-allowed;
+        }
+
+        .page-ellipsis {
+          padding: 0 6px;
+          color: var(--text-muted, #94a3b8);
+          font-size: .9rem;
+        }
+
+        .theme-dark .page-ellipsis {
+          color: #94a3b8;
+        }
+
+        .page-size-selector {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .page-size-select {
+          padding: 6px 10px;
+          border: 1.5px solid var(--border-color, #e2e8f0);
+          border-radius: 7px;
+          font-size: .8rem;
+          background: var(--card-bg, #ffffff);
+          color: var(--text-primary, #0f172a);
+          cursor: pointer;
+          outline: none;
+        }
+
+        .theme-dark .page-size-select {
+          border-color: #475569;
+          background: #2d3a4f;
+          color: #f1f5f9;
+        }
+
+        .page-size-select:focus {
+          border-color: #3b82f6;
+        }
+
+        .page-size-label {
+          font-size: .78rem;
+          color: var(--text-muted, #94a3b8);
+        }
+
+        .theme-dark .page-size-label {
+          color: #94a3b8;
+        }
+
         @media (max-width: 768px) {
           .sec-monitor-header {
             flex-direction: column;
@@ -1314,6 +1508,20 @@ const SecurityMonitor = ({ events: propEvents = [], onResolve, loading: propLoad
 
           .sec-desc-cell {
             max-width: 120px;
+          }
+
+          .sec-pagination {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+
+          .page-btns {
+            justify-content: center;
+          }
+
+          .page-size-selector {
+            justify-content: center;
           }
         }
       `}</style>
