@@ -180,7 +180,7 @@ const normalizeBranchOption = (branch) => ({
 
 const normalizeRecommendation = (recommendation) => {
   const stock = Number(recommendation.currentStock ?? recommendation.quantity ?? 0)
-  const reorderPoint = Number(recommendation.reorderPoint ?? recommendation.reorderLevel ?? 0)
+  const reorderPoint = 50 // Hardcoded to 50 units
   const avgDailySales = Number(recommendation.avgDailySales ?? 0)
 
   return {

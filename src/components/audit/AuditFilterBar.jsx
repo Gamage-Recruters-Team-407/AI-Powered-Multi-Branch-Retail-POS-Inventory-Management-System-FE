@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { ThemeContext } from '../../pages/audit/AuditSecurityPage';
 
 const MODULE_OPTIONS = [
   'All Modules', 'Auth', 'POS', 'Inventory', 'Products',
@@ -13,8 +14,11 @@ const ACTION_OPTIONS = [
 
 const SEVERITY_OPTIONS = ['All Severities', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
+const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading, theme }) => {
   const [expanded, setExpanded] = useState(false);
+  const context = useContext(ThemeContext);
+  const currentTheme = context?.theme || theme || 'light';
+  const isDark = currentTheme === 'dark';
 
   const handleChange = (key, value) => {
     onChange({ ...filters, [key]: value });
@@ -23,7 +27,7 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
   const hasActiveFilters = Object.values(filters).some(v => v && v !== '');
 
   return (
-    <div className="audit-filter-bar">
+    <div className={`audit-filter-bar theme-${currentTheme}`}>
       {/* Search Row */}
       <div className="filter-main-row">
         <div className="filter-search-wrap">
@@ -126,22 +130,31 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
         </div>
       )}
 
+      {/* ✅ Dark/Light Theme Styles */}
       <style>{`
         .audit-filter-bar {
-          background: white;
-          border: 1.5px solid #e2e8f0;
+          background: var(--card-bg, #ffffff);
+          border: 1.5px solid var(--border-color, #e2e8f0);
           border-radius: 14px;
           padding: 16px 20px;
           display: flex;
           flex-direction: column;
           gap: 14px;
+          transition: background 0.3s, border-color 0.3s, color 0.3s;
         }
+
+        .theme-dark .audit-filter-bar {
+          background: #1e293b;
+          border-color: #334155;
+        }
+
         .filter-main-row {
           display: flex;
           gap: 12px;
           align-items: center;
           flex-wrap: wrap;
         }
+
         .filter-search-wrap {
           flex: 1;
           min-width: 240px;
@@ -149,62 +162,120 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           display: flex;
           align-items: center;
         }
+
         .search-icon {
           position: absolute;
           left: 12px;
           font-size: .95rem;
           pointer-events: none;
         }
+
         .filter-search {
           width: 100%;
           padding: 9px 36px 9px 36px;
-          border: 1.5px solid #e2e8f0;
+          border: 1.5px solid var(--input-border, #e2e8f0);
           border-radius: 9px;
           font-size: .875rem;
-          color: #0f172a;
-          background: #f8fafc;
+          color: var(--text-primary, #0f172a);
+          background: var(--input-bg, #f8fafc);
           transition: border-color .15s;
           outline: none;
         }
-        .filter-search:focus { border-color: #3b82f6; background: white; }
+
+        .theme-dark .filter-search {
+          border-color: #475569;
+          color: #f1f5f9;
+          background: #2d3a4f;
+        }
+
+        .filter-search:focus {
+          border-color: #3b82f6;
+          background: var(--card-bg, #ffffff);
+        }
+
+        .theme-dark .filter-search:focus {
+          background: #1e293b;
+        }
+
         .search-clear {
-          position: absolute; right: 10px;
-          color: #94a3b8; font-size: .8rem;
-          background: none; border: none; cursor: pointer;
+          position: absolute;
+          right: 10px;
+          color: var(--text-muted, #94a3b8);
+          font-size: .8rem;
+          background: none;
+          border: none;
+          cursor: pointer;
           padding: 4px;
         }
-        .filter-quick-btns { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+        .filter-quick-btns {
+          display: flex;
+          gap: 8px;
+          flex-shrink: 0;
+          flex-wrap: wrap;
+        }
+
         .filter-btn-search {
           padding: 9px 20px;
           background: #1e3a5f;
           color: white;
+          border: none;
           border-radius: 9px;
           font-size: .875rem;
           font-weight: 600;
           transition: background .15s;
+          cursor: pointer;
         }
-        .filter-btn-search:hover:not(:disabled) { background: #2563eb; }
-        .filter-btn-search:disabled { opacity: .6; cursor: not-allowed; }
+
+        .filter-btn-search:hover:not(:disabled) {
+          background: #2563eb;
+        }
+
+        .filter-btn-search:disabled {
+          opacity: .6;
+          cursor: not-allowed;
+        }
+
         .filter-btn-toggle {
           padding: 9px 16px;
-          border: 1.5px solid #e2e8f0;
+          border: 1.5px solid var(--border-color, #e2e8f0);
           border-radius: 9px;
           font-size: .875rem;
           font-weight: 500;
-          color: #475569;
-          background: white;
+          color: var(--text-secondary, #475569);
+          background: var(--card-bg, #ffffff);
           position: relative;
           transition: border-color .15s, background .15s;
+          cursor: pointer;
         }
-        .filter-btn-toggle.active { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+        .theme-dark .filter-btn-toggle {
+          border-color: #475569;
+          color: #cbd5e1;
+          background: #2d3a4f;
+        }
+
+        .filter-btn-toggle.active {
+          border-color: #3b82f6;
+          color: #3b82f6;
+          background: #eff6ff;
+        }
+
+        .theme-dark .filter-btn-toggle.active {
+          background: #1a2a4a;
+          color: #60a5fa;
+        }
+
         .filter-dot {
           display: inline-block;
-          width: 7px; height: 7px;
+          width: 7px;
+          height: 7px;
           background: #ef4444;
           border-radius: 50%;
           margin-left: 5px;
           vertical-align: middle;
         }
+
         .filter-btn-reset {
           padding: 9px 14px;
           border: 1.5px solid #fee2e2;
@@ -214,28 +285,100 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           color: #ef4444;
           background: #fff5f5;
           transition: background .15s;
+          cursor: pointer;
         }
-        .filter-btn-reset:hover { background: #fee2e2; }
+
+        .filter-btn-reset:hover {
+          background: #fee2e2;
+        }
+
+        .theme-dark .filter-btn-reset {
+          background: #3d0a0a;
+          border-color: #7f1d1d;
+          color: #f87171;
+        }
+
+        .theme-dark .filter-btn-reset:hover {
+          background: #5c1a1a;
+        }
+
         .filter-expanded {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 12px;
           padding-top: 12px;
-          border-top: 1px solid #f1f5f9;
+          border-top: 1px solid var(--border-color, #f1f5f9);
         }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-label { font-size: .72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+
+        .theme-dark .filter-expanded {
+          border-top-color: #334155;
+        }
+
+        .filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .filter-label {
+          font-size: .72rem;
+          font-weight: 700;
+          color: var(--text-muted, #64748b);
+          text-transform: uppercase;
+          letter-spacing: .06em;
+        }
+
         .filter-select {
           padding: 8px 10px;
-          border: 1.5px solid #e2e8f0;
+          border: 1.5px solid var(--input-border, #e2e8f0);
           border-radius: 8px;
           font-size: .82rem;
-          color: #0f172a;
-          background: #f8fafc;
+          color: var(--text-primary, #0f172a);
+          background: var(--input-bg, #f8fafc);
           outline: none;
           transition: border-color .15s;
         }
-        .filter-select:focus { border-color: #3b82f6; background: white; }
+
+        .theme-dark .filter-select {
+          border-color: #475569;
+          color: #f1f5f9;
+          background: #2d3a4f;
+        }
+
+        .filter-select:focus {
+          border-color: #3b82f6;
+          background: var(--card-bg, #ffffff);
+        }
+
+        .theme-dark .filter-select:focus {
+          background: #1e293b;
+        }
+
+        .filter-select option {
+          background: var(--card-bg, #ffffff);
+          color: var(--text-primary, #0f172a);
+        }
+
+        .theme-dark .filter-select option {
+          background: #1e293b;
+          color: #f1f5f9;
+        }
+
+        @media (max-width: 600px) {
+          .filter-main-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .filter-quick-btns {
+            justify-content: stretch;
+          }
+
+          .filter-quick-btns button {
+            flex: 1;
+            justify-content: center;
+          }
+        }
       `}</style>
     </div>
   );

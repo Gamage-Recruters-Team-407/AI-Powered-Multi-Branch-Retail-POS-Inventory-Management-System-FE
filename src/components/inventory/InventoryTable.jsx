@@ -42,7 +42,7 @@ export const InventoryTable = ({ items, onRowClick }) => {
               </tr>
             ) : (
               currentItems.map((item) => {
-                const isLow = item.quantity <= (item.product?.reorderLevel || 0);
+                const isLow = item.quantity < 50;
                 return (
                   <tr
                     key={item._id}
@@ -61,7 +61,7 @@ export const InventoryTable = ({ items, onRowClick }) => {
                       {(item.quantity || 0).toLocaleString()} units
                     </td>
                     <td className="px-4 py-4 text-right font-bold text-[var(--text-muted)]">
-                      {(item.product?.reorderLevel || 0).toLocaleString()} units
+                      50 units
                     </td>
                     <td className="px-5 py-4 text-center">
                       <span

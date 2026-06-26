@@ -5,7 +5,6 @@ import ZoneForm from "../../components/warehouse/ZoneForm";
 import StockTable from "../../components/warehouse/StockTable";
 import StockForm from "../../components/warehouse/StockForm";
 import TransferForm from "../../components/warehouse/TransferForm";
-import DispatchToBranchForm from "../../components/warehouse/DispatchToBranchForm";
 import TransactionsTab from "../../components/warehouse/TransactionsTab";
 import ReportsTab from "../../components/warehouse/ReportsTab";
 import * as warehouseService from "../../services/warehouseService";
@@ -139,9 +138,6 @@ export default function WarehouseDetail({ warehouseId, onBack }) {
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferError, setTransferError] = useState(null);
-
-  // ── Dispatch state ─────────────────────────
-  const [showDispatchForm, setShowDispatchForm] = useState(false);
 
   const handleTransferSubmit = async (formData) => {
     setTransferLoading(true);
@@ -340,16 +336,9 @@ export default function WarehouseDetail({ warehouseId, onBack }) {
             {/* Stock Tab */}
             {activeTab === "stock" && (
               <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setShowDispatchForm(true)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition active:scale-95"
-                  >
-                    🚛 Dispatch to Branch
-                  </button>
-                </div>
                 <StockTable
                   stocks={stocks}
+                  zones={zones}
                 />
               </div>
             )}
@@ -439,20 +428,6 @@ export default function WarehouseDetail({ warehouseId, onBack }) {
         </div>
       )}
 
-      {/* Dispatch to Branch Modal */}
-      {showDispatchForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-          <div className="w-full max-w-lg">
-            <DispatchToBranchForm
-              warehouseId={id}
-              zones={zones}
-              stocks={stocks}
-              onSuccess={() => { fetchStocks(); fetchData(); }}
-              onClose={() => setShowDispatchForm(false)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Transfer Form Modal */}
       {showTransferForm && (

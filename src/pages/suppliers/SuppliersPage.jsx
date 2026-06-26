@@ -538,9 +538,8 @@ const SuppliersPage = () => {
     setIsTransactionModalOpen(true);
   };
 
-  // Quick Restock helper to prepopulate transaction modal
   const handleQuickRestock = (alert, supplier) => {
-    const reorderLevel = alert.product?.reorderLevel || 50;
+    const reorderLevel = 50;
     const currentQty = alert.quantity || 0;
     const suggestedUnits = Math.max(reorderLevel * 2 - currentQty, 50);
     const costPrice = alert.product?.costPrice || 100;
@@ -569,7 +568,7 @@ const SuppliersPage = () => {
       setSelectedRestockSupplierId('');
     }
 
-    const reorderLevel = alert.product?.reorderLevel || 50;
+    const reorderLevel = 50;
     const currentQty = alert.quantity || 0;
     const suggestedUnits = Math.max(reorderLevel * 2 - currentQty, 50);
     const costPrice = alert.product?.costPrice || 100;
@@ -1172,7 +1171,7 @@ const SuppliersPage = () => {
                                     </div>
                                     <div className="alert-stock-details" style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                                       <span className="current-stock-label">Current Stock: <strong style={{ color: '#dc2626', fontWeight: '800' }}>{alert.quantity}</strong></span>
-                                      <span className="reorder-label">Reorder Limit: <strong style={{ color: '#1e293b' }}>{alert.product?.reorderLevel || 0}</strong></span>
+                                      <span className="reorder-label">Reorder Limit: <strong style={{ color: '#1e293b' }}>50</strong></span>
                                     </div>
                                   </div>
                                   <button
