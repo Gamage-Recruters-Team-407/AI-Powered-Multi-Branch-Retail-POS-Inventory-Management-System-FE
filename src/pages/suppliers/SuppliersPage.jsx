@@ -108,6 +108,8 @@ const SuppliersPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState('name'); // name, spend, rating, delivery
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
 
   // Details panel state
   const [viewingSupplier, setViewingSupplier] = useState(null);
@@ -224,7 +226,12 @@ const SuppliersPage = () => {
 
   useEffect(() => {
     loadSuppliers();
+    setCurrentPage(1); // reset to page 1 on filter/search change
   }, [searchQuery, selectedCategory, selectedStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1); // reset to page 1 on sort change
+  }, [sortBy]);
 
   useEffect(() => {
     if (viewingSupplier) {
@@ -280,6 +287,13 @@ const SuppliersPage = () => {
 
     return result;
   }, [suppliers, sortBy]);
+
+  // Paginated slice of sortedSuppliers
+  const totalPages = Math.max(1, Math.ceil(sortedSuppliers.length / ITEMS_PER_PAGE));
+  const paginatedSuppliers = sortedSuppliers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Form input handler
   const handleInputChange = (e) => {
@@ -796,7 +810,14 @@ const SuppliersPage = () => {
         {/* Suppliers List */}
         <div className="suppliers-list-panel">
           <div className="list-header">
-            <h3>Registered Suppliers ({sortedSuppliers.length})</h3>
+            <h3>
+              Registered Suppliers ({sortedSuppliers.length})
+              {totalPages > 1 && (
+                <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', marginLeft: '8px' }}>
+                  — Page {currentPage} of {totalPages}
+                </span>
+              )}
+            </h3>
           </div>
 
           {loading ? (
@@ -818,94 +839,146 @@ const SuppliersPage = () => {
               <p className="empty-subtitle">Try adjusting your filters or search term.</p>
             </div>
           ) : (
-            <div className="suppliers-grid">
-              {sortedSuppliers.map(supplier => {
-                const supplierAlerts = alerts.filter(
-                  alert => mapProductToCategory(alert.product?.name) === supplier.category
-                );
-                const hasAlerts = supplierAlerts.length > 0;
-                return (
-                  <div
-                    key={supplier.id || supplier._id}
-                    className={`supplier-item-card bg-glass hover-scale ${hasAlerts ? 'card-has-alerts' : ''} ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
-                    onClick={() => {
-                      setViewingSupplier(supplier);
-                      setActiveDetailTab(hasAlerts ? 'alerts' : 'performance');
-                    }}
-                  >
-                    <div className="card-top">
-                      <div className="supplier-icon-placeholder">🏢</div>
-                      <div className="title-area">
-                        <span className="supplier-id">{supplier.id || supplier._id}</span>
-                        <h4 className="supplier-name">{supplier.companyName}</h4>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className="category-badge">{supplier.category}</span>
-                          {hasAlerts && (
-                            <span className="alert-badge pulsing-alert">
-                              ⚠️ {supplierAlerts.length} Shortage{supplierAlerts.length > 1 ? 's' : ''}
-                            </span>
-                          )}
+            <>
+              <div className="suppliers-grid">
+                {paginatedSuppliers.map(supplier => {
+                  const supplierAlerts = alerts.filter(
+                    alert => mapProductToCategory(alert.product?.name) === supplier.category
+                  );
+                  const hasAlerts = supplierAlerts.length > 0;
+                  return (
+                    <div
+                      key={supplier.id || supplier._id}
+                      className={`supplier-item-card bg-glass hover-scale ${hasAlerts ? 'card-has-alerts' : ''} ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
+                      onClick={() => {
+                        setViewingSupplier(supplier);
+                        setActiveDetailTab(hasAlerts ? 'alerts' : 'performance');
+                      }}
+                    >
+                      <div className="card-top">
+                        <div className="supplier-icon-placeholder">🏢</div>
+                        <div className="title-area">
+                          <span className="supplier-id">{supplier.id || supplier._id}</span>
+                          <h4 className="supplier-name">{supplier.companyName}</h4>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span className="category-badge">{supplier.category}</span>
+                            {hasAlerts && (
+                              <span className="alert-badge pulsing-alert">
+                                ⚠️ {supplierAlerts.length} Shortage{supplierAlerts.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
-                        {supplier.status}
-                      </span>
-                    </div>
-
-                    <div className="card-info">
-                      <div className="info-row">
-                        <span>👤 Contact:</span>
-                        <strong>{supplier.contactPerson}</strong>
-                      </div>
-                      <div className="info-row">
-                        <span>📞 Phone:</span>
-                        <span>{supplier.phone}</span>
-                      </div>
-                      <div className="info-row">
-                        <span>⭐ Rating:</span>
-                        <div className="star-rating">
-                          <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card-mini-metrics">
-                      <div className="mini-stat">
-                        <span className="label">Delivery</span>
-                        <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
-                          {supplier.performance?.onTimeDelivery || 95}%
+                        <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
+                          {supplier.status}
                         </span>
                       </div>
-                      <div className="mini-stat">
-                        <span className="label">Spend</span>
-                        <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
 
-                    {isAdminOrManager && (
-                      <div className="card-actions">
-                        <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
-                          ✏️ Edit
-                        </button>
-                        <button
-                          className="edit-icon-btn delete-btn"
-                          onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
-                          title="Delete Supplier"
-                        >
-                          🗑️ Delete
-                        </button>
-                        <button
-                          className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
-                          onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
-                        >
-                          {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
-                        </button>
+                      <div className="card-info">
+                        <div className="info-row">
+                          <span>👤 Contact:</span>
+                          <strong>{supplier.contactPerson}</strong>
+                        </div>
+                        <div className="info-row">
+                          <span>📞 Phone:</span>
+                          <span>{supplier.phone}</span>
+                        </div>
+                        <div className="info-row">
+                          <span>⭐ Rating:</span>
+                          <div className="star-rating">
+                            <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+
+                      <div className="card-mini-metrics">
+                        <div className="mini-stat">
+                          <span className="label">Delivery</span>
+                          <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
+                            {supplier.performance?.onTimeDelivery || 95}%
+                          </span>
+                        </div>
+                        <div className="mini-stat">
+                          <span className="label">Spend</span>
+                          <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {isAdminOrManager && (
+                        <div className="card-actions">
+                          <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className="edit-icon-btn delete-btn"
+                            onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
+                            title="Delete Supplier"
+                          >
+                            🗑️ Delete
+                          </button>
+                          <button
+                            className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
+                            onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
+                          >
+                            {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '6px', marginTop: '16px', flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '7px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                      background: currentPage === 1 ? '#f8fafc' : '#fff',
+                      color: currentPage === 1 ? '#cbd5e1' : '#475569',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontWeight: '700', fontSize: '13px', transition: 'all 0.15s'
+                    }}
+                  >‹ Prev</button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        padding: '7px 13px', borderRadius: '10px', fontWeight: '700', fontSize: '13px',
+                        border: page === currentPage ? 'none' : '1.5px solid #e2e8f0',
+                        background: page === currentPage
+                          ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
+                          : '#fff',
+                        color: page === currentPage ? '#fff' : '#475569',
+                        cursor: 'pointer',
+                        boxShadow: page === currentPage ? '0 4px 12px rgba(37,99,235,0.28)' : 'none',
+                        transition: 'all 0.15s'
+                      }}
+                    >{page}</button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '7px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                      background: currentPage === totalPages ? '#f8fafc' : '#fff',
+                      color: currentPage === totalPages ? '#cbd5e1' : '#475569',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      fontWeight: '700', fontSize: '13px', transition: 'all 0.15s'
+                    }}
+                  >Next ›</button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
