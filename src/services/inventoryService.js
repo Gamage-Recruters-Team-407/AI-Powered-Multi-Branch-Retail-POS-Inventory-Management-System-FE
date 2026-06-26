@@ -357,7 +357,14 @@ export const getMovementHistory = (inventoryId = "", branchId = "", startDate = 
 };
 
 export const getBranches = () => {
-  return axios.get(`${API_BASE_URL}/branches`)
-    .then(res => res.data)
+  const token = localStorage.getItem("token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  return axios.get(`${API_BASE_URL}/branches`, { headers })
+    .then(res => {
+      const raw = res.data;
+      // Normalize: API may return plain array or { data: [], success: true }
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+      return { data: list, success: true };
+    })
     .catch(() => ({ data: MOCK_BRANCHES, success: true }));
 };

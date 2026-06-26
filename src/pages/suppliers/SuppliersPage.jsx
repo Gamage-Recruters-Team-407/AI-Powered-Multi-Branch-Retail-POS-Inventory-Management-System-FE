@@ -12,7 +12,8 @@ import {
   addTransaction,
   getProcurementHistory,
   getDetailedPerformance,
-  updateTransactionStatus
+  updateTransactionStatus,
+  deleteTransaction
 } from '../../services/supplierApi';
 
 const CATEGORIES = [
@@ -107,6 +108,8 @@ const SuppliersPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState('name'); // name, spend, rating, delivery
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
 
   // Details panel state
   const [viewingSupplier, setViewingSupplier] = useState(null);
@@ -223,7 +226,12 @@ const SuppliersPage = () => {
 
   useEffect(() => {
     loadSuppliers();
+    setCurrentPage(1); // reset to page 1 on filter/search change
   }, [searchQuery, selectedCategory, selectedStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1); // reset to page 1 on sort change
+  }, [sortBy]);
 
   useEffect(() => {
     if (viewingSupplier) {
@@ -279,6 +287,13 @@ const SuppliersPage = () => {
 
     return result;
   }, [suppliers, sortBy]);
+
+  // Paginated slice of sortedSuppliers
+  const totalPages = Math.max(1, Math.ceil(sortedSuppliers.length / ITEMS_PER_PAGE));
+  const paginatedSuppliers = sortedSuppliers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Form input handler
   const handleInputChange = (e) => {
@@ -371,6 +386,13 @@ const SuppliersPage = () => {
       const todayStr = getLocalDateString();
       if (formData.contract.startDate < todayStr) {
         errors.startDate = 'Contract start date cannot be in the past';
+      }
+    }
+
+    // Contract End Date validation (must be at or after start date)
+    if (formData.contract && formData.contract.startDate && formData.contract.endDate) {
+      if (formData.contract.endDate < formData.contract.startDate) {
+        errors.endDate = 'Contract end date cannot be before start date';
       }
     }
     
@@ -510,6 +532,10 @@ const SuppliersPage = () => {
     const todayStr = new Date().toISOString().substring(0, 10);
     if (contractFormData.startDate && contractFormData.startDate < todayStr) {
       alert("Error: Contract start date cannot be in the past.");
+      return;
+    }
+    if (contractFormData.startDate && contractFormData.endDate && contractFormData.endDate < contractFormData.startDate) {
+      alert("Error: Contract end date cannot be before the contract start date.");
       return;
     }
     const id = viewingSupplier.id || viewingSupplier._id;
@@ -661,6 +687,24 @@ const SuppliersPage = () => {
     }
   };
 
+  // Delete a Cancelled transaction from the Timeline
+  const handleDeleteTransaction = async (transactionId) => {
+    if (!window.confirm('Delete this cancelled transaction? This action cannot be undone.')) return;
+    const supplierId = viewingSupplier.id || viewingSupplier._id;
+    try {
+      const res = await deleteTransaction(supplierId, transactionId);
+      if (res.success) {
+        loadSupplierDetails(supplierId);
+        loadSuppliers();
+      } else {
+        alert('Error: ' + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete transaction.');
+    }
+  };
+
   // AI Insights Style Helper
   const getAIRecommendationStyle = (rec) => {
     if (!rec) return 'normal';
@@ -766,7 +810,14 @@ const SuppliersPage = () => {
         {/* Suppliers List */}
         <div className="suppliers-list-panel">
           <div className="list-header">
-            <h3>Registered Suppliers ({sortedSuppliers.length})</h3>
+            <h3>
+              Registered Suppliers ({sortedSuppliers.length})
+              {totalPages > 1 && (
+                <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', marginLeft: '8px' }}>
+                  — Page {currentPage} of {totalPages}
+                </span>
+              )}
+            </h3>
           </div>
 
           {loading ? (
@@ -788,94 +839,146 @@ const SuppliersPage = () => {
               <p className="empty-subtitle">Try adjusting your filters or search term.</p>
             </div>
           ) : (
-            <div className="suppliers-grid">
-              {sortedSuppliers.map(supplier => {
-                const supplierAlerts = alerts.filter(
-                  alert => mapProductToCategory(alert.product?.name) === supplier.category
-                );
-                const hasAlerts = supplierAlerts.length > 0;
-                return (
-                  <div
-                    key={supplier.id || supplier._id}
-                    className={`supplier-item-card bg-glass hover-scale ${hasAlerts ? 'card-has-alerts' : ''} ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
-                    onClick={() => {
-                      setViewingSupplier(supplier);
-                      setActiveDetailTab(hasAlerts ? 'alerts' : 'performance');
-                    }}
-                  >
-                    <div className="card-top">
-                      <div className="supplier-icon-placeholder">🏢</div>
-                      <div className="title-area">
-                        <span className="supplier-id">{supplier.id || supplier._id}</span>
-                        <h4 className="supplier-name">{supplier.companyName}</h4>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className="category-badge">{supplier.category}</span>
-                          {hasAlerts && (
-                            <span className="alert-badge pulsing-alert">
-                              ⚠️ {supplierAlerts.length} Shortage{supplierAlerts.length > 1 ? 's' : ''}
-                            </span>
-                          )}
+            <>
+              <div className="suppliers-grid">
+                {paginatedSuppliers.map(supplier => {
+                  const supplierAlerts = alerts.filter(
+                    alert => mapProductToCategory(alert.product?.name) === supplier.category
+                  );
+                  const hasAlerts = supplierAlerts.length > 0;
+                  return (
+                    <div
+                      key={supplier.id || supplier._id}
+                      className={`supplier-item-card bg-glass hover-scale ${hasAlerts ? 'card-has-alerts' : ''} ${viewingSupplier?.id === (supplier.id || supplier._id) || viewingSupplier?._id === (supplier.id || supplier._id) ? 'selected' : ''}`}
+                      onClick={() => {
+                        setViewingSupplier(supplier);
+                        setActiveDetailTab(hasAlerts ? 'alerts' : 'performance');
+                      }}
+                    >
+                      <div className="card-top">
+                        <div className="supplier-icon-placeholder">🏢</div>
+                        <div className="title-area">
+                          <span className="supplier-id">{supplier.id || supplier._id}</span>
+                          <h4 className="supplier-name">{supplier.companyName}</h4>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span className="category-badge">{supplier.category}</span>
+                            {hasAlerts && (
+                              <span className="alert-badge pulsing-alert">
+                                ⚠️ {supplierAlerts.length} Shortage{supplierAlerts.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
-                        {supplier.status}
-                      </span>
-                    </div>
-
-                    <div className="card-info">
-                      <div className="info-row">
-                        <span>👤 Contact:</span>
-                        <strong>{supplier.contactPerson}</strong>
-                      </div>
-                      <div className="info-row">
-                        <span>📞 Phone:</span>
-                        <span>{supplier.phone}</span>
-                      </div>
-                      <div className="info-row">
-                        <span>⭐ Rating:</span>
-                        <div className="star-rating">
-                          <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card-mini-metrics">
-                      <div className="mini-stat">
-                        <span className="label">Delivery</span>
-                        <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
-                          {supplier.performance?.onTimeDelivery || 95}%
+                        <span className={`status-pill ${supplier.status.toLowerCase().replace(' ', '-')}`}>
+                          {supplier.status}
                         </span>
                       </div>
-                      <div className="mini-stat">
-                        <span className="label">Spend</span>
-                        <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
 
-                    {isAdminOrManager && (
-                      <div className="card-actions">
-                        <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
-                          ✏️ Edit
-                        </button>
-                        <button
-                          className="edit-icon-btn delete-btn"
-                          onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
-                          title="Delete Supplier"
-                        >
-                          🗑️ Delete
-                        </button>
-                        <button
-                          className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
-                          onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
-                        >
-                          {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
-                        </button>
+                      <div className="card-info">
+                        <div className="info-row">
+                          <span>👤 Contact:</span>
+                          <strong>{supplier.contactPerson}</strong>
+                        </div>
+                        <div className="info-row">
+                          <span>📞 Phone:</span>
+                          <span>{supplier.phone}</span>
+                        </div>
+                        <div className="info-row">
+                          <span>⭐ Rating:</span>
+                          <div className="star-rating">
+                            <span className="stars">★</span> {(supplier.rating || 5.0).toFixed(1)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+
+                      <div className="card-mini-metrics">
+                        <div className="mini-stat">
+                          <span className="label">Delivery</span>
+                          <span className={`value ${supplier.performance?.onTimeDelivery >= 90 ? 'good' : supplier.performance?.onTimeDelivery >= 80 ? 'warn' : 'bad'}`}>
+                            {supplier.performance?.onTimeDelivery || 95}%
+                          </span>
+                        </div>
+                        <div className="mini-stat">
+                          <span className="label">Spend</span>
+                          <span className="value">Rs. {(supplier.totalSpend || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {isAdminOrManager && (
+                        <div className="card-actions">
+                          <button className="edit-icon-btn" onClick={(e) => handleOpenEditForm(supplier, e)} title="Edit Supplier Info">
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className="edit-icon-btn delete-btn"
+                            onClick={(e) => handleDeleteSupplier(supplier.id || supplier._id, e)}
+                            title="Delete Supplier"
+                          >
+                            🗑️ Delete
+                          </button>
+                          <button
+                            className={`status-toggle-btn ${supplier.status === 'Active' ? 'deactivate' : 'activate'}`}
+                            onClick={(e) => handleToggleStatus(supplier.id || supplier._id, supplier.status, e)}
+                          >
+                            {supplier.status === 'Active' ? '⏸️ Suspend' : '▶️ Activate'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '6px', marginTop: '16px', flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '7px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                      background: currentPage === 1 ? '#f8fafc' : '#fff',
+                      color: currentPage === 1 ? '#cbd5e1' : '#475569',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontWeight: '700', fontSize: '13px', transition: 'all 0.15s'
+                    }}
+                  >‹ Prev</button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        padding: '7px 13px', borderRadius: '10px', fontWeight: '700', fontSize: '13px',
+                        border: page === currentPage ? 'none' : '1.5px solid #e2e8f0',
+                        background: page === currentPage
+                          ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
+                          : '#fff',
+                        color: page === currentPage ? '#fff' : '#475569',
+                        cursor: 'pointer',
+                        boxShadow: page === currentPage ? '0 4px 12px rgba(37,99,235,0.28)' : 'none',
+                        transition: 'all 0.15s'
+                      }}
+                    >{page}</button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '7px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                      background: currentPage === totalPages ? '#f8fafc' : '#fff',
+                      color: currentPage === totalPages ? '#cbd5e1' : '#475569',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      fontWeight: '700', fontSize: '13px', transition: 'all 0.15s'
+                    }}
+                  >Next ›</button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1106,28 +1209,56 @@ const SuppliersPage = () => {
                                   </td>
                                   <td>
                                     {isAdminOrManager ? (
-                                      <select
-                                        value={tx.status}
-                                        onChange={(e) => handleStatusChange(tx.id, e.target.value)}
-                                        className={`status-pill ${tx.status.toLowerCase()}`}
-                                        style={{
-                                          border: 'none',
-                                          cursor: 'pointer',
-                                          outline: 'none',
-                                          padding: '3px 16px 3px 8px',
-                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")',
-                                          backgroundRepeat: 'no-repeat',
-                                          backgroundPosition: 'right 4px center',
-                                          backgroundSize: '8px',
-                                          appearance: 'none',
-                                          WebkitAppearance: 'none',
-                                          MozAppearance: 'none'
-                                        }}
-                                      >
-                                        <option value="Pending" style={{ background: '#ffffff', color: '#1e293b' }}>Pending</option>
-                                        <option value="Delivered" style={{ background: '#ffffff', color: '#1e293b' }}>Delivered</option>
-                                        <option value="Cancelled" style={{ background: '#ffffff', color: '#1e293b' }}>Cancelled</option>
-                                      </select>
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                                        <select
+                                          value={tx.status}
+                                          onChange={(e) => handleStatusChange(tx.id, e.target.value)}
+                                          className={`status-pill ${tx.status.toLowerCase()}`}
+                                          style={{
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            outline: 'none',
+                                            padding: '3px 16px 3px 8px',
+                                            backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 4px center',
+                                            backgroundSize: '8px',
+                                            appearance: 'none',
+                                            WebkitAppearance: 'none',
+                                            MozAppearance: 'none'
+                                          }}
+                                        >
+                                          <option value="Pending" style={{ background: '#ffffff', color: '#1e293b' }}>Pending</option>
+                                          <option value="Delivered" style={{ background: '#ffffff', color: '#1e293b' }}>Delivered</option>
+                                          <option value="Cancelled" style={{ background: '#ffffff', color: '#1e293b' }}>Cancelled</option>
+                                        </select>
+                                        {tx.status === 'Cancelled' && (
+                                          <button
+                                            onClick={() => handleDeleteTransaction(tx.id)}
+                                            title="Delete this cancelled transaction"
+                                            style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              background: 'rgba(239,68,68,0.08)',
+                                              border: '1px solid rgba(239,68,68,0.35)',
+                                              borderRadius: '7px',
+                                              color: '#ef4444',
+                                              cursor: 'pointer',
+                                              fontSize: '11px',
+                                              fontWeight: '700',
+                                              padding: '3px 9px',
+                                              lineHeight: 1.4,
+                                              transition: 'background 0.15s, border-color 0.15s',
+                                              whiteSpace: 'nowrap',
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)'; }}
+                                          >
+                                            🗑️ Delete
+                                          </button>
+                                        )}
+                                      </div>
                                     ) : (
                                       <span className={`status-pill ${tx.status.toLowerCase()}`}>
                                         {tx.status}
@@ -1317,10 +1448,10 @@ const SuppliersPage = () => {
                 </div>
 
                 {/* Contract initialization if creating */}
-                {formMode === 'create' && (
+                {(formMode === 'create' || formMode === 'edit') && (
                   <>
                     <div className="form-section-title full-width">
-                      <h4>📜 Initial Contract Information</h4>
+                      <h4>📜 {formMode === 'create' ? 'Initial Contract Information' : 'Contract Information'}</h4>
                     </div>
 
                     <div className="form-group">
@@ -1331,7 +1462,7 @@ const SuppliersPage = () => {
                         value={formData.contract.startDate}
                         onChange={handleInputChange}
                         className={formErrors.startDate ? 'error' : ''}
-                        min={getLocalDateString()}
+                        min={formMode === 'create' ? getLocalDateString() : undefined}
                       />
                       {formErrors.startDate && <span className="error-text">{formErrors.startDate}</span>}
                     </div>
@@ -1343,7 +1474,10 @@ const SuppliersPage = () => {
                         name="contract.endDate"
                         value={formData.contract.endDate}
                         onChange={handleInputChange}
+                        className={formErrors.endDate ? 'error' : ''}
+                        min={formData.contract.startDate}
                       />
+                      {formErrors.endDate && <span className="error-text">{formErrors.endDate}</span>}
                     </div>
 
                     <div className="form-group">
@@ -1483,6 +1617,7 @@ const SuppliersPage = () => {
                     type="date"
                     value={contractFormData.endDate}
                     onChange={e => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    min={contractFormData.startDate}
                   />
                 </div>
 
