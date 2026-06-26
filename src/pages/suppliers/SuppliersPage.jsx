@@ -12,7 +12,8 @@ import {
   addTransaction,
   getProcurementHistory,
   getDetailedPerformance,
-  updateTransactionStatus
+  updateTransactionStatus,
+  deleteTransaction
 } from '../../services/supplierApi';
 
 const CATEGORIES = [
@@ -373,6 +374,13 @@ const SuppliersPage = () => {
         errors.startDate = 'Contract start date cannot be in the past';
       }
     }
+
+    // Contract End Date validation (must be at or after start date)
+    if (formData.contract && formData.contract.startDate && formData.contract.endDate) {
+      if (formData.contract.endDate < formData.contract.startDate) {
+        errors.endDate = 'Contract end date cannot be before start date';
+      }
+    }
     
     console.log('Supplier validation result:', { data: formData, errors });
     setFormErrors(errors);
@@ -510,6 +518,10 @@ const SuppliersPage = () => {
     const todayStr = new Date().toISOString().substring(0, 10);
     if (contractFormData.startDate && contractFormData.startDate < todayStr) {
       alert("Error: Contract start date cannot be in the past.");
+      return;
+    }
+    if (contractFormData.startDate && contractFormData.endDate && contractFormData.endDate < contractFormData.startDate) {
+      alert("Error: Contract end date cannot be before the contract start date.");
       return;
     }
     const id = viewingSupplier.id || viewingSupplier._id;
@@ -658,6 +670,24 @@ const SuppliersPage = () => {
     } catch (err) {
       console.error(err);
       alert("Failed to update transaction status.");
+    }
+  };
+
+  // Delete a Cancelled transaction from the Timeline
+  const handleDeleteTransaction = async (transactionId) => {
+    if (!window.confirm('Delete this cancelled transaction? This action cannot be undone.')) return;
+    const supplierId = viewingSupplier.id || viewingSupplier._id;
+    try {
+      const res = await deleteTransaction(supplierId, transactionId);
+      if (res.success) {
+        loadSupplierDetails(supplierId);
+        loadSuppliers();
+      } else {
+        alert('Error: ' + res.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete transaction.');
     }
   };
 
@@ -1106,28 +1136,56 @@ const SuppliersPage = () => {
                                   </td>
                                   <td>
                                     {isAdminOrManager ? (
-                                      <select
-                                        value={tx.status}
-                                        onChange={(e) => handleStatusChange(tx.id, e.target.value)}
-                                        className={`status-pill ${tx.status.toLowerCase()}`}
-                                        style={{
-                                          border: 'none',
-                                          cursor: 'pointer',
-                                          outline: 'none',
-                                          padding: '3px 16px 3px 8px',
-                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")',
-                                          backgroundRepeat: 'no-repeat',
-                                          backgroundPosition: 'right 4px center',
-                                          backgroundSize: '8px',
-                                          appearance: 'none',
-                                          WebkitAppearance: 'none',
-                                          MozAppearance: 'none'
-                                        }}
-                                      >
-                                        <option value="Pending" style={{ background: '#ffffff', color: '#1e293b' }}>Pending</option>
-                                        <option value="Delivered" style={{ background: '#ffffff', color: '#1e293b' }}>Delivered</option>
-                                        <option value="Cancelled" style={{ background: '#ffffff', color: '#1e293b' }}>Cancelled</option>
-                                      </select>
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                                        <select
+                                          value={tx.status}
+                                          onChange={(e) => handleStatusChange(tx.id, e.target.value)}
+                                          className={`status-pill ${tx.status.toLowerCase()}`}
+                                          style={{
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            outline: 'none',
+                                            padding: '3px 16px 3px 8px',
+                                            backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 4px center',
+                                            backgroundSize: '8px',
+                                            appearance: 'none',
+                                            WebkitAppearance: 'none',
+                                            MozAppearance: 'none'
+                                          }}
+                                        >
+                                          <option value="Pending" style={{ background: '#ffffff', color: '#1e293b' }}>Pending</option>
+                                          <option value="Delivered" style={{ background: '#ffffff', color: '#1e293b' }}>Delivered</option>
+                                          <option value="Cancelled" style={{ background: '#ffffff', color: '#1e293b' }}>Cancelled</option>
+                                        </select>
+                                        {tx.status === 'Cancelled' && (
+                                          <button
+                                            onClick={() => handleDeleteTransaction(tx.id)}
+                                            title="Delete this cancelled transaction"
+                                            style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              background: 'rgba(239,68,68,0.08)',
+                                              border: '1px solid rgba(239,68,68,0.35)',
+                                              borderRadius: '7px',
+                                              color: '#ef4444',
+                                              cursor: 'pointer',
+                                              fontSize: '11px',
+                                              fontWeight: '700',
+                                              padding: '3px 9px',
+                                              lineHeight: 1.4,
+                                              transition: 'background 0.15s, border-color 0.15s',
+                                              whiteSpace: 'nowrap',
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)'; }}
+                                          >
+                                            🗑️ Delete
+                                          </button>
+                                        )}
+                                      </div>
                                     ) : (
                                       <span className={`status-pill ${tx.status.toLowerCase()}`}>
                                         {tx.status}
@@ -1317,10 +1375,10 @@ const SuppliersPage = () => {
                 </div>
 
                 {/* Contract initialization if creating */}
-                {formMode === 'create' && (
+                {(formMode === 'create' || formMode === 'edit') && (
                   <>
                     <div className="form-section-title full-width">
-                      <h4>📜 Initial Contract Information</h4>
+                      <h4>📜 {formMode === 'create' ? 'Initial Contract Information' : 'Contract Information'}</h4>
                     </div>
 
                     <div className="form-group">
@@ -1331,7 +1389,7 @@ const SuppliersPage = () => {
                         value={formData.contract.startDate}
                         onChange={handleInputChange}
                         className={formErrors.startDate ? 'error' : ''}
-                        min={getLocalDateString()}
+                        min={formMode === 'create' ? getLocalDateString() : undefined}
                       />
                       {formErrors.startDate && <span className="error-text">{formErrors.startDate}</span>}
                     </div>
@@ -1343,7 +1401,10 @@ const SuppliersPage = () => {
                         name="contract.endDate"
                         value={formData.contract.endDate}
                         onChange={handleInputChange}
+                        className={formErrors.endDate ? 'error' : ''}
+                        min={formData.contract.startDate}
                       />
+                      {formErrors.endDate && <span className="error-text">{formErrors.endDate}</span>}
                     </div>
 
                     <div className="form-group">
@@ -1483,6 +1544,7 @@ const SuppliersPage = () => {
                     type="date"
                     value={contractFormData.endDate}
                     onChange={e => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    min={contractFormData.startDate}
                   />
                 </div>
 
