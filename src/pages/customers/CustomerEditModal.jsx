@@ -8,7 +8,7 @@ const RULES = {
   firstName: (v) => !v.trim() ? "First name is required" : v.trim().length < 2 ? "Minimum 2 characters" : "",
   lastName:  (v) => !v.trim() ? "Last name is required"  : v.trim().length < 2 ? "Minimum 2 characters" : "",
   email:     (v) => !v.trim() ? "Email address is required" : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "Enter a valid email address" : "",
-  phone:     (v) => !v.trim() ? "Phone number is required" : !/^\+?[\d\s\-]{7,15}$/.test(v) ? "Enter a valid phone number (7–15 digits)" : "",
+  phone:     (v) => !v.trim() ? "Phone number is required" : !/^\d{10}$/.test(v) ? "Phone number must be exactly 10 digits" : "",
 };
 
 export default function CustomerEditModal({ customer, onClose, onSuccess }) {
@@ -53,7 +53,13 @@ export default function CustomerEditModal({ customer, onClose, onSuccess }) {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    
+    // Restrict phone field to numbers only and max 10 digits
+    if (name === "phone") {
+      value = value.replace(/\D/g, "").slice(0, 10);
+    }
+    
     const next = { ...form, [name]: value };
     setForm(next);
     setSubmitErr("");
@@ -187,10 +193,12 @@ export default function CustomerEditModal({ customer, onClose, onSuccess }) {
               id="cem-phone"
               name="phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={form.phone}
               onChange={handleChange}
               onBlur={handleBlur}
-              placeholder="+94 77 123 4567"
+              placeholder="0771234567"
               autoComplete="tel"
               className={`cem-input ${fs("phone").err ? "cem-input--err" : ""} ${fs("phone").ok ? "cem-input--ok" : ""}`}
             />
