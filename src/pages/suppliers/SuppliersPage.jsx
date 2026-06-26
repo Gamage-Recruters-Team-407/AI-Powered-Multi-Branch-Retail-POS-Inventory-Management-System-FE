@@ -373,6 +373,13 @@ const SuppliersPage = () => {
         errors.startDate = 'Contract start date cannot be in the past';
       }
     }
+
+    // Contract End Date validation (must be at or after start date)
+    if (formData.contract && formData.contract.startDate && formData.contract.endDate) {
+      if (formData.contract.endDate < formData.contract.startDate) {
+        errors.endDate = 'Contract end date cannot be before start date';
+      }
+    }
     
     console.log('Supplier validation result:', { data: formData, errors });
     setFormErrors(errors);
@@ -510,6 +517,10 @@ const SuppliersPage = () => {
     const todayStr = new Date().toISOString().substring(0, 10);
     if (contractFormData.startDate && contractFormData.startDate < todayStr) {
       alert("Error: Contract start date cannot be in the past.");
+      return;
+    }
+    if (contractFormData.startDate && contractFormData.endDate && contractFormData.endDate < contractFormData.startDate) {
+      alert("Error: Contract end date cannot be before the contract start date.");
       return;
     }
     const id = viewingSupplier.id || viewingSupplier._id;
@@ -1317,10 +1328,10 @@ const SuppliersPage = () => {
                 </div>
 
                 {/* Contract initialization if creating */}
-                {formMode === 'create' && (
+                {(formMode === 'create' || formMode === 'edit') && (
                   <>
                     <div className="form-section-title full-width">
-                      <h4>📜 Initial Contract Information</h4>
+                      <h4>📜 {formMode === 'create' ? 'Initial Contract Information' : 'Contract Information'}</h4>
                     </div>
 
                     <div className="form-group">
@@ -1331,7 +1342,7 @@ const SuppliersPage = () => {
                         value={formData.contract.startDate}
                         onChange={handleInputChange}
                         className={formErrors.startDate ? 'error' : ''}
-                        min={getLocalDateString()}
+                        min={formMode === 'create' ? getLocalDateString() : undefined}
                       />
                       {formErrors.startDate && <span className="error-text">{formErrors.startDate}</span>}
                     </div>
@@ -1343,7 +1354,10 @@ const SuppliersPage = () => {
                         name="contract.endDate"
                         value={formData.contract.endDate}
                         onChange={handleInputChange}
+                        className={formErrors.endDate ? 'error' : ''}
+                        min={formData.contract.startDate}
                       />
+                      {formErrors.endDate && <span className="error-text">{formErrors.endDate}</span>}
                     </div>
 
                     <div className="form-group">
@@ -1483,6 +1497,7 @@ const SuppliersPage = () => {
                     type="date"
                     value={contractFormData.endDate}
                     onChange={e => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    min={contractFormData.startDate}
                   />
                 </div>
 
