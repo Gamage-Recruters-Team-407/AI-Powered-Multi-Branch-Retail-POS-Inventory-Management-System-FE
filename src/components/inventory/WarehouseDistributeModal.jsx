@@ -29,7 +29,11 @@ export default function WarehouseDistributeModal({ branches, onClose, onSuccess 
     const fetchWarehouses = async () => {
       try {
         const res = await warehouseService.getAllWarehouses();
-        setWarehouses(res.data || []);
+        const list = res.data || [];
+        setWarehouses(list);
+        if (list.length === 1) {
+          setFormData((prev) => ({ ...prev, warehouseId: list[0]._id }));
+        }
       } catch (err) {
         console.error("Failed to load warehouses", err);
         toast.error("Failed to load warehouses list.");
@@ -51,7 +55,11 @@ export default function WarehouseDistributeModal({ branches, onClose, onSuccess 
       setLoadingZones(true);
       try {
         const res = await warehouseService.getZonesByWarehouse(formData.warehouseId);
-        setZones(res.data || []);
+        const list = res.data || [];
+        setZones(list);
+        if (list.length === 1) {
+          setFormData((prev) => ({ ...prev, zoneId: list[0]._id }));
+        }
       } catch (err) {
         console.error("Failed to load zones", err);
         toast.error("Failed to load warehouse zones.");
@@ -75,9 +83,27 @@ export default function WarehouseDistributeModal({ branches, onClose, onSuccess 
       try {
         const res = await warehouseService.getWarehouseStock(formData.warehouseId);
         // Filter stocks that are allocated to this zone specifically
-        const zoneStocks = (res.data || []).filter(
-          (s) => s.zone?._id === formData.zoneId || s.zone === formData.zoneId
-        );
+        const zoneStocks = (res.data || [])
+          .map((s) => {
+            // Raw stock item
+            if (s.zone && (s.zone === formData.zoneId || s.zone?._id === formData.zoneId)) {
+              return s;
+            }
+            // Aggregated stock item with zones array
+            if (s.zones && Array.isArray(s.zones)) {
+              const alloc = s.zones.find(
+                (z) => z.zone === formData.zoneId || z.zone?._id === formData.zoneId
+              );
+              if (alloc) {
+                return {
+                  ...s,
+                  quantity: alloc.quantity, // actual quantity in this zone
+                };
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
         setStocks(zoneStocks);
       } catch (err) {
         console.error("Failed to load stocks", err);
