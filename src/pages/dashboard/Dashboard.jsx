@@ -466,6 +466,10 @@ const mapStatsToDashboardData = (stats, prevData) => {
         inventory.lowStockAlert?.count ??
         prevData?.low_stock_alerts?.count ??
         0,
+      items:
+        inventory.lowStockAlert?.items ??
+        prevData?.low_stock_alerts?.items ??
+        [],
     },
     branches:
       (stats.branches ?? prevData?.branches ?? null)?.map?.((b) => ({
