@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getBranchById,
@@ -8,6 +8,7 @@ import {
   getBranchPerformance,
 } from "../../services/branchApi";
 import EditBranchModal from "./EditBranchModal";
+import SaleDetailsModal from "../../components/SaleDetailsModal";
 import { useAuth } from "../../context/AuthContext";
 import {
   Store,
@@ -22,9 +23,91 @@ import {
   Users,
   BarChart3,
   Building2,
-  TrendingUp,
   ShoppingBag,
+  DollarSign,
+  Receipt,
+  CreditCard,
+  Eye,
+  RefreshCcw,
+  Download,
+  ChevronDown,
+  Calendar as CalendarIcon,
 } from "lucide-react";
+
+const SALES_PERIODS = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "Week" },
+  { id: "month", label: "Month" },
+];
+
+const EXPORT_PERIODS = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "This Week" },
+  { id: "month", label: "This Month" },
+  { id: "custom", label: "Custom Range" },
+  { id: "all", label: "All Time" },
+];
+
+const STATUS_STYLES = {
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  VOIDED: "bg-red-100 text-red-700",
+  REFUNDED: "bg-amber-100 text-amber-700",
+};
+
+const PAYMENT_STYLES = {
+  CASH: "bg-blue-100 text-blue-700",
+  CARD: "bg-purple-100 text-purple-700",
+  QR: "bg-pink-100 text-pink-700",
+};
+
+function isWithinPeriod(dateValue, period) {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  const now = new Date();
+
+  if (period === "today") {
+    return date.toDateString() === now.toDateString();
+  }
+
+  if (period === "week") {
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+    return date >= weekAgo && date <= now;
+  }
+
+  if (period === "month") {
+    return (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  }
+
+  return true;
+}
+
+function isWithinCustomRange(dateValue, startDate, endDate) {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    if (date < start) return false;
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    if (date > end) return false;
+  }
+  return true;
+}
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
 
 export default function BranchDetailsPage() {
   const { id } = useParams();
@@ -38,6 +121,17 @@ export default function BranchDetailsPage() {
   const [activeTab, setActiveTab] = useState("info");
   const [showEditModal, setShowEditModal] = useState(false);
   const [salesPage, setSalesPage] = useState(1);
+  const [salesPeriod, setSalesPeriod] = useState("today");
+  const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [selectedSale, setSelectedSale] = useState(null);
+
+  // Export panel state
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportPeriod, setExportPeriod] = useState("today");
+  const [exportPayment, setExportPayment] = useState("ALL");
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+
   const SALES_PER_PAGE = 10;
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -66,11 +160,32 @@ export default function BranchDetailsPage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (loading) return <div className="text-center p-8 text-lg">Loading...</div>;
-  if (!branch)
-    return <div className="text-center p-8 text-lg">Branch not found</div>;
+  const periodSales = useMemo(
+    () => sales.filter((sale) => isWithinPeriod(sale.createdAt, salesPeriod)),
+    [sales, salesPeriod]
+  );
+
+  const filteredSales = useMemo(() => {
+    if (paymentFilter === "ALL") return periodSales;
+    return periodSales.filter((sale) => sale.paymentMethod === paymentFilter);
+  }, [periodSales, paymentFilter]);
+
+  const salesStats = useMemo(() => {
+    const revenue = periodSales.reduce(
+      (sum, sale) => sum + (sale.totalAmount || 0),
+      0
+    );
+    const transactions = periodSales.length;
+    const avgValue = transactions > 0 ? revenue / transactions : 0;
+    const cash = periodSales.filter((s) => s.paymentMethod === "CASH").length;
+    const card = periodSales.filter((s) => s.paymentMethod === "CARD").length;
+    const qr = periodSales.filter((s) => s.paymentMethod === "QR").length;
+
+    return { revenue, transactions, avgValue, cash, card, qr };
+  }, [periodSales]);
 
   const getManagerName = (manager) => {
     if (!manager) return "N/A";
@@ -83,8 +198,132 @@ export default function BranchDetailsPage() {
     );
   };
 
-  const salesTotalPages = Math.max(1, Math.ceil(sales.length / SALES_PER_PAGE));
-  const paginatedSales = sales.slice(
+  const getCashierName = (cashier) => {
+    if (!cashier) return "N/A";
+    if (typeof cashier === "string") return cashier;
+    return (
+      `${cashier.firstName || ""} ${cashier.lastName || ""}`.trim() ||
+      cashier.email ||
+      "N/A"
+    );
+  };
+
+  const handleDownloadCsv = () => {
+    let exportSales = sales;
+
+    // Apply date filter
+    if (exportPeriod === "custom") {
+      exportSales = exportSales.filter((sale) =>
+        isWithinCustomRange(sale.createdAt, exportStartDate, exportEndDate)
+      );
+    } else if (exportPeriod !== "all") {
+      exportSales = exportSales.filter((sale) =>
+        isWithinPeriod(sale.createdAt, exportPeriod)
+      );
+    }
+
+    // Apply payment method filter
+    if (exportPayment !== "ALL") {
+      exportSales = exportSales.filter(
+        (sale) => sale.paymentMethod === exportPayment
+      );
+    }
+
+    const headers = [
+      "Invoice Number",
+      "Date & Time",
+      "Cashier",
+      "Item Name",
+      "Quantity",
+      "Unit Price",
+      "Line Total",
+      "Sale Subtotal",
+      "Discount",
+      "Tax",
+      "Sale Total",
+      "Payment Method",
+      "Status",
+    ];
+
+    const rows = [];
+
+    exportSales.forEach((sale) => {
+      const dateStr = sale.createdAt
+        ? new Date(sale.createdAt).toLocaleString()
+        : "N/A";
+      const cashierName = getCashierName(sale.cashier);
+
+      if (sale.items && sale.items.length > 0) {
+        sale.items.forEach((item) => {
+          rows.push([
+            sale.invoiceNumber || "N/A",
+            dateStr,
+            cashierName,
+            item.name || "N/A",
+            item.quantity ?? "",
+            Number(item.unitPrice ?? 0).toFixed(2),
+            Number(item.lineTotal ?? 0).toFixed(2),
+            Number(sale.subtotal ?? 0).toFixed(2),
+            Number(sale.discountAmount ?? 0).toFixed(2),
+            Number(sale.taxAmount ?? 0).toFixed(2),
+            Number(sale.totalAmount ?? 0).toFixed(2),
+            sale.paymentMethod || "N/A",
+            sale.status || "N/A",
+          ]);
+        });
+      } else {
+        rows.push([
+          sale.invoiceNumber || "N/A",
+          dateStr,
+          cashierName,
+          "",
+          "",
+          "",
+          "",
+          Number(sale.subtotal ?? 0).toFixed(2),
+          Number(sale.discountAmount ?? 0).toFixed(2),
+          Number(sale.taxAmount ?? 0).toFixed(2),
+          Number(sale.totalAmount ?? 0).toFixed(2),
+          sale.paymentMethod || "N/A",
+          sale.status || "N/A",
+        ]);
+      }
+    });
+
+    const csvContent = [
+      headers.map(csvEscape).join(","),
+      ...rows.map((row) => row.map(csvEscape).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const branchLabel = (branch?.code || branch?.name || "branch")
+      .toString()
+      .replace(/\s+/g, "_");
+    const fileName = `sales_${branchLabel}_${exportPeriod}_${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setShowExportPanel(false);
+  };
+
+  if (loading) return <div className="text-center p-8 text-lg">Loading...</div>;
+  if (!branch)
+    return <div className="text-center p-8 text-lg">Branch not found</div>;
+
+  const salesTotalPages = Math.max(
+    1,
+    Math.ceil(filteredSales.length / SALES_PER_PAGE)
+  );
+  const paginatedSales = filteredSales.slice(
     (salesPage - 1) * SALES_PER_PAGE,
     salesPage * SALES_PER_PAGE
   );
@@ -138,7 +377,7 @@ export default function BranchDetailsPage() {
           </div>
         </div>
 
-       {/* Quick Info */}
+        {/* Quick Info */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
@@ -353,27 +592,260 @@ export default function BranchDetailsPage() {
           {/* Sales Tab */}
           {activeTab === "sales" && (
             <div>
-              <div className="flex flex-col gap-1 mb-4">
-                <h2 className="text-base font-extrabold text-slate-800">
-                  Sales
-                </h2>
-                <p className="text-xs text-slate-400 font-medium">
-                  Recent sales for this branch
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-base font-extrabold text-slate-800">
+                    Sales History
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Sales recorded for this branch only
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={fetchData}
+                    className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs py-2 px-4 rounded-xl transition w-fit"
+                  >
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                    Refresh
+                  </button>
+
+                  {/* Export dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowExportPanel((v) => !v)}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 px-4 rounded-xl transition w-fit"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export CSV
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          showExportPanel ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {showExportPanel && (
+                      <>
+                        {/* backdrop to close on outside click */}
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowExportPanel(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-slate-100 shadow-xl p-4 z-20">
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                            Export Filters
+                          </p>
+
+                          {/* Date range */}
+                          <div className="mb-3">
+                            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                              Date Range
+                            </label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {EXPORT_PERIODS.map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => setExportPeriod(p.id)}
+                                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                                    exportPeriod === p.id
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Custom range inputs */}
+                          {exportPeriod === "custom" && (
+                            <div className="mb-3 grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" />
+                                  Start
+                                </label>
+                                <input
+                                  type="date"
+                                  value={exportStartDate}
+                                  onChange={(e) => setExportStartDate(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" />
+                                  End
+                                </label>
+                                <input
+                                  type="date"
+                                  value={exportEndDate}
+                                  onChange={(e) => setExportEndDate(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Payment method */}
+                          <div className="mb-4">
+                            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                              Payment Method
+                            </label>
+                            <select
+                              value={exportPayment}
+                              onChange={(e) => setExportPayment(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                            >
+                              <option value="ALL">All Payment Methods</option>
+                              <option value="CASH">Cash</option>
+                              <option value="CARD">Card</option>
+                              <option value="QR">QR</option>
+                            </select>
+                          </div>
+
+                          <button
+                            onClick={handleDownloadCsv}
+                            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download CSV
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-              {sales.length > 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <table className="w-full">
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Revenue
+                    </p>
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-extrabold text-slate-800">
+                    Rs.{salesStats.revenue.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Transactions
+                    </p>
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                      <BarChart3 className="w-4 h-4 text-amber-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-extrabold text-slate-800">
+                    {salesStats.transactions}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Avg. Value
+                    </p>
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-extrabold text-slate-800">
+                    Rs.{salesStats.avgValue.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Cash / Card / QR
+                    </p>
+                    <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-purple-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-extrabold text-slate-800">
+                    {salesStats.cash} / {salesStats.card} / {salesStats.qr}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters: period pills + payment dropdown */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+                  {SALES_PERIODS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setSalesPeriod(p.id);
+                        setSalesPage(1);
+                      }}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+                        salesPeriod === p.id
+                          ? "bg-blue-600 text-white shadow"
+                          : "text-slate-500 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => {
+                    setPaymentFilter(e.target.value);
+                    setSalesPage(1);
+                  }}
+                  className="bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="ALL">All Payment Methods</option>
+                  <option value="CASH">Cash</option>
+                  <option value="CARD">Card</option>
+                  <option value="QR">QR</option>
+                </select>
+              </div>
+
+              {/* Table */}
+              {filteredSales.length > 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+                  <table className="w-full min-w-[760px]">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/50">
                         <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          Date
+                          Invoice ID
                         </th>
                         <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          Total
+                          Date & Time
                         </th>
                         <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          Items
+                          Cashier
+                        </th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          Net Amount
+                        </th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          Payment
+                        </th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          Actions
                         </th>
                       </tr>
                     </thead>
@@ -383,19 +855,53 @@ export default function BranchDetailsPage() {
                           key={sale._id}
                           className="border-b border-slate-50 hover:bg-slate-50 transition"
                         >
-                          <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                          <td className="px-4 py-3 text-sm font-bold text-slate-800 whitespace-nowrap">
+                            {sale.invoiceNumber || "N/A"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                             {sale.createdAt
-                              ? new Date(sale.createdAt).toLocaleDateString()
+                              ? new Date(sale.createdAt).toLocaleString(undefined, {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })
                               : "N/A"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-emerald-600 flex items-center gap-1">
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            Rs {sale.totalAmount?.toFixed(2) ?? "0.00"}
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">
+                            {getCashierName(sale.cashier)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-extrabold text-slate-800 whitespace-nowrap">
+                            Rs.{Number(sale.totalAmount ?? 0).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded-lg">
-                              {sale.items?.length ?? "-"}
+                            <span
+                              className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                                PAYMENT_STYLES[sale.paymentMethod] ||
+                                "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {sale.paymentMethod || "N/A"}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                                STATUS_STYLES[sale.status] ||
+                                "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {sale.status || "N/A"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => setSelectedSale(sale)}
+                              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 flex items-center justify-center transition"
+                              title="View sale"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -404,19 +910,19 @@ export default function BranchDetailsPage() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
-                  <Wallet className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <Receipt className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 font-bold text-sm">
-                    No sales data for this branch
+                    No sales found for this period
                   </p>
                 </div>
               )}
 
-              {sales.length > SALES_PER_PAGE && (
+              {filteredSales.length > SALES_PER_PAGE && (
                 <div className="flex items-center justify-between mt-4 px-2">
                   <p className="text-xs font-medium text-slate-500">
                     Showing {(salesPage - 1) * SALES_PER_PAGE + 1}–
-                    {Math.min(salesPage * SALES_PER_PAGE, sales.length)} of{" "}
-                    {sales.length}
+                    {Math.min(salesPage * SALES_PER_PAGE, filteredSales.length)} of{" "}
+                    {filteredSales.length}
                   </p>
                   <div className="flex items-center gap-1">
                     <button
@@ -457,8 +963,6 @@ export default function BranchDetailsPage() {
           )}
 
           {/* Employees Tab */}
-
-          {/* Employees Tab */}
           {activeTab === "employees" && (
             <div>
               <div className="flex flex-col gap-1 mb-4">
@@ -468,7 +972,8 @@ export default function BranchDetailsPage() {
                 <p className="text-xs text-slate-400 font-medium">
                   Staff assigned to this branch
                 </p>
-              </div>{employees.length > 0 ? (
+              </div>
+              {employees.length > 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <table className="w-full">
                     <thead>
@@ -537,14 +1042,21 @@ export default function BranchDetailsPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {Object.entries(performance).map(([key, value], idx) => {
                     const icons = [ShoppingBag, Wallet, Package, Users];
-                    const colors = ["bg-blue-50 text-blue-600", "bg-emerald-50 text-emerald-600", "bg-amber-50 text-amber-600", "bg-purple-50 text-purple-600"];
+                    const colors = [
+                      "bg-blue-50 text-blue-600",
+                      "bg-emerald-50 text-emerald-600",
+                      "bg-amber-50 text-amber-600",
+                      "bg-purple-50 text-purple-600",
+                    ];
                     const Icon = icons[idx % icons.length];
                     return (
                       <div
                         key={key}
                         className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
                       >
-                        <div className={`w-10 h-10 rounded-xl ${colors[idx % colors.length]} flex items-center justify-center mb-3`}>
+                        <div
+                          className={`w-10 h-10 rounded-xl ${colors[idx % colors.length]} flex items-center justify-center mb-3`}
+                        >
                           <Icon className="w-5 h-5" />
                         </div>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
@@ -578,6 +1090,13 @@ export default function BranchDetailsPage() {
             fetchData();
             setShowEditModal(false);
           }}
+        />
+      )}
+
+      {selectedSale && (
+        <SaleDetailsModal
+          sale={selectedSale}
+          onClose={() => setSelectedSale(null)}
         />
       )}
     </>
