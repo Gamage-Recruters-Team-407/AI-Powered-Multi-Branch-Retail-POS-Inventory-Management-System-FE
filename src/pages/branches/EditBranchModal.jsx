@@ -29,6 +29,7 @@ export default function EditBranchModal({ branchId, onClose, onSuccess }) {
         const branch = branchRes.data;
         setFormData({
           ...branch,
+          contactNumber: (branch.contactNumber || "").replace(/\D/g, "").slice(0, 10),
           manager: typeof branch.manager === "object" ? branch.manager._id : branch.manager || "",
         });
       } catch { setError("Failed to load branch data"); }
@@ -38,6 +39,15 @@ export default function EditBranchModal({ branchId, onClose, onSuccess }) {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Contact number: digits only, max 10 digits
+    if (name === "contactNumber") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setFormData(prev => ({ ...prev, contactNumber: digitsOnly }));
+      setError("");
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     setError("");
   };
@@ -49,10 +59,24 @@ export default function EditBranchModal({ branchId, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!formData.name || !formData.code) {
       setError("Branch name and code are required");
       return;
     }
+    if (!formData.city?.trim()) {
+      setError("City is required");
+      return;
+    }
+    if (!formData.contactNumber?.trim()) {
+      setError("Contact number is required");
+      return;
+    }
+    if (!/^\d{10}$/.test(formData.contactNumber)) {
+      setError("Contact number must be exactly 10 digits");
+      return;
+    }
+
     try {
       await editBranch(branchId, formData);
       setVisible(false);
@@ -94,12 +118,18 @@ export default function EditBranchModal({ branchId, onClose, onSuccess }) {
 
             <div className="bam-grid-2">
               <div className="bam-field">
-                <label className="bam-label">CITY</label>
+                <label className="bam-label">CITY *</label>
                 <input type="text" name="city" value={formData.city} onChange={handleChange} className="bam-input" />
               </div>
               <div className="bam-field">
-                <label className="bam-label">CONTACT NUMBER</label>
-                <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="bam-input" />
+                <label className="bam-label">CONTACT NUMBER *</label>
+                <input
+                  type="tel" name="contactNumber" value={formData.contactNumber}
+                  onChange={handleChange}
+                  inputMode="numeric"
+                  maxLength={10}
+                  className="bam-input"
+                />
               </div>
             </div>
 

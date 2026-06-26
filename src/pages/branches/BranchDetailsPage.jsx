@@ -32,6 +32,7 @@ import {
   Download,
   ChevronDown,
   Calendar as CalendarIcon,
+  Search,
 } from "lucide-react";
 
 const SALES_PERIODS = [
@@ -109,6 +110,15 @@ function csvEscape(value) {
   return str;
 }
 
+// Newest-first safety sort (works even if the API ever returns unsorted data)
+function sortByCreatedAtDesc(list) {
+  return [...list].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+}
+
 export default function BranchDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -121,9 +131,13 @@ export default function BranchDetailsPage() {
   const [activeTab, setActiveTab] = useState("info");
   const [showEditModal, setShowEditModal] = useState(false);
   const [salesPage, setSalesPage] = useState(1);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [employeePage, setEmployeePage] = useState(1);
   const [salesPeriod, setSalesPeriod] = useState("today");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [selectedSale, setSelectedSale] = useState(null);
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   // Export panel state
   const [showExportPanel, setShowExportPanel] = useState(false);
@@ -133,6 +147,8 @@ export default function BranchDetailsPage() {
   const [exportEndDate, setExportEndDate] = useState("");
 
   const SALES_PER_PAGE = 10;
+  const INVENTORY_PER_PAGE = 10;
+  const EMPLOYEE_PER_PAGE = 10;
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -151,6 +167,8 @@ export default function BranchDetailsPage() {
       setEmployees(empRes.data || []);
       setPerformance(perfRes.data || {});
       setSalesPage(1);
+      setInventoryPage(1);
+      setEmployeePage(1);
     } catch (err) {
       console.error("Error fetching branch data:", err);
     } finally {
@@ -163,9 +181,14 @@ export default function BranchDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Newest-first, always applied before any filtering/search
+  const sortedSales = useMemo(() => sortByCreatedAtDesc(sales), [sales]);
+  const sortedInventory = useMemo(() => sortByCreatedAtDesc(inventory), [inventory]);
+  const sortedEmployees = useMemo(() => sortByCreatedAtDesc(employees), [employees]);
+
   const periodSales = useMemo(
-    () => sales.filter((sale) => isWithinPeriod(sale.createdAt, salesPeriod)),
-    [sales, salesPeriod]
+    () => sortedSales.filter((sale) => isWithinPeriod(sale.createdAt, salesPeriod)),
+    [sortedSales, salesPeriod]
   );
 
   const filteredSales = useMemo(() => {
@@ -186,6 +209,27 @@ export default function BranchDetailsPage() {
 
     return { revenue, transactions, avgValue, cash, card, qr };
   }, [periodSales]);
+
+  // Inventory search (product name only)
+  const filteredInventory = useMemo(() => {
+    if (!inventorySearch.trim()) return sortedInventory;
+    const q = inventorySearch.trim().toLowerCase();
+    return sortedInventory.filter((item) =>
+      (item.product?.name || "").toLowerCase().includes(q)
+    );
+  }, [sortedInventory, inventorySearch]);
+
+  // Employees search (name + role + email)
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearch.trim()) return sortedEmployees;
+    const q = employeeSearch.trim().toLowerCase();
+    return sortedEmployees.filter(
+      (emp) =>
+        (emp.name || "").toLowerCase().includes(q) ||
+        (emp.role || "").toLowerCase().includes(q) ||
+        (emp.email || "").toLowerCase().includes(q)
+    );
+  }, [sortedEmployees, employeeSearch]);
 
   const getManagerName = (manager) => {
     if (!manager) return "N/A";
@@ -209,7 +253,7 @@ export default function BranchDetailsPage() {
   };
 
   const handleDownloadCsv = () => {
-    let exportSales = sales;
+    let exportSales = sortedSales;
 
     // Apply date filter
     if (exportPeriod === "custom") {
@@ -326,6 +370,24 @@ export default function BranchDetailsPage() {
   const paginatedSales = filteredSales.slice(
     (salesPage - 1) * SALES_PER_PAGE,
     salesPage * SALES_PER_PAGE
+  );
+
+  const inventoryTotalPages = Math.max(
+    1,
+    Math.ceil(filteredInventory.length / INVENTORY_PER_PAGE)
+  );
+  const paginatedInventory = filteredInventory.slice(
+    (inventoryPage - 1) * INVENTORY_PER_PAGE,
+    inventoryPage * INVENTORY_PER_PAGE
+  );
+
+  const employeeTotalPages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / EMPLOYEE_PER_PAGE)
+  );
+  const paginatedEmployees = filteredEmployees.slice(
+    (employeePage - 1) * EMPLOYEE_PER_PAGE,
+    employeePage * EMPLOYEE_PER_PAGE
   );
 
   return (
@@ -531,15 +593,30 @@ export default function BranchDetailsPage() {
           {/* Inventory Tab */}
           {activeTab === "inventory" && (
             <div>
-              <div className="flex flex-col gap-1 mb-4">
-                <h2 className="text-base font-extrabold text-slate-800">
-                  Inventory
-                </h2>
-                <p className="text-xs text-slate-400 font-medium">
-                  Stock levels for this branch
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-base font-extrabold text-slate-800">
+                    Inventory
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Stock levels for this branch
+                  </p>
+                </div>
+                <div className="relative w-full md:w-64">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={inventorySearch}
+                    onChange={(e) => {
+                      setInventorySearch(e.target.value);
+                      setInventoryPage(1);
+                    }}
+                    placeholder="Search products..."
+                    className="w-full bg-white border border-slate-200 rounded-xl text-sm pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               </div>
-              {inventory.length > 0 ? (
+              {paginatedInventory.length > 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <table className="w-full">
                     <thead>
@@ -556,7 +633,7 @@ export default function BranchDetailsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {inventory.map((item, idx) => (
+                      {paginatedInventory.map((item, idx) => (
                         <tr
                           key={idx}
                           className="border-b border-slate-50 hover:bg-slate-50 transition"
@@ -582,8 +659,53 @@ export default function BranchDetailsPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
                   <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 font-bold text-sm">
-                    No inventory data for this branch
+                    {inventorySearch
+                      ? "No products match your search"
+                      : "No inventory data for this branch"}
                   </p>
+                </div>
+              )}
+
+              {filteredInventory.length > INVENTORY_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4 px-2">
+                  <p className="text-xs font-medium text-slate-500">
+                    Showing {(inventoryPage - 1) * INVENTORY_PER_PAGE + 1}–
+                    {Math.min(inventoryPage * INVENTORY_PER_PAGE, filteredInventory.length)} of{" "}
+                    {filteredInventory.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setInventoryPage((p) => Math.max(1, p - 1))}
+                      disabled={inventoryPage === 1}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      Prev
+                    </button>
+                    {Array.from({ length: inventoryTotalPages }, (_, i) => i + 1).map(
+                      (pageNum) => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setInventoryPage(pageNum)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                            inventoryPage === pageNum
+                              ? "bg-blue-600 text-white"
+                              : "text-slate-600 bg-white border border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() =>
+                        setInventoryPage((p) => Math.min(inventoryTotalPages, p + 1))
+                      }
+                      disabled={inventoryPage === inventoryTotalPages}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -965,15 +1087,30 @@ export default function BranchDetailsPage() {
           {/* Employees Tab */}
           {activeTab === "employees" && (
             <div>
-              <div className="flex flex-col gap-1 mb-4">
-                <h2 className="text-base font-extrabold text-slate-800">
-                  Employees
-                </h2>
-                <p className="text-xs text-slate-400 font-medium">
-                  Staff assigned to this branch
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-base font-extrabold text-slate-800">
+                    Employees
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Staff assigned to this branch
+                  </p>
+                </div>
+                <div className="relative w-full md:w-64">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={employeeSearch}
+                    onChange={(e) => {
+                      setEmployeeSearch(e.target.value);
+                      setEmployeePage(1);
+                    }}
+                    placeholder="Search name, role, email..."
+                    className="w-full bg-white border border-slate-200 rounded-xl text-sm pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               </div>
-              {employees.length > 0 ? (
+              {paginatedEmployees.length > 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <table className="w-full">
                     <thead>
@@ -990,7 +1127,7 @@ export default function BranchDetailsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {employees.map((emp, idx) => (
+                      {paginatedEmployees.map((emp, idx) => (
                         <tr
                           key={idx}
                           className="border-b border-slate-50 hover:bg-slate-50 transition"
@@ -1020,8 +1157,53 @@ export default function BranchDetailsPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
                   <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 font-bold text-sm">
-                    No employees assigned to this branch
+                    {employeeSearch
+                      ? "No employees match your search"
+                      : "No employees assigned to this branch"}
                   </p>
+                </div>
+              )}
+
+              {filteredEmployees.length > EMPLOYEE_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4 px-2">
+                  <p className="text-xs font-medium text-slate-500">
+                    Showing {(employeePage - 1) * EMPLOYEE_PER_PAGE + 1}–
+                    {Math.min(employeePage * EMPLOYEE_PER_PAGE, filteredEmployees.length)} of{" "}
+                    {filteredEmployees.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEmployeePage((p) => Math.max(1, p - 1))}
+                      disabled={employeePage === 1}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      Prev
+                    </button>
+                    {Array.from({ length: employeeTotalPages }, (_, i) => i + 1).map(
+                      (pageNum) => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setEmployeePage(pageNum)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                            employeePage === pageNum
+                              ? "bg-blue-600 text-white"
+                              : "text-slate-600 bg-white border border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() =>
+                        setEmployeePage((p) => Math.min(employeeTotalPages, p + 1))
+                      }
+                      disabled={employeePage === employeeTotalPages}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

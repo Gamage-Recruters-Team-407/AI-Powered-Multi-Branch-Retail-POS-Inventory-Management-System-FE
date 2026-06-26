@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AuditStatsCards from '../../components/audit/AuditStatsCards';
 import AuditFilterBar from '../../components/audit/AuditFilterBar';
 import AuditLogsTable from '../../components/audit/AuditLogsTable';
@@ -18,7 +18,7 @@ import {
 } from '../../services/auditApi';
 import toast from 'react-hot-toast';
 
-// ✅ Theme Context/Provider
+// ✅ Theme Context - Light Mode Only
 export const ThemeContext = React.createContext({
   theme: 'light',
 });
@@ -31,15 +31,8 @@ const TABS = [
 ];
 
 const AuditSecurityPage = () => {
-  // ✅ Auto Theme Detection based on system preference
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('auditTheme');
-    if (saved) return saved;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  // ✅ Light Mode Only - Always Light
+  const [theme] = useState('light');
 
   const [activeTab, setActiveTab] = useState('activity');
 
@@ -87,22 +80,10 @@ const AuditSecurityPage = () => {
   // ✅ Export loading state
   const [exportLoading, setExportLoading] = useState(false);
 
-  // ✅ Listen for system theme changes
+  // ✅ Apply light theme to body
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      const newTheme = e.matches ? 'dark' : 'light';
-      setTheme(newTheme);
-      localStorage.setItem('auditTheme', newTheme);
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    document.body.setAttribute('data-theme', 'light');
   }, []);
-
-  // ✅ Apply theme to body
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
 
   // ── Load Stats ─────────────────────────────────────────────────────────────
   const loadStats = useCallback(async () => {
@@ -240,11 +221,10 @@ const AuditSecurityPage = () => {
     }
   };
 
-  // ✅ FIXED: Export Logs - Direct PDF Generation (No API call)
+  // ✅ Export Logs - Direct PDF Generation
   const handleExportLogs = async () => {
     setExportLoading(true);
     try {
-      // Get current logs from state (already loaded)
       const data = logs.length > 0 ? logs : [];
       
       if (data.length === 0) {
@@ -253,12 +233,9 @@ const AuditSecurityPage = () => {
         return;
       }
 
-      // Generate PDF using HTML to print
       const generatePDFReport = (logsData) => {
-        // Get current date for filename
         const dateStr = new Date().toISOString().split('T')[0];
         
-        // Create HTML content
         const htmlContent = `
           <!DOCTYPE html>
           <html>
@@ -303,6 +280,7 @@ const AuditSecurityPage = () => {
                   margin-bottom: 20px;
                   font-size: 13px;
                   border: 1px solid #e2e8f0;
+                  color: #1e293b;
                 }
                 .report-meta .meta-item {
                   display: flex;
@@ -336,6 +314,7 @@ const AuditSecurityPage = () => {
                   padding: 8px 12px; 
                   border-bottom: 1px solid #e2e8f0;
                   vertical-align: middle;
+                  color: #1e293b;
                 }
                 tr:nth-child(even) { background: #f8fafc; }
                 tr:hover { background: #f1f5f9; }
@@ -366,12 +345,13 @@ const AuditSecurityPage = () => {
                   font-weight: 600;
                   color: #1e3a5f;
                 }
-                .page-break { page-break-after: always; }
                 @media print {
-                  body { padding: 15px; }
-                  .no-print { display: none; }
+                  body { padding: 15px; background: white !important; color: #1e293b !important; }
                   th { background: #1e3a5f !important; color: white !important; }
                   tr:nth-child(even) { background: #f8fafc !important; }
+                  td { color: #1e293b !important; border-color: #e2e8f0 !important; }
+                  .report-meta { background: #f8fafc !important; border-color: #e2e8f0 !important; color: #1e293b !important; }
+                  .report-footer { border-color: #e2e8f0 !important; color: #94a3b8 !important; }
                 }
               </style>
             </head>
@@ -460,23 +440,18 @@ const AuditSecurityPage = () => {
           </html>
         `;
 
-        // Open in new window for printing
         const win = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes');
         if (win) {
           win.document.write(htmlContent);
           win.document.close();
           win.focus();
-          
-          // Auto print after load
           win.onload = function() {
             setTimeout(() => {
               win.print();
             }, 800);
           };
-          
           toast.success('PDF report opened. Use "Save as PDF" to download.');
         } else {
-          // Fallback: Download as HTML file
           const blob = new Blob([htmlContent], { type: 'text/html' });
           const url = URL.createObjectURL(blob);
           const downloadLink = document.createElement('a');
@@ -523,7 +498,7 @@ const AuditSecurityPage = () => {
 
   return (
     <ThemeContext.Provider value={themeValue}>
-      <div className={`audit-page theme-${theme}`}>
+      <div className="audit-page">
         {/* Page Header */}
         <div className="audit-page-header">
           <div className="audit-header-left">
@@ -662,43 +637,10 @@ const AuditSecurityPage = () => {
           )}
         </div>
 
-        {/* ✅ Global Dark/Light Theme Styles */}
+        {/* ✅ Light Theme Styles Only */}
         <style>{`
           /* ========================================
-             THEME VARIABLES
-             ======================================== */
-          :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --bg-tertiary: #f1f5f9;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --border-color: #e2e8f0;
-            --shadow-color: rgba(0,0,0,0.04);
-            --shadow-hover: rgba(0,0,0,0.08);
-            --card-bg: #ffffff;
-            --input-bg: #f8fafc;
-            --input-border: #e2e8f0;
-          }
-
-          [data-theme="dark"] {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #2d3a4f;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
-            --shadow-color: rgba(0,0,0,0.3);
-            --shadow-hover: rgba(0,0,0,0.5);
-            --card-bg: #1e293b;
-            --input-bg: #2d3a4f;
-            --input-border: #475569;
-          }
-
-          /* ========================================
-             PAGE STYLES
+             LIGHT THEME VARIABLES
              ======================================== */
           .audit-page {
             padding: 8px 4px 48px;
@@ -707,9 +649,8 @@ const AuditSecurityPage = () => {
             gap: 22px;
             max-width: 1400px;
             width: 100%;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            transition: background 0.3s, color 0.3s;
+            background: #ffffff;
+            color: #0f172a;
             min-height: 100vh;
           }
 
@@ -743,14 +684,14 @@ const AuditSecurityPage = () => {
           .audit-title {
             font-size: 1.5rem;
             font-weight: 800;
-            color: var(--text-primary);
+            color: #0f172a;
             margin: 0;
             line-height: 1;
           }
 
           .audit-subtitle {
             font-size: .84rem;
-            color: var(--text-muted);
+            color: #94a3b8;
             margin: 4px 0 0;
           }
 
@@ -762,12 +703,12 @@ const AuditSecurityPage = () => {
 
           .export-all-btn {
             padding: 10px 20px;
-            border: 1.5px solid var(--border-color);
+            border: 1.5px solid #e2e8f0;
             border-radius: 10px;
             font-size: .875rem;
             font-weight: 600;
-            color: var(--text-secondary);
-            background: var(--card-bg);
+            color: #475569;
+            background: #ffffff;
             display: flex;
             align-items: center;
             gap: 7px;
@@ -777,8 +718,8 @@ const AuditSecurityPage = () => {
           }
 
           .export-all-btn:hover:not(:disabled) {
-            background: var(--bg-secondary);
-            border-color: var(--text-muted);
+            background: #f8fafc;
+            border-color: #94a3b8;
           }
 
           .export-all-btn:disabled {
@@ -789,8 +730,8 @@ const AuditSecurityPage = () => {
           .spinner-small {
             width: 16px;
             height: 16px;
-            border: 2px solid var(--border-color);
-            border-top-color: #3b82f6;
+            border: 2px solid #e2e8f0;
+            border-top-color: #2563eb;
             border-radius: 50%;
             animation: spin 0.7s linear infinite;
             display: inline-block;
@@ -809,15 +750,15 @@ const AuditSecurityPage = () => {
             gap: 12px;
             flex-wrap: wrap;
             padding: 12px 16px;
-            background: var(--bg-secondary);
+            background: #f8fafc;
             border-radius: 10px;
-            border: 1px solid var(--border-color);
+            border: 1px solid #e2e8f0;
           }
 
           .column-controls-label {
             font-size: .8rem;
             font-weight: 600;
-            color: var(--text-muted);
+            color: #94a3b8;
           }
 
           .column-toggle-label {
@@ -825,7 +766,7 @@ const AuditSecurityPage = () => {
             align-items: center;
             gap: 5px;
             font-size: .78rem;
-            color: var(--text-secondary);
+            color: #475569;
             cursor: pointer;
             padding: 4px 8px;
             border-radius: 6px;
@@ -833,7 +774,7 @@ const AuditSecurityPage = () => {
           }
 
           .column-toggle-label:hover {
-            background: var(--bg-tertiary);
+            background: #f1f5f9;
           }
 
           .column-toggle-label input[type="checkbox"] {
@@ -853,8 +794,8 @@ const AuditSecurityPage = () => {
           .audit-tabs {
             display: flex;
             gap: 4px;
-            background: var(--card-bg);
-            border: 1.5px solid var(--border-color);
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
             border-radius: 12px;
             padding: 5px;
             width: fit-content;
@@ -868,7 +809,7 @@ const AuditSecurityPage = () => {
             border-radius: 8px;
             font-size: .875rem;
             font-weight: 500;
-            color: var(--text-muted);
+            color: #94a3b8;
             transition: all .15s;
             white-space: nowrap;
             background: transparent;
@@ -877,8 +818,8 @@ const AuditSecurityPage = () => {
           }
 
           .audit-tab:hover {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
+            background: #f8fafc;
+            color: #475569;
           }
 
           .audit-tab.active {
@@ -903,13 +844,13 @@ const AuditSecurityPage = () => {
           .tab-section-title {
             font-size: 1.05rem;
             font-weight: 800;
-            color: var(--text-primary);
+            color: #0f172a;
             margin: 0;
           }
 
           .tab-section-sub {
             font-size: .83rem;
-            color: var(--text-muted);
+            color: #94a3b8;
             margin: 0;
           }
 
