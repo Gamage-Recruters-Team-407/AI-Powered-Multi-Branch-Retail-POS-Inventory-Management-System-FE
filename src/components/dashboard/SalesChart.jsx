@@ -74,6 +74,34 @@ const getMonthLabel = (dateStr) => {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 };
 
+// const groupSalesData = (raw, groupBy) => {
+//   if (!raw || raw.length === 0) {
+//     if (groupBy === 'weekly')  return DEMO_SALES_WEEKLY;
+//     if (groupBy === 'monthly') return DEMO_SALES_MONTHLY;
+//     return DEMO_SALES_DAILY;
+//   }
+
+//   if (groupBy === 'daily') {
+//     return raw.map(day => ({
+//       date: new Date(day._id).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+//       revenue:      day.revenue      || 0,
+//       transactions: day.transactions || 0,
+//       profit:       Math.round((day.revenue || 0) * 0.3),
+//     }));
+//   }
+
+//   // weekly / monthly — aggregate
+//   const buckets = {};
+//   raw.forEach(day => {
+//     const key = groupBy === 'weekly' ? getWeekLabel(day._id) : getMonthLabel(day._id);
+//     if (!buckets[key]) buckets[key] = { date: key, revenue: 0, transactions: 0, profit: 0 };
+//     buckets[key].revenue      += day.revenue      || 0;
+//     buckets[key].transactions += day.transactions || 0;
+//     buckets[key].profit       += Math.round((day.revenue || 0) * 0.3);
+//   });
+//   return Object.values(buckets);
+// };
+
 const groupSalesData = (raw, groupBy) => {
   if (!raw || raw.length === 0) {
     if (groupBy === 'weekly')  return DEMO_SALES_WEEKLY;
@@ -82,24 +110,57 @@ const groupSalesData = (raw, groupBy) => {
   }
 
   if (groupBy === 'daily') {
-    return raw.map(day => ({
-      date: new Date(day._id).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
-      revenue:      day.revenue      || 0,
-      transactions: day.transactions || 0,
-      profit:       Math.round((day.revenue || 0) * 0.3),
-    }));
+    return raw.map(day => {
+      // _id format: "2026-06-24" or ISO string
+      const dateStr = day._id?.split?.('T')?.[0] ?? day._id;
+      const d = new Date(dateStr + 'T00:00:00');
+      return {
+        date: isNaN(d) ? dateStr : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+        revenue:      day.revenue      || 0,
+        transactions: day.transactions || 0,
+        profit:       Math.round((day.revenue || 0) * 0.3),
+      };
+    });
   }
 
-  // weekly / monthly — aggregate
+  // weekly / monthly — aggregate into buckets
   const buckets = {};
+  const orderedKeys = [];
+
   raw.forEach(day => {
-    const key = groupBy === 'weekly' ? getWeekLabel(day._id) : getMonthLabel(day._id);
-    if (!buckets[key]) buckets[key] = { date: key, revenue: 0, transactions: 0, profit: 0 };
+    const dateStr = day._id?.split?.('T')?.[0] ?? day._id;
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d)) return;
+
+    let key;
+    if (groupBy === 'weekly') {
+      // ISO week: Mon–Sun
+      const tmp = new Date(d);
+      tmp.setDate(tmp.getDate() - tmp.getDay() + 1); // Monday
+      key = `W${String(getISOWeek(tmp)).padStart(2,'0')} '${String(tmp.getFullYear()).slice(2)}`;
+    } else {
+      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    }
+
+    if (!buckets[key]) {
+      buckets[key] = { date: key, revenue: 0, transactions: 0, profit: 0 };
+      orderedKeys.push(key);
+    }
     buckets[key].revenue      += day.revenue      || 0;
     buckets[key].transactions += day.transactions || 0;
     buckets[key].profit       += Math.round((day.revenue || 0) * 0.3);
   });
-  return Object.values(buckets);
+
+  return orderedKeys.map(k => buckets[k]);
+};
+
+// ISO week helper
+const getISOWeek = (d) => {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
 };
 
 // ── Component ─────────────────────────────────────────────────

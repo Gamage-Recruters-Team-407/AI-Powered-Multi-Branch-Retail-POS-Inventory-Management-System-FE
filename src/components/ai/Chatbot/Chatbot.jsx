@@ -5,6 +5,46 @@ const ts = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2
 
 const QUICK = ["Low Stock", "Top Products", "Sales Report", "Trending", "Help"];
 
+const renderFormattedText = (text) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    const lineContent = parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+      const content = parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        }
+        if (i === 0) {
+           return part.replace(/^\s*[*|-]\s/, '');
+        }
+        return part;
+      });
+
+      return (
+        <div key={idx} style={{ display: 'flex', gap: '6px', margin: '4px 0 4px 6px' }}>
+          <span style={{ marginTop: '7px', width: '5px', height: '5px', borderRadius: '50%', background: 'currentColor', opacity: 0.7, flexShrink: 0 }} />
+          <span>{content}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={idx} style={{ marginTop: idx > 0 && trimmedLine ? '8px' : '0', minHeight: '1em' }}>
+        {lineContent}
+      </div>
+    );
+  });
+};
+
 // ─── Main Chatbot Component ───────────────────────────────────────────────────
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -177,7 +217,7 @@ const Chatbot = () => {
                           borderRadius: msg.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                           padding: '10px 14px', fontSize: '13px', lineHeight: '1.5',
                           whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                        }}>{msg.text}</div>
+                        }}>{msg.sender === 'ai' ? renderFormattedText(msg.text) : msg.text}</div>
                         <div style={{
                           fontSize: '10px', color: '#9CA3AF', marginTop: '3px',
                           textAlign: msg.sender === 'user' ? 'right' : 'left',

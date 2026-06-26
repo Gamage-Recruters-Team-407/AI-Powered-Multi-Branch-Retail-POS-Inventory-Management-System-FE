@@ -351,12 +351,21 @@ const formatLKR = (amount, decimals = 0) => {
   })}`;
 };
 
+// const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
+//   const isEmpty = rawVal === undefined || rawVal === null || rawVal === 0 || Number.isNaN(rawVal);
+//   if (isEmpty) {
+//     return prevValue !== undefined && prevValue !== null ? prevValue : formatter(0);
+//   }
+//   return formatter(rawVal);
+// };
+
 const resolveValue = (rawVal, prevValue, formatter = (v) => v) => {
   const isEmpty =
     rawVal === undefined ||
     rawVal === null ||
     rawVal === 0 ||
     Number.isNaN(rawVal);
+
   if (isEmpty) {
     return prevValue !== undefined && prevValue !== null
       ? prevValue
@@ -429,11 +438,11 @@ const mapStatsToDashboardData = (stats, prevData) => {
       ),
       avg_stock_level: inventory.branchStockStatus?.length
         ? (
-            inventory.branchStockStatus.reduce(
-              (sum, b) => sum + (b.avgStockLevel || 0),
-              0,
-            ) / inventory.branchStockStatus.length
-          ).toFixed(1)
+          inventory.branchStockStatus.reduce(
+            (sum, b) => sum + (b.avgStockLevel || 0),
+            0,
+          ) / inventory.branchStockStatus.length
+        ).toFixed(1)
         : (prevInventory.avg_stock_level ?? 0),
     },
     low_stock_alerts: {
@@ -473,8 +482,10 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [dashboardData, setDashboardData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("all");
-  const [datePreset, setDatePreset] = useState("month");
-  const [dateRange, setDateRange] = useState(_getDateRange("month"));
+
+  const [datePreset, setDatePreset] = useState('today');
+  const [dateRange, setDateRange] = useState(_getDateRange('today'));
+
   const [wsConnected, setWsConnected] = useState(false);
   const [liveTransaction, setLiveTransaction] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -650,7 +661,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     sessionStorage.setItem("dashboard_visibleModule", moduleId);
 
     // Close sidebar on mobile after navigating
-    if (window.innerWidth <= 1024) {
+    if (window.innerWidth <= 768) {
       setNavExpanded(false);
     }
   };
@@ -700,159 +711,121 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
+  
   // WebSocket
   useEffect(() => {
-    socketService.connect(
-      import.meta.env.VITE_API_URL || "http://localhost:5000",
-      token,
-    );
-    socketService.on("connect", () => setWsConnected(true));
-    socketService.on("disconnect", () => setWsConnected(false));
+    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+    socketService.on('connect', () => setWsConnected(true));
+    socketService.on('disconnect', () => setWsConnected(false));
+
 
     return () => socketService.disconnect();
   }, [token]);
 
-  // const fetchData = useCallback(async () => {
-  //   setLoading(true);
-  //   try {
-  //     const params = new URLSearchParams({
-  //       startDate: dateRange.startDate,
-  //       endDate: dateRange.endDate,
-  //     });
-  //     if (selectedBranch !== "all") params.append("branchId", selectedBranch);
 
-  //     const BASE = (
-  //       import.meta.env.VITE_API_URL || "http://localhost:5000"
-  //     ).replace(/\/api\/?$/, "");
 
-  //     const res = await fetch(
-  //       `${BASE}/api/dashboard/stats?${params.toString()}`,
-  //       { headers: { Authorization: `Bearer ${token}` } },
-  //     );
-  //     if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
 
-  //     const json = await res.json();
-  //     console.log("🔴 RAW API Response:", json.data);
-  //     console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
-  //     console.log("💰 KPIs:", json.data?.kpis);
+    try {
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
 
-  //     const demo = generateDemoData();
-
-  //     try {
-  //       const branchRes = await getAllBranchesWithPerformance();
-  //       const realBranches = (branchRes.data || []).map((b) => ({
-  //         branch_id: b._id,
-  //         branch_name: b.name,
-  //         location: b.city || "N/A",
-  //         status: b.isActive ? "active" : "inactive",
-  //         staff_count: b.employeeCount,
-  //         products_count: b.inventoryCount,
-  //         total_stock: b.inventoryCount,
-  //         low_stock_items: b.lowStockCount,
-  //         revenue: `Rs ${b.totalRevenue.toFixed(2)}`,
-  //         growth: 0,
-  //       }));
-  //       demo.branches = realBranches;
-  //     } catch (branchErr) {
-  //       console.error("Error fetching branch performance:", branchErr);
-  //     }
-
-  //     setDashboardData(demo);
-  //     setLastUpdated(new Date());
-  //   } catch (err) {
-  //     console.error("Error fetching dashboard data:", err);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }, [dateRange, selectedBranch, token]);
-
-  // useEffect(() => {
-  //   fetchData();
-  // }, [selectedBranch, datePreset, fetchData]);
-
-  //=======================================================
-    const fetchData = useCallback(async () => {
-      setLoading(true);
-
-      try {
-        const params = new URLSearchParams({
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-        });
-
-        if (selectedBranch !== "all") {
-          params.append("branchId", selectedBranch);
-        }
-
-        const BASE = (
-          import.meta.env.VITE_API_URL || "http://localhost:5000"
-        ).replace(/\/api\/?$/, "");
-
-        const res = await fetch(
-          `${BASE}/api/dashboard/stats?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`Dashboard fetch failed: ${res.status}`);
-        }
-
-        const json = await res.json();
-
-        console.log("🔴 RAW API Response:", json.data);
-        console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
-        console.log("💰 KPIs:", json.data?.kpis);
-
-        // Demo structure base
-        const dashboardData = generateDemoData();
-
-        // Real dashboard stats inject
-        const mappedData = mapStatsToDashboardData(
-          json.data,
-          dashboardData
-        );
-
-        // Real branch performance inject
-        try {
-          const branchRes = await getAllBranchesWithPerformance();
-
-          mappedData.branches = (branchRes.data || []).map((b) => ({
-            branch_id: b._id,
-            branch_name: b.name,
-            location: b.city || "N/A",
-            status: b.isActive ? "active" : "inactive",
-            staff_count: b.employeeCount || 0,
-            products_count: b.inventoryCount || 0,
-            total_stock: b.inventoryCount || 0,
-            low_stock_items: b.lowStockCount || 0,
-            revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
-            growth: b.growth || 0,
-          }));
-        } catch (branchErr) {
-          console.error(
-            "Error fetching branch performance:",
-            branchErr
-          );
-        }
-
-        setDashboardData(mappedData);
-        setLastUpdated(new Date());
-
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-      } finally {
-        setLoading(false);
+      if (selectedBranch !== "all") {
+        params.append("branchId", selectedBranch);
       }
-    }, [selectedBranch, dateRange, token]);
 
-    useEffect(() => {
-      fetchData();
-    }, [selectedBranch, dateRange, fetchData]);
+      const BASE = (
+        import.meta.env.VITE_API_URL || "http://localhost:5000"
+      ).replace(/\/api\/?$/, "");
 
+      const res = await fetch(
+        `${BASE}/api/dashboard/stats?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Dashboard fetch failed: ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      console.log("🔴 RAW API Response:", json.data);
+      console.log("📈 Daily Sales Array:", json.data?.sales?.dailySales);
+      console.log("💰 KPIs:", json.data?.kpis);
+
+      // Demo structure base
+      const dashboardData = generateDemoData();
+
+      // Real dashboard stats inject
+      const mappedData = mapStatsToDashboardData(
+        json.data,
+        dashboardData
+      );
+
+      // Real branch performance inject
+      try {
+        const branchRes = await getAllBranchesWithPerformance();
+
+        mappedData.branches = (branchRes.data || []).map((b) => ({
+          branch_id: b._id,
+          branch_name: b.name,
+          location: b.city || "N/A",
+          status: b.isActive ? "active" : "inactive",
+          staff_count: b.employeeCount || 0,
+          products_count: b.inventoryCount || 0,
+          total_stock: b.inventoryCount || 0,
+          low_stock_items: b.lowStockCount || 0,
+          revenue: `Rs ${(b.totalRevenue || 0).toFixed(2)}`,
+          growth: b.growth || 0,
+        }));
+      } catch (branchErr) {
+        console.error(
+          "Error fetching branch performance:",
+          branchErr
+        );
+      }
+
+      setDashboardData(mappedData);
+      setLastUpdated(new Date());
+
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBranch, dateRange, token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedBranch, dateRange, fetchData]);
+
+
+  // ── chart group-by handler ──────────
+const handleChartGroupBy = (g) => {
+  setChartGroupBy(g);
+  const now = new Date();
+  const end = now.toISOString().split('T')[0];
+  let start;
+  if (g === 'daily') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    start = d.toISOString().split('T')[0];
+  } else if (g === 'weekly') {
+    const d = new Date(now); d.setDate(d.getDate() - 84); // 12 weeks
+    start = d.toISOString().split('T')[0];
+  } else {
+    const d = new Date(now); d.setMonth(d.getMonth() - 12);
+    start = d.toISOString().split('T')[0];
+  }
+  setDateRange({ startDate: start, endDate: end });
+  setDatePreset('custom');
+};
 
 
   const handlePreset = (preset) => {
@@ -1234,29 +1207,42 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
               </div>
             </div> */}
 
-          <div className="dash-section chart-section">
-            <div className="section-header">
-              <div className="section-title-wrapper">
-                <span className="section-icon">📊</span>
-                <h2 className="section-title">Sales Analytics</h2>
-                <span className="section-badge">Real-time</span>
+            <div className="dash-section chart-section">
+              <div className="section-header">
+                <div className="section-title-wrapper">
+                  <span className="section-icon">📊</span>
+                  <h2 className="section-title">Sales Analytics</h2>
+                  <span className="section-badge">Real-time</span>
+                </div>
+                {/* <div className="chart-controls">
+                  {['daily', 'weekly', 'monthly'].map((g) => (
+                    <button
+                      key={g}
+                      className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                      onClick={() => setChartGroupBy(g)}
+                    >
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  
+                  ))}
+                </div> */}
+
+                <div className="chart-controls">
+                  {['daily', 'weekly', 'monthly'].map((g) => (
+                    <button
+                      key={g}
+                      className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
+                      onClick={() => handleChartGroupBy(g)}
+                    >
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="chart-controls">
-                {['daily', 'weekly', 'monthly'].map((g) => (
-                  <button
-                    key={g}
-                    className={`chart-control ${chartGroupBy === g ? 'active' : ''}`}
-                    onClick={() => setChartGroupBy(g)}
-                  >
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
-                ))}
+              <div className="chart-container">
+                <SalesChart data={dashboardData} groupBy={chartGroupBy} />
               </div>
             </div>
-            <div className="chart-container">
-              <SalesChart data={dashboardData} groupBy={chartGroupBy} />
-            </div>
-          </div>
 
             <div className="dash-section">
               <div className="section-header">
@@ -1298,22 +1284,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
                   role={role}
                   onViewAll={handleViewAllInventory}
                 />
-                <div className="quick-stats">
-                  <div className="quick-stat-card">
-                    <div className="stat-icon">📈</div>
-                    <div className="stat-info">
-                      <span className="stat-value">94%</span>
-                      <span className="stat-label">Stock Accuracy</span>
-                    </div>
-                  </div>
-                  <div className="quick-stat-card">
-                    <div className="stat-icon">🚚</div>
-                    <div className="stat-info">
-                      <span className="stat-value">3</span>
-                      <span className="stat-label">Pending Orders</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -2120,6 +2090,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
         @media (max-width: 1100px) {
           .content-wrapper { margin-left: 70px; padding: 16px; }
           .floating-nav { width: 70px; }
+          .floating-nav.expanded { width: 280px; }
+          .floating-nav.expanded + .sky-background + .content-wrapper { margin-left: 280px; }
           .tp-live-grid { grid-template-columns: 1fr; }
           .inventory-grid { grid-template-columns: 1fr; }
           .branch-hero-content { flex-direction: column; text-align: center; }
@@ -2139,7 +2111,7 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
           .forecast-stats, .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .chatbot-window { width: 340px; right: 16px; bottom: 90px; }
         }
-        @media (max-width: 1024px) {
+        @media (max-width: 768px) {
           .floating-nav { transform: translateX(-100%); width: 280px; }
           .floating-nav.expanded { transform: translateX(0); }
           .content-wrapper { margin-left: 0 !important; width: 100% !important; padding: 16px; margin-top: 60px; }

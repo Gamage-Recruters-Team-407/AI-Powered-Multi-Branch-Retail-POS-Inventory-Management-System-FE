@@ -9,13 +9,35 @@ export default function ReportsTab({ warehouse, stats, stocks, zones }) {
 
   const now = formatDate();
 
+  // Reconstruct flat stocks array if they are aggregated
+  const flatStocks = [];
+  stocks.forEach((s) => {
+    if (s.zone) {
+      flatStocks.push(s);
+    } else if (s.zones && Array.isArray(s.zones)) {
+      s.zones.forEach((z) => {
+        const zoneId = z.zone?._id || z.zone;
+        const zoneObj = zones.find((x) => x._id === zoneId) || { _id: zoneId, zoneName: "—" };
+        flatStocks.push({
+          _id: (s._id || s.product?._id || "") + "_" + zoneId,
+          product: s.product,
+          zone: zoneObj,
+          quantity: z.quantity,
+          minStock: s.minStock,
+          isLowStock: s.isLowStock,
+          isUnstocked: s.isUnstocked,
+        });
+      });
+    }
+  });
+
   // ── CSV Export ─────────────────────────────────
   const exportCSV = () => {
     setExporting(true);
     try {
       const rows = [
         ["Product", "SKU", "Zone", "Quantity", "Min Stock", "Status"],
-        ...stocks.map((s) => [
+        ...flatStocks.map((s) => [
           s.product?.name || "—",
           s.product?.sku || "—",
           s.zone?.zoneName || "—",
@@ -105,7 +127,7 @@ export default function ReportsTab({ warehouse, stats, stocks, zones }) {
           <table>
             <thead><tr><th>Product</th><th>SKU</th><th>Zone</th><th>Quantity</th><th>Min Stock</th><th>Status</th></tr></thead>
             <tbody>
-              ${stocks.map((s) => `
+              ${flatStocks.map((s) => `
                 <tr>
                   <td>${s.product?.name || "—"}</td>
                   <td>${s.product?.sku || "—"}</td>
@@ -151,7 +173,7 @@ export default function ReportsTab({ warehouse, stats, stocks, zones }) {
         <div className="flex gap-2">
           <button
             onClick={exportCSV}
-            disabled={exporting || stocks.length === 0}
+            disabled={exporting || flatStocks.length === 0}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
           >
             <FiDownload size={15} /> Export CSV
@@ -230,9 +252,9 @@ export default function ReportsTab({ warehouse, stats, stocks, zones }) {
       <div className="mb-6">
         <h4 className="font-semibold text-gray-700 mb-2 text-sm">
           Stock Inventory
-          {stocks.length === 0 && <span className="text-gray-400 font-normal ml-2">(no stock records)</span>}
+          {flatStocks.length === 0 && <span className="text-gray-400 font-normal ml-2">(no stock records)</span>}
         </h4>
-        {stocks.length > 0 && (
+        {flatStocks.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -246,7 +268,7 @@ export default function ReportsTab({ warehouse, stats, stocks, zones }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {stocks.map((s) => (
+                {flatStocks.map((s) => (
                   <tr key={s._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{s.product?.name || "—"}</td>
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{s.product?.sku || "—"}</td>

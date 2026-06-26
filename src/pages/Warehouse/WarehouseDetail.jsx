@@ -335,11 +335,12 @@ export default function WarehouseDetail({ warehouseId, onBack }) {
 
             {/* Stock Tab */}
             {activeTab === "stock" && (
-              <StockTable
-                stocks={stocks}
-                onAddStock={() => { setStockError(null); setStockFormMode("add"); }}
-                onRemoveStock={() => { setStockError(null); setStockFormMode("remove"); }}
-              />
+              <div className="space-y-4">
+                <StockTable
+                  stocks={stocks}
+                  zones={zones}
+                />
+              </div>
             )}
 
             {/* Transactions Tab */}
@@ -426,6 +427,7 @@ export default function WarehouseDetail({ warehouseId, onBack }) {
           </div>
         </div>
       )}
+
 
       {/* Transfer Form Modal */}
       {showTransferForm && (

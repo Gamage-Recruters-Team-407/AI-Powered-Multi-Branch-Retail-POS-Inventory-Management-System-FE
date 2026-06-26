@@ -16,56 +16,16 @@ import { createReturn, updateReturnStatus, getInvoiceById, getInvoices, getRetur
 
 const FALLBACK_INVOICES = [
   {
-    id: 'INV-2026-001',
-    customer: 'Yasith Silva',
-    branch: 'Colombo Main (HQ)',
-    date: '2026-05-20',
-    paymentMethod: 'Credit Card',
-    taxRate: 0.12,
-    discountAmount: 50,
-    items: [
-      { id: 'PROD-101', name: 'iPad Pro 11-inch M4', qty: 1, price: 999, returnedQty: 1 },
-      { id: 'PROD-102', name: 'Apple Pencil Pro', qty: 1, price: 129, returnedQty: 1 },
-      { id: 'PROD-103', name: 'Paperlike Screen Protector', qty: 2, price: 39.99, returnedQty: 2 }
-    ]
-  },
-  {
-    id: 'INV-2026-002',
-    customer: 'Malmi Shehara',
-    branch: 'Kandy City Mall',
-    date: '2026-04-10',
-    paymentMethod: 'Cash',
-    taxRate: 0.08,
-    discountAmount: 0,
-    items: [
-      { id: 'PROD-201', name: 'MacBook Air M3', qty: 1, price: 1099, returnedQty: 1 },
-      { id: 'PROD-202', name: 'Apple Magic Mouse', qty: 1, price: 79, returnedQty: 1 }
-    ]
-  },
-  {
-    id: 'INV-2026-003',
-    customer: 'Gavesha Thathsarani',
-    branch: 'Galle Harbour Rd',
-    date: '2026-05-29',
-    paymentMethod: 'Digital Wallet',
-    taxRate: 0.1,
-    discountAmount: 20,
-    items: [
-      { id: 'PROD-301', name: 'Sony WH-1000XM5 Headphones', qty: 1, price: 399, returnedQty: 1 },
-      { id: 'PROD-302', name: 'Anker USB-C Hub 7-in-1', qty: 2, price: 49.99, returnedQty: 2 }
-    ]
-  },
-  {
     id: 'INV-2026-004',
     customer: 'Nethmi Perera',
     branch: 'Colombo Main (HQ)',
     date: '2026-06-09',
-    paymentMethod: 'Credit Card',
+    paymentMethod: 'Card',
     taxRate: 0.12,
-    discountAmount: 25,
+    discountAmount: 8,
     items: [
-      { id: 'PROD-401', name: 'Samsung Galaxy Tab S9', qty: 1, price: 799, returnedQty: 0 },
-      { id: 'PROD-402', name: 'Tablet Keyboard Case', qty: 1, price: 89, returnedQty: 0 }
+      { id: 'PROD-1001', name: 'Mechanical Keyboard', qty: 1, price: 89.99, returnedQty: 0 },
+      { id: 'PROD-1002', name: 'Wireless Mouse', qty: 1, price: 25.99, returnedQty: 0 }
     ]
   },
   {
@@ -75,10 +35,10 @@ const FALLBACK_INVOICES = [
     date: '2026-06-08',
     paymentMethod: 'Cash',
     taxRate: 0.08,
-    discountAmount: 10,
+    discountAmount: 5,
     items: [
-      { id: 'PROD-501', name: 'JBL Charge 5 Speaker', qty: 1, price: 179, returnedQty: 0 },
-      { id: 'PROD-502', name: 'USB-C Fast Charger', qty: 2, price: 24.5, returnedQty: 0 }
+      { id: 'PROD-1003', name: 'Bluetooth Speaker', qty: 1, price: 45, returnedQty: 0 },
+      { id: 'PROD-1004', name: 'USB-C Cable', qty: 2, price: 12.5, returnedQty: 0 }
     ]
   },
   {
@@ -88,10 +48,10 @@ const FALLBACK_INVOICES = [
     date: '2026-05-28',
     paymentMethod: 'Digital Wallet',
     taxRate: 0.1,
-    discountAmount: 15,
+    discountAmount: 3,
     items: [
-      { id: 'PROD-601', name: 'Canon PIXMA Printer', qty: 1, price: 249, returnedQty: 0 },
-      { id: 'PROD-602', name: 'Printer Ink Combo Pack', qty: 1, price: 59.99, returnedQty: 0 }
+      { id: 'PROD-1005', name: 'Desk Lamp', qty: 1, price: 22, returnedQty: 0 },
+      { id: 'PROD-1006', name: 'Notebook', qty: 3, price: 4.99, returnedQty: 0 }
     ]
   }
 ];
@@ -124,9 +84,6 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
 
   // Filter state for history log
   const [statusFilter, setStatusFilter] = useState('All');
-
-  // Helper date function (System date: June 2, 2026)
-  const systemDate = new Date('2026-06-02');
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +222,7 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
       console.error('Invoice lookup failed:', error);
     }
 
-    setSearchError(`Invoice ID "${searchInvoiceId}" not found. Try INV-2026-004, INV-2026-005, or INV-2026-006.`);
+    setSearchError(`Invoice ID "${searchInvoiceId}" not found.`);
   };
 
   const handleQtyChange = (itemId, val, maxQty) => {
@@ -279,8 +236,8 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
   // Helper to compute return window validation
   const getDaysSincePurchase = (invoiceDate) => {
     const pDate = new Date(invoiceDate);
-    const diffTime = Math.abs(systemDate - pDate);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffTime = Date.now() - pDate.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
 
   const isReturnWindowValid = (invoiceDate) => {
@@ -288,9 +245,8 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
   };
 
     // Create Return request
-    const handleCreateReturn = () => {
+    const handleCreateReturn = async () => {
       const itemsToReturn = [];
-      let refundSubtotal = 0;
 
       activeInvoice.items.forEach(item => {
         const qty = returnItems[item.id] || 0;
@@ -301,7 +257,6 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
             qty: qty,
             price: item.price
           });
-          refundSubtotal += qty * item.price;
         }
       });
 
@@ -310,78 +265,60 @@ const ReturnsPage = ({ returnState, setReturnState }) => {
         return;
       }
 
-      // Apply proportional discount
-      // Calculate total original subtotal of invoice
-      const totalOriginalSubtotal = activeInvoice.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
-      const discountProportion = activeInvoice.discountAmount / totalOriginalSubtotal;
-      const proportionalDiscountRefund = refundSubtotal * discountProportion;
-
-      // Apply taxes
-      const taxRefund = (refundSubtotal - proportionalDiscountRefund) * activeInvoice.taxRate;
-      const finalRefundAmount = refundSubtotal - proportionalDiscountRefund + taxRefund;
-
       const newReturn = {
         invoiceId: activeInvoice.id,
-        customer: activeInvoice.customer,
-        branch: activeInvoice.branch,
-        date: '2026-06-02',
-        amount: parseFloat(finalRefundAmount.toFixed(2)),
-        status: isReturnWindowValid(activeInvoice.date) ? 'Refunded' : 'Pending Approval',
         reason: returnReason,
         condition: returnCondition,
         items: itemsToReturn
       };
 
-      // Call API to create return request on backend
-      createReturn(newReturn)
-        .then((res) => {
-          // Re-fetch all data from backend to ensure state is perfectly synchronized
-          return Promise.all([getInvoices(), getReturns()]);
-        })
-        .then(([invoicesRes, returnsRes]) => {
-          syncReturnState({
-            invoices: invoicesRes.data || [],
-            returns: returnsRes.data || []
-          });
+      try {
+        const res = await createReturn(newReturn);
+        const createdReturn = res?.data || newReturn;
 
-          // Trigger modal receipt display with returned data
-          const createdReturn = returnsRes.data.find(ret => ret.invoiceId === newReturn.invoiceId);
-          setReceiptData(createdReturn || newReturn);
-          setIsReceiptOpen(true);
+        const [invoicesRes, returnsRes] = await Promise.all([getInvoices(), getReturns()]);
+        const refreshedInvoices = invoicesRes?.data || [];
+        const refreshedReturns = returnsRes?.data || [];
 
-          // Reset lookup form
-          setActiveInvoice(null);
-          setSearchInvoiceId('');
-          setReturnItems({});
-
-          alert(`Return Request created successfully.`);
-          setActiveTab('history');
-        })
-        .catch((err) => {
-          console.error("Error creating return:", err);
-          alert(`Failed to create return: ${err.response?.data?.message || err.message}`);
+        syncReturnState({
+          invoices: refreshedInvoices,
+          returns: refreshedReturns
         });
+
+        setReceiptData(createdReturn);
+        setIsReceiptOpen(true);
+        setSelectedReturnForDetails(createdReturn);
+        setActiveInvoice(null);
+        setSearchInvoiceId('');
+        setReturnItems({});
+
+        alert(createdReturn.status === 'Pending Approval'
+          ? 'Return request created and sent for approval.'
+          : 'Refund processed successfully.'
+        );
+        setActiveTab('history');
+      } catch (err) {
+        console.error("Error creating return:", err);
+        alert(`Failed to create return: ${err.response?.data?.message || err.message}`);
+      }
     };
 
   const handleStatusChange = (returnId, newStatus) => {
     updateReturnStatus(returnId, newStatus)
       .then(() => {
-        return getReturns();
+        return Promise.all([getReturns(), getInvoices()]);
       })
-      .then((returnsRes) => {
+      .then(([returnsRes, invoicesRes]) => {
+        const refreshedReturns = returnsRes?.data || [];
+        const refreshedInvoices = invoicesRes?.data || [];
         syncReturnState({
           ...(returnState || {}),
-          invoices: Array.isArray(returnState?.invoices) ? returnState.invoices : localInvoices,
-          returns: returnsRes.data || []
+          invoices: refreshedInvoices,
+          returns: refreshedReturns
         });
 
-        // Update details view
-        if (selectedReturnForDetails && selectedReturnForDetails.id === returnId) {
-          setSelectedReturnForDetails({
-            ...selectedReturnForDetails,
-            status: newStatus
-          });
-        }
+        const refreshedSelection = refreshedReturns.find((ret) => ret.id === returnId) || null;
+        setSelectedReturnForDetails(refreshedSelection);
       })
       .catch((err) => {
         console.error("Error updating return status:", err);

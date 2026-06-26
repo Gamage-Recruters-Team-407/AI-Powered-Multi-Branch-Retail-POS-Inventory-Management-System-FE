@@ -16,7 +16,6 @@ supplierApi.interceptors.request.use((config) => {
   return config;
 });
 
-// Helper to determine if we should fallback to localStorage/mock data
 const handleRequest = async (apiCall, fallbackFn) => {
   try {
     const response = await apiCall();
@@ -330,7 +329,11 @@ const fallbackAddTransaction = (id, transactionData) => {
     if (!supplier.transactions) {
       supplier.transactions = [];
     }
-    supplier.transactions.push(transactionData);
+    supplier.transactions.push({
+      ...transactionData,
+      productId: transactionData.productId || null,
+      branchId: transactionData.branchId || null
+    });
 
     if (transactionData.status === "Delivered") {
       supplier.totalSpend = (supplier.totalSpend || 0) + Number(transactionData.amount || 0);
