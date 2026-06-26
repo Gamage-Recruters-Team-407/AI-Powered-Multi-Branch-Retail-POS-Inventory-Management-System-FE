@@ -26,6 +26,22 @@ import axiosInstance from "../../api/axiosInstance";
 import { getAllBranchesWithPerformance } from "../../services/branchApi";
 import * as inventoryService from "../../services/inventoryService";
 
+
+
+const getAllowedRoles = (moduleId) => {
+  // product sub-pages parent module එකේ roles inherit කරනවා
+  const parentMap = {
+    "product-categories": "product-mgmt",
+    "product-add":        "product-mgmt",
+    "product-view":       "product-mgmt",
+    "product-edit":       "product-mgmt",
+  };
+ 
+  const lookupId = parentMap[moduleId] || moduleId;
+  const item = MODULE_NAV_ITEMS.find((n) => n.id === lookupId);
+  return item ? item.roles : ["admin"]; // default: admin only
+};
+
 const AnalyticsPage = lazy(() => import("../analytics/AnalyticsPage"));
 const AuditSecurityPage = lazy(() => import("../audit/AuditSecurityPage"));
 
@@ -483,9 +499,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [loading, setLoading] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("all");
 
-  const [datePreset, setDatePreset] = useState('today');
-  const [dateRange, setDateRange] = useState(_getDateRange('today'));
-
   const [wsConnected, setWsConnected] = useState(false);
   const [liveTransaction, setLiveTransaction] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -495,12 +508,34 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [navExpanded, setNavExpanded] = useState(true);
   const [warehouseDetailId, setWarehouseDetailId] = useState(null);
-  const [activeModule, setActiveModule] = useState(() => {
-    return sessionStorage.getItem("dashboard_activeModule") || "dashboard";
-  });
-  const [visibleModule, setVisibleModule] = useState(() => {
-    return sessionStorage.getItem("dashboard_visibleModule") || "dashboard";
-  });
+  // const [activeModule, setActiveModule] = useState(() => {
+  //   return sessionStorage.getItem("dashboard_activeModule") || "dashboard";
+  // });
+  // const [visibleModule, setVisibleModule] = useState(() => {
+  //   return sessionStorage.getItem("dashboard_visibleModule") || "dashboard";
+  // });
+
+  const getValidatedStoredModule = (key) => {
+    const stored     = sessionStorage.getItem(key) || "dashboard";
+    const roleSnap   = sessionStorage.getItem("dashboard_roleSnapshot");
+  
+    // Stored module was saved under a different role → ignore it
+    // (e.g. admin logged out, cashier logged in on same browser)
+    if (roleSnap && roleSnap !== role) {
+      sessionStorage.removeItem("dashboard_activeModule");
+      sessionStorage.removeItem("dashboard_visibleModule");
+      sessionStorage.removeItem("dashboard_roleSnapshot");
+      return "dashboard";
+    }
+  
+    // Check the stored module is actually allowed for current role
+    const allowed = getAllowedRoles(stored);
+    return allowed.includes(role) ? stored : "dashboard";
+};
+
+  const [activeModule,  setActiveModule]  = useState(() => getValidatedStoredModule("dashboard_activeModule"));
+  const [visibleModule, setVisibleModule] = useState(() => getValidatedStoredModule("dashboard_visibleModule"));
+
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [posView, setPosView] = useState("pos");
   const [lastSale, setLastSale] = useState(null);
@@ -522,7 +557,28 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   const [moonVisible, setMoonVisible] = useState(false);
   const [clouds, setClouds] = useState([]);
 
+
   const [chartGroupBy, setChartGroupBy] = useState('daily');
+
+  const _getChartDateRange = (g) => {
+    const now = new Date();
+    const end = now.toISOString().split('T')[0];
+    let start;
+    if (g === 'daily') {
+      const d = new Date(now); d.setDate(d.getDate() - 30);
+      start = d.toISOString().split('T')[0];
+    } else if (g === 'weekly') {
+      const d = new Date(now); d.setDate(d.getDate() - 84);
+      start = d.toISOString().split('T')[0];
+    } else {
+      const d = new Date(now); d.setMonth(d.getMonth() - 12);
+      start = d.toISOString().split('T')[0];
+    }
+    return { startDate: start, endDate: end };
+  };
+
+  const [datePreset, setDatePreset] = useState('custom');
+  const [dateRange, setDateRange] = useState(_getChartDateRange('daily'));
 
   // Handle logout
   const handleLogout = async () => {
@@ -637,34 +693,75 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     if (e.key === "Enter") sendMessage();
   };
 
+  // const showModule = (moduleId) => {
+  //   const productInnerModules = [
+  //     "product-categories",
+  //     "product-add",
+  //     "product-view",
+  //     "product-edit",
+  //   ];
+
+  //   if (productInnerModules.includes(moduleId)) {
+  //     setActiveModule("product-mgmt");
+  //   } else {
+  //     setActiveModule(moduleId);
+  //   }
+
+  //   // Reset warehouse detail when navigating away or back to list
+  //   if (moduleId === "warehouse-mgmt") {
+  //     setWarehouseDetailId(null);
+  //   }
+
+  //   setVisibleModule(moduleId);
+  //   sessionStorage.setItem("dashboard_activeModule", moduleId);
+  //   sessionStorage.setItem("dashboard_visibleModule", moduleId);
+
+  //   // Close sidebar on mobile after navigating
+  //   if (window.innerWidth <= 768) {
+  //     setNavExpanded(false);
+  //   }
+  // };
+
+
   const showModule = (moduleId) => {
-    const productInnerModules = [
-      "product-categories",
-      "product-add",
-      "product-view",
-      "product-edit",
-    ];
-
-    if (productInnerModules.includes(moduleId)) {
-      setActiveModule("product-mgmt");
-    } else {
-      setActiveModule(moduleId);
-    }
-
-    // Reset warehouse detail when navigating away or back to list
-    if (moduleId === "warehouse-mgmt") {
-      setWarehouseDetailId(null);
-    }
-
-    setVisibleModule(moduleId);
-    sessionStorage.setItem("dashboard_activeModule", moduleId);
-    sessionStorage.setItem("dashboard_visibleModule", moduleId);
-
-    // Close sidebar on mobile after navigating
-    if (window.innerWidth <= 768) {
-      setNavExpanded(false);
-    }
-  };
+  // ── Role guard ────────────────────────────────────────────────────────────
+  const allowedRoles = getAllowedRoles(moduleId);
+  if (!allowedRoles.includes(role)) {
+    // Access denied — dashboard redirect , silent fail
+    console.warn(`[RoleGuard] '${role}' tried to access '${moduleId}' — denied`);
+    moduleId = "dashboard"; // force redirect
+  }
+ 
+  // ── Set active nav highlight ──────────────────────────────────────────────
+  const productInnerModules = [
+    "product-categories",
+    "product-add",
+    "product-view",
+    "product-edit",
+  ];
+  if (productInnerModules.includes(moduleId)) {
+    setActiveModule("product-mgmt");
+  } else {
+    setActiveModule(moduleId);
+  }
+ 
+  // ── Warehouse detail reset ────────────────────────────────────────────────
+  if (moduleId === "warehouse-mgmt") {
+    setWarehouseDetailId(null);
+  }
+ 
+  setVisibleModule(moduleId);
+ 
+  // sessionStorage — only save if the role is actually allowed
+  // (prevent a poisoned sessionStorage from bypassing the guard on next load)
+  sessionStorage.setItem("dashboard_activeModule",  moduleId);
+  sessionStorage.setItem("dashboard_visibleModule", moduleId);
+  sessionStorage.setItem("dashboard_roleSnapshot",  role); // snapshot
+ 
+  if (window.innerWidth <= 768) {
+    setNavExpanded(false);
+  }
+};
 
   const handleViewAllInventory = () => {
     sessionStorage.setItem("scroll_to_inventory_table", "true");
@@ -711,7 +808,6 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return () => clearInterval(interval);
   }, []);
 
-  
   // WebSocket
   useEffect(() => {
     socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
@@ -807,25 +903,31 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
   }, [selectedBranch, dateRange, fetchData]);
 
 
-  // ── chart group-by handler ──────────
 const handleChartGroupBy = (g) => {
   setChartGroupBy(g);
-  const now = new Date();
-  const end = now.toISOString().split('T')[0];
-  let start;
-  if (g === 'daily') {
-    const d = new Date(now); d.setDate(d.getDate() - 30);
-    start = d.toISOString().split('T')[0];
-  } else if (g === 'weekly') {
-    const d = new Date(now); d.setDate(d.getDate() - 84); // 12 weeks
-    start = d.toISOString().split('T')[0];
-  } else {
-    const d = new Date(now); d.setMonth(d.getMonth() - 12);
-    start = d.toISOString().split('T')[0];
-  }
-  setDateRange({ startDate: start, endDate: end });
+  setDateRange(_getChartDateRange(g));
   setDatePreset('custom');
 };
+
+  // ── chart group-by handler ──────────
+// const handleChartGroupBy = (g) => {
+//   setChartGroupBy(g);
+//   const now = new Date();
+//   const end = now.toISOString().split('T')[0];
+//   let start;
+//   if (g === 'daily') {
+//     const d = new Date(now); d.setDate(d.getDate() - 30);
+//     start = d.toISOString().split('T')[0];
+//   } else if (g === 'weekly') {
+//     const d = new Date(now); d.setDate(d.getDate() - 84); // 12 weeks
+//     start = d.toISOString().split('T')[0];
+//   } else {
+//     const d = new Date(now); d.setMonth(d.getMonth() - 12);
+//     start = d.toISOString().split('T')[0];
+//   }
+//   setDateRange({ startDate: start, endDate: end });
+//   setDatePreset('custom');
+// };
 
 
   const handlePreset = (preset) => {
