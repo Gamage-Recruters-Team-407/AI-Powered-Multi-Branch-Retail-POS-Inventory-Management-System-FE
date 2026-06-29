@@ -53,14 +53,14 @@ function AddProductPage({ onBack }) {
       const categoryResponse = await getAllCategories();
       const supplierResponse = await getAllSuppliers();
 
-      try {
-        const branchResponse = await getBranches();
-        if (branchResponse && branchResponse.success) {
-          setBranches(branchResponse.data || []);
-        }
-      } catch (bErr) {
-        console.error("Failed to load branches:", bErr.message);
-      }
+      // try {
+      //   const branchResponse = await getBranches();
+      //   if (branchResponse && branchResponse.success) {
+      //     setBranches(branchResponse.data || []);
+      //   }
+      // } catch (bErr) {
+      //   console.error("Failed to load branches:", bErr.message);
+      // }
 
       setCategories(categoryResponse.data.categories || []);
       setSuppliers(
@@ -630,6 +630,7 @@ function AddProductPage({ onBack }) {
                 )}
               </div>
 
+              {/* 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   Target Branch
@@ -653,6 +654,8 @@ function AddProductPage({ onBack }) {
                   </p>
                 )}
               </div>
+
+              */}
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
