@@ -89,13 +89,19 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
 
   // Filter logs specific to this employee
   const employeeLogs = attendanceLogs.filter(log => log.employeeId === _id);
-  const employeeSchedules = schedules.filter(sch => sch.employeeId === _id).sort((a, b) => new Date(b.date) - new Date(a.date));
-  const performanceInfo = performanceMetrics.find(p => p.employeeId === _id) || {
-    punctuality: 80,
-    salesAchievement: 85,
-    customerRating: 4.0,
-    taskCompletion: 80,
-  };
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+  const employeeSchedules = schedules
+    .filter(sch => sch.employeeId === _id && sch.date >= todayStr)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const empMetrics = performanceMetrics.filter(p => p.employeeId === _id);
+  const performanceInfo = empMetrics.length > 0
+    ? [...empMetrics].sort((a, b) => b.date.localeCompare(a.date))[0]
+    : {
+        punctuality: 0,
+        salesAchievement: 0,
+        customerRating: 0.0,
+        taskCompletion: 0,
+      };
 
   const branchNames = {
     "1": "Colombo Head Office",
@@ -111,7 +117,7 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
 
   const attendanceRate = employeeLogs.length > 0 
     ? Math.round((employeeLogs.filter(l => l.status === "Present").length / employeeLogs.length) * 100)
-    : 100;
+    : 0;
 
   const handleDelete = async () => {
     try {

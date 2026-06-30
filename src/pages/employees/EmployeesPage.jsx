@@ -143,6 +143,15 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPerfSubmitting, setIsPerfSubmitting] = useState(false);
 
+  // Fetch metrics silently when an employee is selected to view details
+  useEffect(() => {
+    if (selectedEmployee) {
+      loadPerformance(true);
+      loadSchedules(true);
+      loadAttendance(true);
+    }
+  }, [selectedEmployee]);
+
   // Performance Form State
   const [perfEmpId, setPerfEmpId] = useState("");
   const [perfPunctuality, setPerfPunctuality] = useState(0);
@@ -1210,6 +1219,15 @@ export default function EmployeesPage() {
                 ✕
               </button>
             </div>
+
+            {!formEmployee && (
+              <div className="mb-4 rounded-xl bg-blue-50/80 border border-blue-200/50 p-3 text-[11px] text-blue-700 leading-normal flex gap-2">
+                <span className="text-sm select-none">💡</span>
+                <div>
+                  <span className="font-bold">Notice:</span> Registering a new employee automatically generates a user login account (if it doesn't already exist). The employee can log in using the default temporary password: <code className="bg-rose-50 text-rose-600 border border-rose-200/60 px-1.5 py-0.5 rounded font-mono font-bold select-all">tempPassword123</code>, which they can update later through the User Settings.
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleFormSubmit} className="space-y-4 flex-1">
               <div className="grid grid-cols-2 gap-3">
