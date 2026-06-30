@@ -1,11 +1,14 @@
 ﻿import React, { useState, useEffect } from "react";
 import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
+import { useBranches } from "../../context/BranchContext";
+
 const ROLES = ["admin", "manager", "cashier"];
-const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
+const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active", branch: "" };
 const USERS_PER_PAGE = 6;
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
+  const { branches, fetchBranches: loadBranches } = useBranches();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -23,7 +26,7 @@ export default function UserListPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); loadBranches(); }, []);
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
@@ -31,7 +34,7 @@ export default function UserListPage() {
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
-  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active" }); setFormError(""); setShowModal(true); };
+  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active", branch: u.branch?._id || u.branch || "" }); setFormError(""); setShowModal(true); };
   const handleFormChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
@@ -47,6 +50,7 @@ export default function UserListPage() {
         address: form.address,
         role: form.role,
         isActive: form.status === 'active',
+        branch: form.branch || undefined,
       };
       if (editUser && !payload.password) delete payload.password;
       editUser ? await updateUser(editUser._id, payload) : await createUser(payload);
@@ -162,17 +166,11 @@ export default function UserListPage() {
                         textTransform:"uppercase",
                         letterSpacing:"0.5px",
                         borderBottom:"1px solid #e2e8f0",
-                        // ── FIX: constrain User column width ──
                         ...(h === "User"  && { width:"170px", maxWidth:"170px" }),
-                        // ── FIX: constrain Email column width ──
                         ...(h === "Email" && { width:"200px", maxWidth:"200px" }),
-                        // ── FIX: constrain Phone column width ──
                         ...(h === "Phone" && { width:"120px", maxWidth:"120px" }),
-                        // ── FIX: constrain Role column width ──
                         ...(h === "Role"  && { width:"130px", maxWidth:"130px" }),
-                        // ── FIX: constrain Status column width ──
                         ...(h === "Status" && { width:"100px", maxWidth:"100px" }),
-                        // ── FIX: constrain Actions column width ──
                         ...(h === "Actions" && { width:"160px", maxWidth:"160px" }),
                       }}>{h}</th>
                     ))}
@@ -190,7 +188,6 @@ export default function UserListPage() {
                       onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
                       onMouseLeave={e => e.currentTarget.style.background="transparent"}>
 
-                      {/* User */}
                       <td style={{ padding:"16px 10px", width:"170px", maxWidth:"170px" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
                           <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
@@ -203,7 +200,6 @@ export default function UserListPage() {
                         </div>
                       </td>
 
-                      {/* ── FIX: Email column with fixed width + ellipsis ── */}
                       <td style={{
                         padding:"16px 10px",
                         color:"#475569",
@@ -216,7 +212,6 @@ export default function UserListPage() {
                         {user.email}
                       </td>
 
-                      {/* Phone */}
                       <td style={{ padding:"16px 8px", width:"120px", maxWidth:"120px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {user.phone
                           ? <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
@@ -234,7 +229,6 @@ export default function UserListPage() {
                         }
                       </td>
 
-                      {/* Role */}
                       <td style={{ padding:"16px 8px", width:"130px", maxWidth:"130px" }}>
                         {(() => {
                           const role = (user.role || "cashier").toLowerCase();
@@ -254,7 +248,6 @@ export default function UserListPage() {
                         })()}
                       </td>
 
-                      {/* Status */}
                       <td style={{ padding:"16px 8px", width:"100px", maxWidth:"100px" }}>
                         <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", whiteSpace:"nowrap", border:`1.5px solid ${user.isActive!==false?"#16a34a":"#94a3b8"}`, color:user.isActive!==false?"#16a34a":"#94a3b8", background:"transparent" }}>
                           <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1", flexShrink:0 }}></span>
@@ -262,7 +255,6 @@ export default function UserListPage() {
                         </span>
                       </td>
 
-                      {/* Actions */}
                       <td style={{ padding:"16px 8px", width:"160px", maxWidth:"160px" }}>
                         <div style={{ display:"flex", gap:"6px" }}>
                           <button onClick={()=>openEdit(user)}
@@ -301,7 +293,6 @@ export default function UserListPage() {
           </div>
         )}
 
-        {/* Pagination */}
         {!loading && users.length > 0 && (
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", borderTop:"1px solid rgba(226,232,240,0.8)", background:"rgba(248,250,252,0.6)" }}>
             <div style={{ fontSize:"13px", color:"#64748b" }}>
@@ -384,13 +375,22 @@ export default function UserListPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Status</label>
-                  <select name="status" value={form.status} onChange={handleFormChange}
+                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Branch</label>
+                  <select name="branch" value={form.branch} onChange={handleFormChange}
                     style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="">Select Branch</option>
+                    {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Status</label>
+                <select name="status" value={form.status} onChange={handleFormChange}
+                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </div>
 
