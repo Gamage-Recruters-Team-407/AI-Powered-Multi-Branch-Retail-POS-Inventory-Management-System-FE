@@ -19,6 +19,7 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewUser, setViewUser] = useState(null);
 
   const fetchUsers = async () => {
     try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
@@ -35,10 +36,21 @@ export default function UserListPage() {
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
   const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active", branch: u.branch?._id || u.branch || "" }); setFormError(""); setShowModal(true); };
-  const handleFormChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const openView = (u) => setViewUser(u);
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, phone: digitsOnly });
+      return;
+    }
+    setForm({ ...form, [name]: value });
+  };
 
   const handleSave = async () => {
     if (!form.name || !form.email || (!editUser && !form.password)) { setFormError("Name, Email and Password are required."); return; }
+    if (form.phone && form.phone.length < 10) { setFormError("Phone number must be 10 digits."); return; }
     setSaving(true); setFormError("");
     try {
       const payload = {
@@ -113,7 +125,7 @@ export default function UserListPage() {
       `}</style>
 
       {/* Header */}
-      <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
+      <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"24px", background:"rgba(255,255,255,0.9)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", padding:"24px 28px" }}>
         <div>
           <h1 style={{ fontSize:"26px", fontWeight:"700", color:"#0f172a", margin:0, letterSpacing:"-0.5px" }}>User Management</h1>
           <p style={{ fontSize:"14px", color:"#64748b", margin:"6px 0 0" }}>Manage system users, roles and permissions</p>
@@ -153,12 +165,12 @@ export default function UserListPage() {
         ) : (
           <div>
             <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"0px" }}>
-              <table style={{ width:"100%", minWidth:"600px", borderCollapse:"collapse", fontSize:"14px", tableLayout:"fixed" }}>
+              <table style={{ width:"100%", minWidth:"560px", borderCollapse:"collapse", fontSize:"14px", tableLayout:"fixed" }}>
                 <thead>
                   <tr style={{ background:"rgba(248,250,252,0.8)" }}>
-                    {["User","Email","Phone","Role","Status","Actions"].map(h => (
+                    {["User","Phone","Role","Status","Actions"].map(h => (
                       <th key={h} style={{
-                        padding:"12px 10px",
+                        padding:"12px 6px",
                         textAlign:"left",
                         fontWeight:"600",
                         color:"#475569",
@@ -166,19 +178,18 @@ export default function UserListPage() {
                         textTransform:"uppercase",
                         letterSpacing:"0.5px",
                         borderBottom:"1px solid #e2e8f0",
-                        ...(h === "User"  && { width:"170px", maxWidth:"170px" }),
-                        ...(h === "Email" && { width:"200px", maxWidth:"200px" }),
+                        ...(h === "User"  && { width:"180px", maxWidth:"180px" }),
                         ...(h === "Phone" && { width:"120px", maxWidth:"120px" }),
-                        ...(h === "Role"  && { width:"130px", maxWidth:"130px" }),
-                        ...(h === "Status" && { width:"100px", maxWidth:"100px" }),
-                        ...(h === "Actions" && { width:"160px", maxWidth:"160px" }),
+                        ...(h === "Role"  && { width:"120px", maxWidth:"120px" }),
+                        ...(h === "Status" && { width:"90px", maxWidth:"90px" }),
+                        ...(h === "Actions" && { width:"230px", maxWidth:"230px" }),
                       }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {users.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
+                    <tr><td colSpan={5} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
                       <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
                       <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
                       <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
@@ -188,7 +199,7 @@ export default function UserListPage() {
                       onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
                       onMouseLeave={e => e.currentTarget.style.background="transparent"}>
 
-                      <td style={{ padding:"16px 10px", width:"170px", maxWidth:"170px" }}>
+                      <td style={{ padding:"14px 6px", width:"180px", maxWidth:"180px" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
                           <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
                             {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
@@ -200,19 +211,7 @@ export default function UserListPage() {
                         </div>
                       </td>
 
-                      <td style={{
-                        padding:"16px 10px",
-                        color:"#475569",
-                        width:"200px",
-                        maxWidth:"200px",
-                        overflow:"hidden",
-                        textOverflow:"ellipsis",
-                        whiteSpace:"nowrap",
-                      }}>
-                        {user.email}
-                      </td>
-
-                      <td style={{ padding:"16px 8px", width:"120px", maxWidth:"120px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      <td style={{ padding:"14px 6px", width:"120px", maxWidth:"120px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {user.phone
                           ? <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -229,7 +228,7 @@ export default function UserListPage() {
                         }
                       </td>
 
-                      <td style={{ padding:"16px 8px", width:"130px", maxWidth:"130px" }}>
+                      <td style={{ padding:"14px 6px", width:"120px", maxWidth:"120px" }}>
                         {(() => {
                           const role = (user.role || "cashier").toLowerCase();
                           const roleStyles = {
@@ -240,7 +239,7 @@ export default function UserListPage() {
                           };
                           const s = roleStyles[role] || roleStyles.cashier;
                           return (
-                            <span style={{ display:"inline-flex", alignItems:"center", gap:"5px", padding:"5px 11px", borderRadius:"8px", fontSize:"11px", fontWeight:"700", whiteSpace:"nowrap", letterSpacing:"0.4px", background:s.bg, color:"#fff", boxShadow:`0 3px 10px ${s.shadow}` }}>
+                            <span style={{ display:"inline-flex", alignItems:"center", gap:"5px", padding:"5px 10px", borderRadius:"8px", fontSize:"11px", fontWeight:"700", whiteSpace:"nowrap", letterSpacing:"0.4px", background:s.bg, color:"#fff", boxShadow:`0 3px 10px ${s.shadow}` }}>
                               <span style={{ fontSize:"11px", lineHeight:1 }}>{s.icon}</span>
                               {(user.role || "").toUpperCase()}
                             </span>
@@ -248,30 +247,40 @@ export default function UserListPage() {
                         })()}
                       </td>
 
-                      <td style={{ padding:"16px 8px", width:"100px", maxWidth:"100px" }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", whiteSpace:"nowrap", border:`1.5px solid ${user.isActive!==false?"#16a34a":"#94a3b8"}`, color:user.isActive!==false?"#16a34a":"#94a3b8", background:"transparent" }}>
+                      <td style={{ padding:"14px 6px", width:"90px", maxWidth:"90px" }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 10px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", whiteSpace:"nowrap", border:`1.5px solid ${user.isActive!==false?"#16a34a":"#94a3b8"}`, color:user.isActive!==false?"#16a34a":"#94a3b8", background:"transparent" }}>
                           <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1", flexShrink:0 }}></span>
                           {user.isActive!==false?"active":"inactive"}
                         </span>
                       </td>
 
-                      <td style={{ padding:"16px 8px", width:"160px", maxWidth:"160px" }}>
-                        <div style={{ display:"flex", gap:"6px" }}>
+                      <td style={{ padding:"14px 6px", width:"230px", maxWidth:"230px" }}>
+                        <div style={{ display:"flex", gap:"4px" }}>
+                          <button onClick={()=>openView(user)}
+                            style={{ display:"flex", alignItems:"center", gap:"4px", padding:"6px 10px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"12px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor="#16a34a";e.currentTarget.style.color="#16a34a"}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            View
+                          </button>
                           <button onClick={()=>openEdit(user)}
-                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
+                            style={{ display:"flex", alignItems:"center", gap:"4px", padding:"6px 10px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"12px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
                             onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
                             onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                             </svg>
                             Edit
                           </button>
                           <button onClick={()=>setDeleteConfirm(user)}
-                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
+                            style={{ display:"flex", alignItems:"center", gap:"4px", padding:"6px 10px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"12px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
                             onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
                             onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"/>
                               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                               <path d="M10 11v6M14 11v6"/>
@@ -320,6 +329,67 @@ export default function UserListPage() {
         )}
       </div>
 
+      {/* View Modal (read-only) — Premium Look */}
+      {viewUser && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(10,10,20,0.55)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}
+          onClick={(e)=>{ if (e.target === e.currentTarget) setViewUser(null); }}>
+          <div style={{ background:"#ffffff", borderRadius:"28px", width:"480px", maxWidth:"95vw", boxShadow:"0 30px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.6)", overflow:"hidden" }}>
+
+            {/* Header band with gradient */}
+            <div style={{ background:"linear-gradient(135deg,#0f172a,#1e293b 60%,#312e81)", padding:"32px 36px 28px", position:"relative" }}>
+              <div style={{ position:"absolute", top:0, right:0, width:"160px", height:"160px", background:"radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)" }} />
+              <button onClick={()=>setViewUser(null)} style={{ position:"absolute", top:"20px", right:"20px", width:"32px", height:"32px", borderRadius:"50%", border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.08)", cursor:"pointer", fontSize:"14px", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <div style={{ display:"flex", alignItems:"center", gap:"16px", position:"relative" }}>
+                <div style={{ width:"60px", height:"60px", borderRadius:"18px", background:"linear-gradient(135deg,#818cf8,#c084fc)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:"700", fontSize:"24px", boxShadow:"0 8px 20px rgba(129,140,248,0.4)", flexShrink:0 }}>
+                  {(viewUser.firstName || viewUser.name || "?").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 style={{ fontSize:"20px", fontWeight:"700", color:"#fff", margin:0, letterSpacing:"-0.3px" }}>
+                    {viewUser.firstName ? `${viewUser.firstName} ${viewUser.lastName || ""}`.trim() : viewUser.name || ""}
+                  </h2>
+                  <p style={{ fontSize:"12px", color:"rgba(255,255,255,0.55)", margin:"5px 0 0", fontFamily:"monospace", letterSpacing:"0.3px" }}>ID • {viewUser._id?.slice(-10)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding:"30px 36px 8px" }}>
+              <div style={{ display:"flex", gap:"10px", marginBottom:"24px" }}>
+                <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"6px 14px", borderRadius:"999px", fontSize:"11px", fontWeight:"700", letterSpacing:"0.6px", color:getRoleStyle((viewUser.role||"cashier").toLowerCase()).color, background:getRoleStyle((viewUser.role||"cashier").toLowerCase()).bg, border:`1px solid ${getRoleStyle((viewUser.role||"cashier").toLowerCase()).color}33` }}>
+                  {(viewUser.role || "").toUpperCase()}
+                </span>
+                <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"6px 14px", borderRadius:"999px", fontSize:"11px", fontWeight:"700", letterSpacing:"0.6px", color: viewUser.isActive!==false?"#16a34a":"#94a3b8", background: viewUser.isActive!==false?"#f0fdf4":"#f8fafc", border:`1px solid ${viewUser.isActive!==false?"#16a34a":"#94a3b8"}33` }}>
+                  <span style={{ width:"5px", height:"5px", borderRadius:"50%", background: viewUser.isActive!==false?"#16a34a":"#94a3b8" }}/>
+                  {viewUser.isActive!==false?"ACTIVE":"INACTIVE"}
+                </span>
+              </div>
+
+              <div style={{ display:"flex", flexDirection:"column" }}>
+                {[
+                  { label:"Email", value: viewUser.email || "—", icon:"✉️" },
+                  { label:"Phone", value: viewUser.phone || "Not provided", icon:"📞" },
+                  { label:"Address", value: viewUser.address || "Not provided", icon:"📍" },
+                  { label:"Branch", value: branches.find(b => b._id === (viewUser.branch?._id || viewUser.branch))?.name || "Not assigned", icon:"🏢" },
+                ].map((row, idx) => (
+                  <div key={row.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 4px", borderBottom: idx < 3 ? "1px solid #f1f5f9" : "none" }}>
+                    <span style={{ fontSize:"13px", color:"#94a3b8", display:"flex", alignItems:"center", gap:"8px" }}>
+                      <span style={{ fontSize:"13px" }}>{row.icon}</span>{row.label}
+                    </span>
+                    <span style={{ fontSize:"14px", color:"#0f172a", fontWeight:"600", textAlign:"right" }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ display:"flex", gap:"12px", padding:"24px 36px 32px", justifyContent:"flex-end" }}>
+              <button onClick={()=>setViewUser(null)} style={{ padding:"11px 24px", borderRadius:"12px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"600", color:"#64748b" }}>Close</button>
+              <button onClick={()=>{ const u = viewUser; setViewUser(null); openEdit(u); }} style={{ padding:"11px 26px", borderRadius:"12px", border:"none", background:"linear-gradient(135deg,#1e293b,#312e81)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 8px 20px rgba(49,46,129,0.35)" }}>Edit User</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {showModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
@@ -356,10 +426,12 @@ export default function UserListPage() {
               </div>
 
               <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Phone",name:"phone",type:"text",placeholder:"+94 77 123 4567"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
+                {[{label:"Phone",name:"phone",type:"text",placeholder:"07XXXXXXXX"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
                     <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.placeholder}
+                      maxLength={f.name === "phone" ? 10 : undefined}
+                      inputMode={f.name === "phone" ? "numeric" : undefined}
                       style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
                       onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
                   </div>
