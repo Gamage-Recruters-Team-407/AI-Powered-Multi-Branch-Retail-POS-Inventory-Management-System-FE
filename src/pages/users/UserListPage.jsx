@@ -9,7 +9,7 @@ import {
   rejectUser,
 } from "../../services/userApi";
 
-const ROLES = ["admin", "manager", "cashier"];
+const ROLES = ["user", "cashier", "manager", "admin"];
 const emptyForm = {
   name: "",
   email: "",
@@ -104,10 +104,14 @@ export default function UserListPage() {
   const openEdit = (u) => {
     setEditUser(u);
     setForm({
-      name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "",
+      name: u.firstName
+        ? `${u.firstName} ${u.lastName || ""}`.trim()
+        : u.name || "",
       email: u.email || "",
       password: "",
-      role: u.role || "cashier",
+      role: ROLES.includes((u.role || "").toLowerCase())
+        ? (u.role || "").toLowerCase()
+        : "user",
       phone: u.phone || "",
       address: u.address || "",
       status: u.isActive === false ? "inactive" : "active",
@@ -538,11 +542,9 @@ export default function UserListPage() {
                                   width: "38px",
                                   height: "38px",
                                   borderRadius: "12px",
-                                  background: `linear-gradient(135deg, ${
-                                    ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"][i % 6]
-                                  }, ${
-                                    ["#8b5cf6", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa"][i % 6]
-                                  })`,
+                                  background: `linear-gradient(135deg, ${["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"][i % 6]
+                                    }, ${["#8b5cf6", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa"][i % 6]
+                                    })`,
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
@@ -713,9 +715,8 @@ export default function UserListPage() {
                                 fontSize: "12px",
                                 fontWeight: "600",
                                 whiteSpace: "nowrap",
-                                border: `1.5px solid ${
-                                  user.isActive !== false ? "#16a34a" : "#94a3b8"
-                                }`,
+                                border: `1.5px solid ${user.isActive !== false ? "#16a34a" : "#94a3b8"
+                                  }`,
                                 color: user.isActive !== false ? "#16a34a" : "#94a3b8",
                                 background: "transparent",
                               }}
