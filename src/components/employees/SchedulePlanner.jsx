@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useEmployees } from "../../context/EmployeeContext";
 
 export default function SchedulePlanner() {
@@ -11,6 +11,13 @@ export default function SchedulePlanner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState("");
   const [errorTimeout, setErrorTimeout] = useState(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const EMPLOYEES_PER_PAGE = 8;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handleSearchChange = (e) => {
     const rawVal = e.target.value;
@@ -42,6 +49,33 @@ export default function SchedulePlanner() {
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / EMPLOYEES_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * EMPLOYEES_PER_PAGE;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + EMPLOYEES_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 3) pages.push("...");
+      const start = Math.max(2, safePage - 1);
+      const end = Math.min(totalPages - 1, safePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safePage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const SHIFTS = [
     { label: "Morning (08:00 AM - 05:00 PM)", value: "Morning", color: "bg-sky-50 text-sky-700 border-sky-200" },
@@ -178,7 +212,7 @@ export default function SchedulePlanner() {
       </div>
 
       {/* Roster Timeline Grid */}
-      <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] border-collapse text-left border border-slate-100">
           <thead>
             <tr className="border-b border-slate-100">
@@ -202,7 +236,7 @@ export default function SchedulePlanner() {
                 </td>
               </tr>
             ) : (
-              filteredEmployees.map((emp) => (
+              paginatedEmployees.map((emp) => (
                 <tr key={emp._id} className="hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3 flex items-center gap-3">
                     <img src={emp.photo} alt={emp.firstName} className="h-8 w-8 rounded-lg object-cover" />
@@ -253,6 +287,7 @@ export default function SchedulePlanner() {
           </tbody>
         </table>
       </div>
+
 
       {/* Editor Modal/Drawer Overlay */}
       {activeCell && (
@@ -329,13 +364,52 @@ export default function SchedulePlanner() {
         </div>
       )}
       
-      {/* Legend & Details */}
-      <div className="mt-5 flex flex-wrap gap-4 border-t border-slate-50 pt-4 text-xs font-bold text-slate-500">
-        <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-sky-100 border-sky-200" /> Morning (MOR)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-indigo-100 border-indigo-200" /> Evening (EVE)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-slate-950" /> Night (NIG)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-red-100 border-red-200" /> Day Off (OFF)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-red-500" /> Double Shift Warn</span>
+      {/* Unified Pagination & Legend Footer */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-5 p-4 border border-slate-100 rounded-2xl bg-slate-50/50 gap-4 flex-wrap">
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 text-[10px] sm:text-xs font-bold text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-sky-100 border-sky-200" /> Morning (MOR)</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-indigo-100 border-indigo-200" /> Evening (EVE)</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-slate-950" /> Night (NIG)</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-6 rounded border bg-red-100 border-red-200" /> Day Off (OFF)</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-red-500" /> Double Shift Warn</span>
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-4 flex-wrap justify-between sm:justify-end flex-grow lg:flex-grow-0">
+            <div className="text-xs font-bold text-slate-500">
+              Page {safePage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={() => goToPage(safePage - 1)} 
+                disabled={safePage === 1}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+              {getPageNumbers().map((p, idx) => p === "..." ? (
+                <span key={`ellipsis-${idx}`} className="px-2 text-xs font-bold text-slate-400">...</span>
+              ) : (
+                <button 
+                  key={p} 
+                  onClick={() => goToPage(p)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${p === safePage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button 
+                onClick={() => goToPage(safePage + 1)} 
+                disabled={safePage === totalPages}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
     </div>
