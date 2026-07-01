@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useEmployees } from "../../context/EmployeeContext";
 
+const getGradientForId = (id) => {
+  const gradients = [
+    ["#6366f1", "#8b5cf6"],
+    ["#8b5cf6", "#a78bfa"],
+    ["#ec4899", "#f472b6"],
+    ["#f59e0b", "#fbbf24"],
+    ["#10b981", "#34d399"],
+    ["#3b82f6", "#60a5fa"]
+  ];
+  if (!id) return `linear-gradient(135deg, ${gradients[0][0]}, ${gradients[0][1]})`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % gradients.length;
+  return `linear-gradient(135deg, ${gradients[idx][0]}, ${gradients[idx][1]})`;
+};
+
 export default function SchedulePlanner() {
   const { employees, schedules, assignSchedule } = useEmployees();
   const [selectedWeekStart, setSelectedWeekStart] = useState(new Date());
@@ -239,7 +257,16 @@ export default function SchedulePlanner() {
               paginatedEmployees.map((emp) => (
                 <tr key={emp._id} className="hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3 flex items-center gap-3">
-                    <img src={emp.photo} alt={emp.firstName} className="h-8 w-8 rounded-lg object-cover" />
+                    {emp.photo ? (
+                      <img src={emp.photo} alt={emp.firstName} className="h-8 w-8 rounded-lg object-cover" />
+                    ) : (
+                      <div 
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                        style={{ background: getGradientForId(emp._id) }}
+                      >
+                        {(emp.firstName || emp.name || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <span className="text-xs font-extrabold text-slate-800 block truncate max-w-[120px]">{emp.firstName} {emp.lastName}</span>
                       <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role}</span>

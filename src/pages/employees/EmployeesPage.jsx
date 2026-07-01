@@ -6,6 +6,24 @@ import SchedulePlanner from "../../components/employees/SchedulePlanner";
 import { useAuth } from "../../context/AuthContext";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
+const getGradientForId = (id) => {
+  const gradients = [
+    ["#6366f1", "#8b5cf6"],
+    ["#8b5cf6", "#a78bfa"],
+    ["#ec4899", "#f472b6"],
+    ["#f59e0b", "#fbbf24"],
+    ["#10b981", "#34d399"],
+    ["#3b82f6", "#60a5fa"]
+  ];
+  if (!id) return `linear-gradient(135deg, ${gradients[0][0]}, ${gradients[0][1]})`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % gradients.length;
+  return `linear-gradient(135deg, ${gradients[idx][0]}, ${gradients[idx][1]})`;
+};
+
 export default function EmployeesPage() {
   const {
     employees,
@@ -1043,7 +1061,16 @@ export default function EmployeesPage() {
                                   return (
                                     <tr key={log._id} className="hover:bg-slate-50/50">
                                       <td className="px-5 py-3.5 flex items-center gap-2.5">
-                                        <img src={emp.photo} alt={emp.firstName} className="h-6 w-6 rounded-md object-cover" />
+                                        {emp.photo ? (
+                                          <img src={emp.photo} alt={emp.firstName} className="h-6 w-6 rounded-md object-cover" />
+                                        ) : (
+                                          <div 
+                                            className="h-6 w-6 rounded-md flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0"
+                                            style={{ background: getGradientForId(emp._id || log.employeeId) }}
+                                          >
+                                            {(emp.firstName || "?").charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
                                         <span className="font-bold text-slate-700">{emp.firstName} {emp.lastName}</span>
                                       </td>
                                       <td className="px-4 py-3.5 font-medium text-slate-500">{log.date}</td>
@@ -1190,7 +1217,16 @@ export default function EmployeesPage() {
                       >
                         <div className="flex items-center gap-3.5">
                           <span className="text-sm font-black text-slate-500 w-6 text-center">{rankMedal}</span>
-                          <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
+                          {emp.photo ? (
+                            <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
+                          ) : (
+                            <div 
+                              className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                              style={{ background: getGradientForId(emp._id) }}
+                            >
+                              {(emp.firstName || "?").charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div>
                             <span className="font-extrabold text-slate-800 block text-xs">{emp.firstName} {emp.lastName}</span>
                             <span className="text-[9px] uppercase font-bold text-slate-400 block">
