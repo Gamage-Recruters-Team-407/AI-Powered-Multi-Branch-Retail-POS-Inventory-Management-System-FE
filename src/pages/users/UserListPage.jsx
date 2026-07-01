@@ -50,6 +50,7 @@ export default function UserListPage() {
 
   const handleSave = async () => {
     if (!form.firstName || !form.lastName || !form.email || (!editUser && !form.password)) { setFormError("First Name, Last Name, Email and Password are required."); return; }
+    if (form.password && (form.password.length < 6 || form.password.length > 12)) { setFormError("Password must be between 6 and 12 characters."); return; }
     if (form.phone && form.phone.length < 10) { setFormError("Phone number must be 10 digits."); return; }
     setSaving(true); setFormError("");
     try {
@@ -426,23 +427,29 @@ export default function UserListPage() {
               </div>
 
               <div>
-                <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Password {!editUser && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                <input name="password" type="password" value={form.password} onChange={handleFormChange} placeholder={editUser ? "Leave blank to keep current" : "Min 6 characters"}
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                  onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                <label style={{ fontSize:"12px", fontWeight:"600", color: formError.toLowerCase().includes("password") ? "#dc2626" : "#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Password {!editUser && <span style={{ color:"#dc2626" }}>*</span>}</label>
+                <input name="password" type="password" value={form.password} onChange={handleFormChange} placeholder={editUser ? "Leave blank to keep current" : "6-12 characters"}
+                  maxLength={12}
+                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border: formError.toLowerCase().includes("password") ? "1.5px solid #dc2626" : "1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background: formError.toLowerCase().includes("password") ? "#fef2f2" : "#fafafa" }}
+                  onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor = formError.toLowerCase().includes("password") ? "#dc2626" : "#e2e8f0"} />
+                <p style={{ fontSize:"11px", color: formError.toLowerCase().includes("password") ? "#dc2626" : "#94a3b8", margin:"6px 0 0" }}>Must be 6-12 characters</p>
               </div>
 
               <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Phone",name:"phone",type:"text",placeholder:"07XXXXXXXX"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
+                {[{label:"Phone",name:"phone",type:"text",placeholder:"07XXXXXXXX"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => {
+                  const isPhoneError = f.name === "phone" && formError.toLowerCase().includes("phone");
+                  return (
                   <div key={f.name}>
-                    <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
+                    <label style={{ fontSize:"12px", fontWeight:"600", color: isPhoneError ? "#dc2626" : "#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
                     <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.placeholder}
                       maxLength={f.name === "phone" ? 10 : undefined}
                       inputMode={f.name === "phone" ? "numeric" : undefined}
-                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border: isPhoneError ? "1.5px solid #dc2626" : "1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background: isPhoneError ? "#fef2f2" : "#fafafa" }}
+                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor = isPhoneError ? "#dc2626" : "#e2e8f0"} />
+                    {isPhoneError && <p style={{ fontSize:"11px", color:"#dc2626", margin:"6px 0 0" }}>Must be 10 digits</p>}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
