@@ -1,13 +1,31 @@
 ﻿import React, { useState, useEffect } from "react";
-import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
+import {
+  getAllUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  searchUsers,
+  approveUser,
+  rejectUser,
+} from "../../services/userApi";
+
 const ROLES = ["admin", "manager", "cashier"];
-const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
+const emptyForm = {
+  name: "",
+  email: "",
+  password: "",
+  role: "cashier",
+  phone: "",
+  address: "",
+  status: "active",
+};
 const USERS_PER_PAGE = 6;
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -16,60 +34,205 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [actionLoading, setActionLoading] = useState("");
 
   const fetchUsers = async () => {
-    try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
-    catch { setError("Failed to load users."); }
-    finally { setLoading(false); }
+    try {
+      setLoading(true);
+      const res = await getAllUsers();
+      setUsers(res.data.data || []);
+    } catch {
+      setError("Failed to load users.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const getUserFullName = (user) => {
+    return user.firstName
+      ? `${user.firstName} ${user.lastName || ""}`.trim()
+      : user.name || "";
+  };
+
+  const getApprovalStatus = (user) => {
+    return user.approvalStatus || "APPROVED";
+  };
+
+  const getApprovalStyle = (status) => {
+    if (status === "PENDING") {
+      return {
+        border: "#facc15",
+        color: "#a16207",
+        bg: "#fefce8",
+        dot: "#eab308",
+      };
+    }
+
+    if (status === "REJECTED") {
+      return {
+        border: "#fca5a5",
+        color: "#dc2626",
+        bg: "#fef2f2",
+        dot: "#dc2626",
+      };
+    }
+
+    return {
+      border: "#86efac",
+      color: "#16a34a",
+      bg: "#f0fdf4",
+      dot: "#16a34a",
+    };
+  };
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
     setCurrentPage(1);
   };
 
-  const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
-  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active" }); setFormError(""); setShowModal(true); };
-  const handleFormChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const openAdd = () => {
+    setEditUser(null);
+    setForm(emptyForm);
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const openEdit = (u) => {
+    setEditUser(u);
+    setForm({
+      name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "",
+      email: u.email || "",
+      password: "",
+      role: u.role || "cashier",
+      phone: u.phone || "",
+      address: u.address || "",
+      status: u.isActive === false ? "inactive" : "active",
+    });
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const handleFormChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
-    if (!form.name || !form.email || (!editUser && !form.password)) { setFormError("Name, Email and Password are required."); return; }
-    setSaving(true); setFormError("");
+    if (!form.name || !form.email || (!editUser && !form.password)) {
+      setFormError("Name, Email and Password are required.");
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+
     try {
+      const nameParts = form.name.trim().split(" ");
+
       const payload = {
-        firstName: form.name.split(' ')[0],
-        lastName: form.name.split(' ')[1] || '',
+        name: form.name,
+        firstName: nameParts[0],
+        lastName: nameParts.slice(1).join(" ") || "",
         email: form.email,
         password: form.password,
         phone: form.phone,
         address: form.address,
         role: form.role,
-        isActive: form.status === 'active',
+        isActive: form.status === "active",
       };
+
       if (editUser && !payload.password) delete payload.password;
-      editUser ? await updateUser(editUser._id, payload) : await createUser(payload);
+
+      editUser
+        ? await updateUser(editUser._id, payload)
+        : await createUser(payload);
+
       setShowModal(false);
+      setSuccess(editUser ? "User updated successfully." : "User created successfully.");
       await fetchUsers();
       setCurrentPage(1);
-    } catch (err) { setFormError(err?.response?.data?.message || "Save failed."); }
-    finally { setSaving(false); }
+    } catch (err) {
+      setFormError(err?.response?.data?.message || "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleApprove = async (user) => {
+    const ok = window.confirm(`Approve ${getUserFullName(user) || user.email}?`);
+
+    if (!ok) return;
+
+    try {
+      setActionLoading(user._id);
+      setError("");
+      setSuccess("");
+
+      await approveUser(user._id);
+
+      setSuccess("User approved successfully.");
+      await fetchUsers();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to approve user.");
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const handleReject = async (user) => {
+    const ok = window.confirm(`Reject ${getUserFullName(user) || user.email}?`);
+
+    if (!ok) return;
+
+    try {
+      setActionLoading(user._id);
+      setError("");
+      setSuccess("");
+
+      await rejectUser(user._id);
+
+      setSuccess("User rejected successfully.");
+      await fetchUsers();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to reject user.");
+    } finally {
+      setActionLoading("");
+    }
   };
 
   const handleDelete = async (id) => {
-    try { await deleteUser(id); setDeleteConfirm(null); fetchUsers(); }
-    catch { alert("Delete failed."); }
+    try {
+      await deleteUser(id);
+      setDeleteConfirm(null);
+      setSuccess("User deleted successfully.");
+      fetchUsers();
+    } catch {
+      alert("Delete failed.");
+    }
   };
 
-  const roleConfig = { super_admin: { bg:"#f5f3ff", color:"#7c3aed", dot:"#7c3aed" }, admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
+  const roleConfig = {
+    super_admin: { bg: "#f5f3ff", color: "#7c3aed", dot: "#7c3aed" },
+    admin: { bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+    manager: { bg: "#eff6ff", color: "#2563eb", dot: "#2563eb" },
+    cashier: { bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+  };
   const getRoleStyle = (r) => roleConfig[r] || roleConfig.cashier;
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    const fullName = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : (u.name || "");
-    return fullName.toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
+    const fullName = u.firstName
+      ? `${u.firstName} ${u.lastName || ""}`.trim()
+      : u.name || "";
+
+    return (
+      fullName.toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      getApprovalStatus(u).toLowerCase().includes(q)
+    );
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
@@ -85,6 +248,7 @@ export default function UserListPage() {
   const getPageNumbers = () => {
     const pages = [];
     const maxButtons = 5;
+
     if (totalPages <= maxButtons) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
@@ -96,11 +260,15 @@ export default function UserListPage() {
       if (safePage < totalPages - 2) pages.push("...");
       pages.push(totalPages);
     }
+
     return pages;
   };
 
   return (
-    <div className="user-page-container" style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+    <div
+      className="user-page-container"
+      style={{ padding: "32px", maxWidth: "1200px", margin: "0 auto" }}
+    >
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
@@ -109,193 +277,649 @@ export default function UserListPage() {
       `}</style>
 
       {/* Header */}
-      <div className="user-header-flex" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
+      <div
+        className="user-header-flex"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "32px",
+        }}
+      >
         <div>
-          <h1 style={{ fontSize:"26px", fontWeight:"700", color:"#0f172a", margin:0, letterSpacing:"-0.5px" }}>User Management</h1>
-          <p style={{ fontSize:"14px", color:"#64748b", margin:"6px 0 0" }}>Manage system users, roles and permissions</p>
+          <h1
+            style={{
+              fontSize: "26px",
+              fontWeight: "700",
+              color: "#0f172a",
+              margin: 0,
+              letterSpacing: "-0.5px",
+            }}
+          >
+            User Management
+          </h1>
+          <p style={{ fontSize: "14px", color: "#64748b", margin: "6px 0 0" }}>
+            Manage system users, roles and permissions
+          </p>
         </div>
-        <button onClick={openAdd} style={{ display:"flex", alignItems:"center", gap:"8px", padding:"11px 22px", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", border:"none", borderRadius:"12px", fontWeight:"600", cursor:"pointer", fontSize:"14px", boxShadow:"0 4px 14px rgba(37,99,235,0.35)", transition:"all 0.2s" }}>
-          <span style={{ fontSize:"18px", lineHeight:1 }}>+</span> Add User
+
+        <button
+          onClick={openAdd}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "11px 22px",
+            background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "12px",
+            fontWeight: "600",
+            cursor: "pointer",
+            fontSize: "14px",
+            boxShadow: "0 4px 14px rgba(37,99,235,0.35)",
+            transition: "all 0.2s",
+          }}
+        >
+          <span style={{ fontSize: "18px", lineHeight: 1 }}>+</span> Add User
         </button>
       </div>
 
       {/* Search & Stats */}
-      <div className="user-stats-grid" style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
-        <div style={{ position:"relative" }}>
-          <span style={{ position:"absolute", left:"14px", top:"50%", transform:"translateY(-50%)", color:"#94a3b8", fontSize:"16px" }}>🔍</span>
-          <input type="text" placeholder="Search users by name or email..." value={search} onChange={handleSearch}
-            style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:"12px", border:"1.5px solid #e2e8f0", fontSize:"14px", background:"rgba(255,255,255,0.9)", color:"#1e293b", boxSizing:"border-box", outline:"none", backdropFilter:"blur(8px)" }} />
+      <div
+        className="user-stats-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr auto auto auto",
+          gap: "16px",
+          alignItems: "center",
+          marginBottom: "24px",
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: "14px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#94a3b8",
+              fontSize: "16px",
+            }}
+          >
+            🔍
+          </span>
+
+          <input
+            type="text"
+            placeholder="Search users by name, email or approval status..."
+            value={search}
+            onChange={handleSearch}
+            style={{
+              width: "100%",
+              padding: "11px 14px 11px 40px",
+              borderRadius: "12px",
+              border: "1.5px solid #e2e8f0",
+              fontSize: "14px",
+              background: "rgba(255,255,255,0.9)",
+              color: "#1e293b",
+              boxSizing: "border-box",
+              outline: "none",
+              backdropFilter: "blur(8px)",
+            }}
+          />
         </div>
-        {["admin","manager","cashier"].map(r => (
-          <div key={r} style={{ padding:"8px 16px", borderRadius:"10px", background:"rgba(255,255,255,0.8)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.6)", textAlign:"center", minWidth:"80px" }}>
-            <div style={{ fontSize:"18px", fontWeight:"700", color:"#1e293b" }}>{users.filter(u => u.role?.toLowerCase()===r).length}</div>
-            <div style={{ fontSize:"11px", color:"#64748b", textTransform:"capitalize" }}>{r}s</div>
+
+        {["admin", "manager", "cashier"].map((r) => (
+          <div
+            key={r}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "10px",
+              background: "rgba(255,255,255,0.8)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.6)",
+              textAlign: "center",
+              minWidth: "80px",
+            }}
+          >
+            <div style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b" }}>
+              {users.filter((u) => u.role?.toLowerCase() === r).length}
+            </div>
+            <div style={{ fontSize: "11px", color: "#64748b", textTransform: "capitalize" }}>
+              {r}s
+            </div>
           </div>
         ))}
       </div>
 
       {error && (
-        <div style={{ padding:"14px 18px", background:"rgba(254,226,226,0.9)", backdropFilter:"blur(8px)", borderRadius:"12px", color:"#dc2626", marginBottom:"20px", border:"1px solid rgba(252,165,165,0.5)", fontSize:"14px", display:"flex", alignItems:"center", gap:"8px" }}>
+        <div
+          style={{
+            padding: "14px 18px",
+            background: "rgba(254,226,226,0.9)",
+            backdropFilter: "blur(8px)",
+            borderRadius: "12px",
+            color: "#dc2626",
+            marginBottom: "20px",
+            border: "1px solid rgba(252,165,165,0.5)",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
           ⚠️ {error}
         </div>
       )}
 
+      {success && (
+        <div
+          style={{
+            padding: "14px 18px",
+            background: "rgba(220,252,231,0.9)",
+            backdropFilter: "blur(8px)",
+            borderRadius: "12px",
+            color: "#16a34a",
+            marginBottom: "20px",
+            border: "1px solid rgba(134,239,172,0.7)",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          ✅ {success}
+        </div>
+      )}
+
       {/* Table Card */}
-      <div className="user-table-wrapper" style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflowX:"auto" }}>
+      <div
+        className="user-table-wrapper"
+        style={{
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+          overflowX: "auto",
+        }}
+      >
         {loading ? (
-          <div style={{ padding:"80px", textAlign:"center", color:"#94a3b8", fontSize:"15px" }}>
-            <div style={{ fontSize:"32px", marginBottom:"12px" }}>⏳</div>Loading users...
+          <div
+            style={{
+              padding: "80px",
+              textAlign: "center",
+              color: "#94a3b8",
+              fontSize: "15px",
+            }}
+          >
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
+            Loading users...
           </div>
         ) : (
           <div>
-            <div className="custom-scrollbar" style={{ overflowX:"auto", paddingBottom:"0px" }}>
-              <table style={{ width:"100%", minWidth:"600px", borderCollapse:"collapse", fontSize:"14px", tableLayout:"fixed" }}>
+            <div className="custom-scrollbar" style={{ overflowX: "auto", paddingBottom: "0px" }}>
+              <table
+                style={{
+                  width: "100%",
+                  minWidth: "820px",
+                  borderCollapse: "collapse",
+                  fontSize: "14px",
+                  tableLayout: "fixed",
+                }}
+              >
                 <thead>
-                  <tr style={{ background:"rgba(248,250,252,0.8)" }}>
-                    {["User","Email","Phone","Role","Status","Actions"].map(h => (
-                      <th key={h} style={{
-                        padding:"12px 10px",
-                        textAlign:"left",
-                        fontWeight:"600",
-                        color:"#475569",
-                        fontSize:"12px",
-                        textTransform:"uppercase",
-                        letterSpacing:"0.5px",
-                        borderBottom:"1px solid #e2e8f0",
-                        // ── FIX: constrain User column width ──
-                        ...(h === "User"  && { width:"170px", maxWidth:"170px" }),
-                        // ── FIX: constrain Email column width ──
-                        ...(h === "Email" && { width:"200px", maxWidth:"200px" }),
-                        // ── FIX: constrain Phone column width ──
-                        ...(h === "Phone" && { width:"120px", maxWidth:"120px" }),
-                        // ── FIX: constrain Role column width ──
-                        ...(h === "Role"  && { width:"130px", maxWidth:"130px" }),
-                        // ── FIX: constrain Status column width ──
-                        ...(h === "Status" && { width:"100px", maxWidth:"100px" }),
-                        // ── FIX: constrain Actions column width ──
-                        ...(h === "Actions" && { width:"160px", maxWidth:"160px" }),
-                      }}>{h}</th>
-                    ))}
+                  <tr style={{ background: "rgba(248,250,252,0.8)" }}>
+                    {["User", "Email", "Phone", "Role", "Status", "Approval", "Actions"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          style={{
+                            padding: "12px 10px",
+                            textAlign: "left",
+                            fontWeight: "600",
+                            color: "#475569",
+                            fontSize: "12px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                            borderBottom: "1px solid #e2e8f0",
+                            ...(h === "User" && { width: "160px", maxWidth: "160px" }),
+                            ...(h === "Email" && { width: "190px", maxWidth: "190px" }),
+                            ...(h === "Phone" && { width: "120px", maxWidth: "120px" }),
+                            ...(h === "Role" && { width: "120px", maxWidth: "120px" }),
+                            ...(h === "Status" && { width: "95px", maxWidth: "95px" }),
+                            ...(h === "Approval" && { width: "125px", maxWidth: "125px" }),
+                            ...(h === "Actions" && { width: "230px", maxWidth: "230px" }),
+                          }}
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
+
                 <tbody>
                   {users.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
-                      <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
-                      <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
-                      <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
-                    </td></tr>
-                  ) : paginatedUsers.map((user, i) => (
-                    <tr key={user._id} style={{ transition:"background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
-                      onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-
-                      {/* User */}
-                      <td style={{ padding:"16px 10px", width:"170px", maxWidth:"170px" }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                          <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
-                            {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || ""}</div>
-                            <div style={{ fontSize:"12px", color:"#94a3b8", marginTop:"2px" }}>ID: {user._id?.slice(-6)}</div>
-                          </div>
+                    <tr>
+                      <td
+                        colSpan={7}
+                        style={{ padding: "60px", textAlign: "center", color: "#94a3b8" }}
+                      >
+                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>👥</div>
+                        <div style={{ fontSize: "16px", fontWeight: "500" }}>No users found</div>
+                        <div style={{ fontSize: "13px", marginTop: "4px" }}>
+                          Add your first user to get started
                         </div>
                       </td>
-
-                      {/* ── FIX: Email column with fixed width + ellipsis ── */}
-                      <td style={{
-                        padding:"16px 10px",
-                        color:"#475569",
-                        width:"200px",
-                        maxWidth:"200px",
-                        overflow:"hidden",
-                        textOverflow:"ellipsis",
-                        whiteSpace:"nowrap",
-                      }}>
-                        {user.email}
-                      </td>
-
-                      {/* Phone */}
-                      <td style={{ padding:"16px 8px", width:"120px", maxWidth:"120px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {user.phone
-                          ? <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                              </svg>
-                              <span style={{ color:"#475569", fontSize:"13px" }}>{user.phone}</span>
-                            </div>
-                          : <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                              </svg>
-                              <span style={{ color:"#94a3b8", fontSize:"13px", fontStyle:"italic" }}>No phone</span>
-                            </div>
-                        }
-                      </td>
-
-                      {/* Role */}
-                      <td style={{ padding:"16px 8px", width:"130px", maxWidth:"130px" }}>
-                        {(() => {
-                          const role = (user.role || "cashier").toLowerCase();
-                          const roleStyles = {
-                            super_admin: { bg:"linear-gradient(135deg,#7c3aed,#5b21b6)", shadow:"rgba(124,58,237,0.35)", icon:"👑" },
-                            admin:       { bg:"linear-gradient(135deg,#dc2626,#991b1b)", shadow:"rgba(220,38,38,0.35)",  icon:"🛡️" },
-                            manager:     { bg:"linear-gradient(135deg,#2563eb,#1d4ed8)", shadow:"rgba(37,99,235,0.35)",  icon:"💼" },
-                            cashier:     { bg:"linear-gradient(135deg,#0891b2,#0e7490)", shadow:"rgba(8,145,178,0.35)",  icon:"🏷️" },
-                          };
-                          const s = roleStyles[role] || roleStyles.cashier;
-                          return (
-                            <span style={{ display:"inline-flex", alignItems:"center", gap:"5px", padding:"5px 11px", borderRadius:"8px", fontSize:"11px", fontWeight:"700", whiteSpace:"nowrap", letterSpacing:"0.4px", background:s.bg, color:"#fff", boxShadow:`0 3px 10px ${s.shadow}` }}>
-                              <span style={{ fontSize:"11px", lineHeight:1 }}>{s.icon}</span>
-                              {(user.role || "").toUpperCase()}
-                            </span>
-                          );
-                        })()}
-                      </td>
-
-                      {/* Status */}
-                      <td style={{ padding:"16px 8px", width:"100px", maxWidth:"100px" }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", whiteSpace:"nowrap", border:`1.5px solid ${user.isActive!==false?"#16a34a":"#94a3b8"}`, color:user.isActive!==false?"#16a34a":"#94a3b8", background:"transparent" }}>
-                          <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1", flexShrink:0 }}></span>
-                          {user.isActive!==false?"active":"inactive"}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td style={{ padding:"16px 8px", width:"160px", maxWidth:"160px" }}>
-                        <div style={{ display:"flex", gap:"6px" }}>
-                          <button onClick={()=>openEdit(user)}
-                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
-                            onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
-                            onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                            Edit
-                          </button>
-                          <button onClick={()=>setDeleteConfirm(user)}
-                            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
-                            onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
-                            onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/>
-                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                              <path d="M10 11v6M14 11v6"/>
-                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                            </svg>
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-
                     </tr>
-                  ))}
+                  ) : (
+                    paginatedUsers.map((user, i) => {
+                      const approvalStatus = getApprovalStatus(user);
+                      const approvalStyle = getApprovalStyle(approvalStatus);
+
+                      return (
+                        <tr
+                          key={user._id}
+                          style={{ transition: "background 0.15s" }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "rgba(248,250,252,0.6)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }
+                        >
+                          {/* User */}
+                          <td style={{ padding: "16px 10px", width: "160px", maxWidth: "160px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div
+                                style={{
+                                  width: "38px",
+                                  height: "38px",
+                                  borderRadius: "12px",
+                                  background: `linear-gradient(135deg, ${
+                                    ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"][i % 6]
+                                  }, ${
+                                    ["#8b5cf6", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa"][i % 6]
+                                  })`,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "white",
+                                  fontWeight: "700",
+                                  fontSize: "15px",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
+                              </div>
+
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: "600",
+                                    color: "#1e293b",
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  {getUserFullName(user)}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#94a3b8",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  ID: {user._id?.slice(-6)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td
+                            style={{
+                              padding: "16px 10px",
+                              color: "#475569",
+                              width: "190px",
+                              maxWidth: "190px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {user.email}
+                          </td>
+
+                          {/* Phone */}
+                          <td
+                            style={{
+                              padding: "16px 8px",
+                              width: "120px",
+                              maxWidth: "120px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {user.phone ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <svg
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#475569"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                </svg>
+                                <span style={{ color: "#475569", fontSize: "13px" }}>
+                                  {user.phone}
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <svg
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#94a3b8"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                </svg>
+                                <span
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "13px",
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  No phone
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Role */}
+                          <td style={{ padding: "16px 8px", width: "120px", maxWidth: "120px" }}>
+                            {(() => {
+                              const role = (user.role || "cashier").toLowerCase();
+                              const roleStyles = {
+                                super_admin: {
+                                  bg: "linear-gradient(135deg,#7c3aed,#5b21b6)",
+                                  shadow: "rgba(124,58,237,0.35)",
+                                  icon: "👑",
+                                },
+                                admin: {
+                                  bg: "linear-gradient(135deg,#dc2626,#991b1b)",
+                                  shadow: "rgba(220,38,38,0.35)",
+                                  icon: "🛡️",
+                                },
+                                manager: {
+                                  bg: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                                  shadow: "rgba(37,99,235,0.35)",
+                                  icon: "💼",
+                                },
+                                cashier: {
+                                  bg: "linear-gradient(135deg,#0891b2,#0e7490)",
+                                  shadow: "rgba(8,145,178,0.35)",
+                                  icon: "🏷️",
+                                },
+                              };
+                              const s = roleStyles[role] || roleStyles.cashier;
+
+                              return (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    padding: "5px 11px",
+                                    borderRadius: "8px",
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    whiteSpace: "nowrap",
+                                    letterSpacing: "0.4px",
+                                    background: s.bg,
+                                    color: "#fff",
+                                    boxShadow: `0 3px 10px ${s.shadow}`,
+                                  }}
+                                >
+                                  <span style={{ fontSize: "11px", lineHeight: 1 }}>{s.icon}</span>
+                                  {(user.role || "").toUpperCase()}
+                                </span>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Status */}
+                          <td style={{ padding: "16px 8px", width: "95px", maxWidth: "95px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 12px",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                whiteSpace: "nowrap",
+                                border: `1.5px solid ${
+                                  user.isActive !== false ? "#16a34a" : "#94a3b8"
+                                }`,
+                                color: user.isActive !== false ? "#16a34a" : "#94a3b8",
+                                background: "transparent",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  background: user.isActive !== false ? "#16a34a" : "#cbd5e1",
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              {user.isActive !== false ? "active" : "inactive"}
+                            </span>
+                          </td>
+
+                          {/* Approval */}
+                          <td
+                            style={{
+                              padding: "16px 8px",
+                              width: "125px",
+                              maxWidth: "125px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                whiteSpace: "nowrap",
+                                border: `1.5px solid ${approvalStyle.border}`,
+                                color: approvalStyle.color,
+                                background: approvalStyle.bg,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  background: approvalStyle.dot,
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              {approvalStatus}
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td
+                            style={{
+                              padding: "16px 8px",
+                              width: "230px",
+                              maxWidth: "230px",
+                            }}
+                          >
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                              {approvalStatus !== "APPROVED" && (
+                                <button
+                                  disabled={actionLoading === user._id}
+                                  onClick={() => handleApprove(user)}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    padding: "7px 12px",
+                                    borderRadius: "8px",
+                                    border: "1.5px solid #86efac",
+                                    background: "#f0fdf4",
+                                    cursor:
+                                      actionLoading === user._id ? "not-allowed" : "pointer",
+                                    fontSize: "13px",
+                                    fontWeight: "500",
+                                    color: "#16a34a",
+                                    transition: "all 0.15s",
+                                    opacity: actionLoading === user._id ? 0.6 : 1,
+                                  }}
+                                >
+                                  ✓ Approve
+                                </button>
+                              )}
+
+                              {approvalStatus !== "REJECTED" && (
+                                <button
+                                  disabled={actionLoading === user._id}
+                                  onClick={() => handleReject(user)}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    padding: "7px 12px",
+                                    borderRadius: "8px",
+                                    border: "1.5px solid #fecaca",
+                                    background: "#fff5f5",
+                                    cursor:
+                                      actionLoading === user._id ? "not-allowed" : "pointer",
+                                    fontSize: "13px",
+                                    fontWeight: "500",
+                                    color: "#dc2626",
+                                    transition: "all 0.15s",
+                                    opacity: actionLoading === user._id ? 0.6 : 1,
+                                  }}
+                                >
+                                  ✕ Reject
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => openEdit(user)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "7px 16px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid #e2e8f0",
+                                  background: "white",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  fontWeight: "500",
+                                  color: "#475569",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = "#2563eb";
+                                  e.currentTarget.style.color = "#2563eb";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = "#e2e8f0";
+                                  e.currentTarget.style.color = "#475569";
+                                }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                Edit
+                              </button>
+
+                              <button
+                                onClick={() => setDeleteConfirm(user)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "7px 16px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid #fecaca",
+                                  background: "#fff5f5",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  fontWeight: "500",
+                                  color: "#dc2626",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "#fef2f2";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "#fff5f5";
+                                }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                </svg>
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-            <div style={{ textAlign:"center", padding:"2px 0 0", fontSize:"11px", color:"#94a3b8" }}>
+
+            <div style={{ textAlign: "center", padding: "2px 0 0", fontSize: "11px", color: "#94a3b8" }}>
               ← scroll to see more →
             </div>
           </div>
@@ -303,25 +927,82 @@ export default function UserListPage() {
 
         {/* Pagination */}
         {!loading && users.length > 0 && (
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", borderTop:"1px solid rgba(226,232,240,0.8)", background:"rgba(248,250,252,0.6)" }}>
-            <div style={{ fontSize:"13px", color:"#64748b" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "16px 20px",
+              borderTop: "1px solid rgba(226,232,240,0.8)",
+              background: "rgba(248,250,252,0.6)",
+            }}
+          >
+            <div style={{ fontSize: "13px", color: "#64748b" }}>
               Page {safePage} of {totalPages}
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-              <button onClick={()=>goToPage(safePage - 1)} disabled={safePage === 1}
-                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===1?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===1?"#cbd5e1":"#475569" }}>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 1}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "8px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: safePage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "13px",
+                  fontWeight: "500",
+                  color: safePage === 1 ? "#cbd5e1" : "#475569",
+                }}
+              >
                 ← Prev
               </button>
-              {getPageNumbers().map((p, idx) => p === "..." ? (
-                <span key={`ellipsis-${idx}`} style={{ padding:"7px 6px", fontSize:"13px", color:"#94a3b8" }}>...</span>
-              ) : (
-                <button key={p} onClick={()=>goToPage(p)}
-                  style={{ padding:"7px 13px", borderRadius:"8px", border:"1.5px solid", borderColor:p===safePage?"#2563eb":"#e2e8f0", background:p===safePage?"#2563eb":"white", cursor:"pointer", fontSize:"13px", fontWeight:"600", color:p===safePage?"white":"#475569", minWidth:"34px" }}>
-                  {p}
-                </button>
-              ))}
-              <button onClick={()=>goToPage(safePage + 1)} disabled={safePage === totalPages}
-                style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:safePage===totalPages?"not-allowed":"pointer", fontSize:"13px", fontWeight:"500", color:safePage===totalPages?"#cbd5e1":"#475569" }}>
+
+              {getPageNumbers().map((p, idx) =>
+                p === "..." ? (
+                  <span
+                    key={`ellipsis-${idx}`}
+                    style={{ padding: "7px 6px", fontSize: "13px", color: "#94a3b8" }}
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    style={{
+                      padding: "7px 13px",
+                      borderRadius: "8px",
+                      border: "1.5px solid",
+                      borderColor: p === safePage ? "#2563eb" : "#e2e8f0",
+                      background: p === safePage ? "#2563eb" : "white",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: p === safePage ? "white" : "#475569",
+                      minWidth: "34px",
+                    }}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage === totalPages}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "8px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: safePage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "13px",
+                  fontWeight: "500",
+                  color: safePage === totalPages ? "#cbd5e1" : "#475569",
+                }}
+              >
                 Next →
               </button>
             </div>
@@ -331,62 +1012,295 @@ export default function UserListPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-          <div style={{ background:"rgba(255,255,255,0.98)", borderRadius:"24px", padding:"36px", width:"520px", maxWidth:"95vw", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", border:"1px solid rgba(255,255,255,0.8)" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"28px" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.5)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.98)",
+              borderRadius: "24px",
+              padding: "36px",
+              width: "520px",
+              maxWidth: "95vw",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.8)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "28px",
+              }}
+            >
               <div>
-                <h2 style={{ fontSize:"20px", fontWeight:"700", color:"#0f172a", margin:0 }}>{editUser ? "Edit User" : "Add New User"}</h2>
-                <p style={{ fontSize:"13px", color:"#94a3b8", margin:"4px 0 0" }}>{editUser ? "Update user information" : "Create a new system user"}</p>
+                <h2
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    margin: 0,
+                  }}
+                >
+                  {editUser ? "Edit User" : "Add New User"}
+                </h2>
+                <p style={{ fontSize: "13px", color: "#94a3b8", margin: "4px 0 0" }}>
+                  {editUser ? "Update user information" : "Create a new system user"}
+                </p>
               </div>
-              <button onClick={()=>setShowModal(false)} style={{ width:"32px", height:"32px", borderRadius:"8px", border:"1px solid #e2e8f0", background:"#f8fafc", cursor:"pointer", fontSize:"16px", color:"#64748b", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             {formError && (
-              <div style={{ padding:"12px 16px", background:"#fef2f2", borderRadius:"10px", color:"#dc2626", marginBottom:"20px", fontSize:"13px", border:"1px solid #fecaca" }}>⚠️ {formError}</div>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#fef2f2",
+                  borderRadius: "10px",
+                  color: "#dc2626",
+                  marginBottom: "20px",
+                  fontSize: "13px",
+                  border: "1px solid #fecaca",
+                }}
+              >
+                ⚠️ {formError}
+              </div>
             )}
 
-            <div style={{ display:"grid", gap:"18px" }}>
-              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Full Name",name:"name",type:"text",required:true},{label:"Email Address",name:"email",type:"email",required:true}].map(f => (
+            <div style={{ display: "grid", gap: "18px" }}>
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
+                {[
+                  { label: "Full Name", name: "name", type: "text", required: true },
+                  { label: "Email Address", name: "email", type: "email", required: true },
+                ].map((f) => (
                   <div key={f.name}>
-                    <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label} {f.required && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.name==="name"?"John Doe":"john@example.com"}
-                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa", transition:"border 0.2s" }}
-                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                    <label
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#475569",
+                        display: "block",
+                        marginBottom: "8px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {f.label} {f.required && <span style={{ color: "#dc2626" }}>*</span>}
+                    </label>
+
+                    <input
+                      name={f.name}
+                      type={f.type}
+                      value={form[f.name]}
+                      onChange={handleFormChange}
+                      placeholder={f.name === "name" ? "John Doe" : "john@example.com"}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e2e8f0",
+                        fontSize: "14px",
+                        color: "#1e293b",
+                        boxSizing: "border-box",
+                        outline: "none",
+                        background: "#fafafa",
+                        transition: "border 0.2s",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                      onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                    />
                   </div>
                 ))}
               </div>
 
               <div>
-                <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Password {!editUser && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                <input name="password" type="password" value={form.password} onChange={handleFormChange} placeholder={editUser ? "Leave blank to keep current" : "Min 6 characters"}
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                  onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    display: "block",
+                    marginBottom: "8px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Password {!editUser && <span style={{ color: "#dc2626" }}>*</span>}
+                </label>
+
+                <input
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleFormChange}
+                  placeholder={editUser ? "Leave blank to keep current" : "Min 6 characters"}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    fontSize: "14px",
+                    color: "#1e293b",
+                    boxSizing: "border-box",
+                    outline: "none",
+                    background: "#fafafa",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                  onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                />
               </div>
 
-              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Phone",name:"phone",type:"text",placeholder:"+94 77 123 4567"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
+                {[
+                  { label: "Phone", name: "phone", type: "text", placeholder: "+94 77 123 4567" },
+                  { label: "Address", name: "address", type: "text", placeholder: "Colombo, Sri Lanka" },
+                ].map((f) => (
                   <div key={f.name}>
-                    <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
-                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.placeholder}
-                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                    <label
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#475569",
+                        display: "block",
+                        marginBottom: "8px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {f.label}
+                    </label>
+
+                    <input
+                      name={f.name}
+                      type={f.type}
+                      value={form[f.name]}
+                      onChange={handleFormChange}
+                      placeholder={f.placeholder}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e2e8f0",
+                        fontSize: "14px",
+                        color: "#1e293b",
+                        boxSizing: "border-box",
+                        outline: "none",
+                        background: "#fafafa",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                      onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                    />
                   </div>
                 ))}
               </div>
 
-              <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
                 <div>
-                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Role</label>
-                  <select name="role" value={form.role} onChange={handleFormChange}
-                    style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
-                    {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#475569",
+                      display: "block",
+                      marginBottom: "8px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Role
+                  </label>
+
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={handleFormChange}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1.5px solid #e2e8f0",
+                      fontSize: "14px",
+                      color: "#1e293b",
+                      background: "#fafafa",
+                      outline: "none",
+                    }}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
-                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Status</label>
-                  <select name="status" value={form.status} onChange={handleFormChange}
-                    style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#475569",
+                      display: "block",
+                      marginBottom: "8px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Status
+                  </label>
+
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleFormChange}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1.5px solid #e2e8f0",
+                      fontSize: "14px",
+                      color: "#1e293b",
+                      background: "#fafafa",
+                      outline: "none",
+                    }}
+                  >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
@@ -394,9 +1308,39 @@ export default function UserListPage() {
               </div>
             </div>
 
-            <div style={{ display:"flex", gap:"12px", marginTop:"28px", justifyContent:"flex-end" }}>
-              <button onClick={()=>setShowModal(false)} style={{ padding:"10px 22px", borderRadius:"10px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"500", color:"#64748b" }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding:"10px 22px", borderRadius:"10px", border:"none", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 4px 14px rgba(37,99,235,0.35)", opacity:saving?0.7:1 }}>
+            <div style={{ display: "flex", gap: "12px", marginTop: "28px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#64748b",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 4px 14px rgba(37,99,235,0.35)",
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
                 {saving ? "Saving..." : editUser ? "Update User" : "Create User"}
               </button>
             </div>
@@ -406,14 +1350,91 @@ export default function UserListPage() {
 
       {/* Delete Confirm */}
       {deleteConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", maxWidth:"100%", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
-            <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:"24px" }}>🗑️</div>
-            <h3 style={{ fontSize:"18px", fontWeight:"700", color:"#0f172a", margin:"0 0 8px" }}>Delete User</h3>
-            <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.firstName || deleteConfirm.name}</strong>? This action cannot be undone.</p>
-            <div style={{ display:"flex", gap:"12px", justifyContent:"center" }}>
-              <button onClick={()=>setDeleteConfirm(null)} style={{ padding:"10px 24px", borderRadius:"10px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"500", color:"#64748b" }}>Cancel</button>
-              <button onClick={()=>handleDelete(deleteConfirm._id)} style={{ padding:"10px 24px", borderRadius:"10px", border:"none", background:"linear-gradient(135deg,#dc2626,#b91c1c)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 4px 14px rgba(220,38,38,0.3)" }}>Delete</button>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.5)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "20px",
+              padding: "32px",
+              width: "400px",
+              maxWidth: "100%",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.2)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: "#fef2f2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+                fontSize: "24px",
+              }}
+            >
+              🗑️
+            </div>
+
+            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: "0 0 8px" }}>
+              Delete User
+            </h3>
+
+            <p style={{ fontSize: "14px", color: "#64748b", margin: "0 0 24px" }}>
+              Are you sure you want to delete{" "}
+              <strong style={{ color: "#1e293b" }}>
+                {deleteConfirm.firstName || deleteConfirm.name}
+              </strong>
+              ? This action cannot be undone.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#64748b",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => handleDelete(deleteConfirm._id)}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg,#dc2626,#b91c1c)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 4px 14px rgba(220,38,38,0.3)",
+                }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
