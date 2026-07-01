@@ -3,7 +3,7 @@ import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "..
 import { useBranches } from "../../context/BranchContext";
 
 const ROLES = ["admin", "manager", "cashier"];
-const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active", branch: "" };
+const emptyForm = { firstName: "", lastName: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active", branch: "" };
 const USERS_PER_PAGE = 6;
 
 export default function UserListPage() {
@@ -35,7 +35,7 @@ export default function UserListPage() {
   };
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
-  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active", branch: u.branch?._id || u.branch || "" }); setFormError(""); setShowModal(true); };
+  const openEdit = (u) => { setEditUser(u); setForm({ firstName: u.firstName || (u.name ? u.name.split(' ')[0] : ""), lastName: u.lastName || (u.name ? u.name.split(' ').slice(1).join(' ') : ""), email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active", branch: u.branch?._id || u.branch || "" }); setFormError(""); setShowModal(true); };
   const openView = (u) => setViewUser(u);
 
   const handleFormChange = (e) => {
@@ -49,13 +49,13 @@ export default function UserListPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.email || (!editUser && !form.password)) { setFormError("Name, Email and Password are required."); return; }
+    if (!form.firstName || !form.lastName || !form.email || (!editUser && !form.password)) { setFormError("First Name, Last Name, Email and Password are required."); return; }
     if (form.phone && form.phone.length < 10) { setFormError("Phone number must be 10 digits."); return; }
     setSaving(true); setFormError("");
     try {
       const payload = {
-        firstName: form.name.split(' ')[0],
-        lastName: form.name.split(' ')[1] || '',
+        firstName: form.firstName,
+        lastName: form.lastName,
         email: form.email,
         password: form.password,
         phone: form.phone,
@@ -408,14 +408,21 @@ export default function UserListPage() {
 
             <div style={{ display:"grid", gap:"18px" }}>
               <div className="user-modal-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Full Name",name:"name",type:"text",required:true},{label:"Email Address",name:"email",type:"email",required:true}].map(f => (
+                {[{label:"First Name",name:"firstName",type:"text",required:true,placeholder:"John"},{label:"Last Name",name:"lastName",type:"text",required:true,placeholder:"Doe"}].map(f => (
                   <div key={f.name}>
                     <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label} {f.required && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.name==="name"?"John Doe":"john@example.com"}
+                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.placeholder}
                       style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa", transition:"border 0.2s" }}
                       onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
                   </div>
                 ))}
+              </div>
+
+              <div>
+                <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Email Address <span style={{ color:"#dc2626" }}>*</span></label>
+                <input name="email" type="email" value={form.email} onChange={handleFormChange} placeholder="john@example.com"
+                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa", transition:"border 0.2s" }}
+                  onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
               </div>
 
               <div>
