@@ -21,3 +21,5 @@ export const createUser = (data) => userApi.post("/", data);
 export const updateUser = (id, data) => userApi.put(`/${id}`, data);
 export const deleteUser = (id) => userApi.delete(`/${id}`);
 export const searchUsers = (query) => userApi.get(`/search?q=${query}`);
+export const approveUser = (id) => userApi.patch(`/${id}/approve`);
+export const rejectUser = (id) => userApi.patch(`/${id}/reject`);
