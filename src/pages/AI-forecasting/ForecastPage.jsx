@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {io} from "socket.io-client";
 import axios from "axios";
 
-const socket=io("http://localhost:5000");
+const socket=io((import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, ''), { transports: ['websocket'] });
 
 function ForecastPage(){
     const[forecast,setForecast]=useState([]);
