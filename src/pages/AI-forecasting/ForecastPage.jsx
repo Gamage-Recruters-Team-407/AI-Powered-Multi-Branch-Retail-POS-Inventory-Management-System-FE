@@ -11,7 +11,7 @@ function ForecastPage(){
     const fetchForecasts=async()=>{
         try{
             const response=await axios.get(
-                "http://localhost:5000/api/forecast"
+                `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/forecast`
             );
             setForecast(response.data);
         }catch(error){
@@ -50,7 +50,7 @@ function ForecastPage(){
     const runForecast=async()=>{
         try{
             await axios.post(
-                "http://localhost:5000/api/forecast/run"
+                `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/forecast/run`
             );
             alert("Forecast generation started");
         }catch(error){
