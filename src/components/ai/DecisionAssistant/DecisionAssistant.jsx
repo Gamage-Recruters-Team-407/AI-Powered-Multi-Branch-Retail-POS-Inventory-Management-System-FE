@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Bot, CheckCircle, AlertCircle, AlertTriangle, X, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const DecisionAssistant = ({ darkMode }) => {
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ const DecisionAssistant = ({ darkMode }) => {
   const handleAction = async (action) => {
     if (action.action === 'create_po') {
       try {
-        const res = await fetch('http://localhost:5000/api/decisions/create-po', {
+        const res = await fetch(`${API_BASE_URL}/decisions/create-po`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -94,7 +96,7 @@ const DecisionAssistant = ({ darkMode }) => {
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + parseInt(offerDuration, 10));
 
-      const res = await fetch('http://localhost:5000/api/decisions/send-offer', {
+      const res = await fetch(`${API_BASE_URL}/decisions/send-offer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +122,7 @@ const DecisionAssistant = ({ darkMode }) => {
   const handleRestockSubmit = async () => {
     if (!selectedRestockAction) return;
     try {
-      const res = await fetch('http://localhost:5000/api/decisions/reorder', {
+      const res = await fetch(`${API_BASE_URL}/decisions/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,7 +147,7 @@ const DecisionAssistant = ({ darkMode }) => {
 
   const handleApproveAll = async () => {
     try {
-      await fetch('http://localhost:5000/api/decisions/approve-all', { method: 'POST' });
+      await fetch(`${API_BASE_URL}/decisions/approve-all`, { method: 'POST' });
     } catch(err) { console.error(err); }
     
     const dismissed = JSON.parse(localStorage.getItem('dismissedActions') || '[]');

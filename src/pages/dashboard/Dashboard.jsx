@@ -814,7 +814,8 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
 
   // WebSocket
   useEffect(() => {
-    socketService.connect(import.meta.env.VITE_API_URL || 'http://localhost:5000', token);
+    const wsUrl = (import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+    socketService.connect(wsUrl, token);
     socketService.on('connect', () => setWsConnected(true));
     socketService.on('disconnect', () => setWsConnected(false));
 

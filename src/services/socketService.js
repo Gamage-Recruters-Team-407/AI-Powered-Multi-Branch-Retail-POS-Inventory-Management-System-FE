@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || "http://localhost:5000";
+const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, '');
 
 class SocketService {
   constructor() {
@@ -16,12 +16,11 @@ class SocketService {
     try {
       this.socket = io(socketUrl, {
         auth: { token },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'], // Required for Vercel — polling doesn't work on serverless
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         timeout: 10000,
-        path: '/socket.io',
       });
 
       this.socket.on('connect', () => {

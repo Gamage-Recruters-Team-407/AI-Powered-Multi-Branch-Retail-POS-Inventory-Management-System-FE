@@ -4,7 +4,7 @@ import { useCustomers } from "../../context/CustomerContext";
 import CustomerViewModal   from "./CustomerViewModal";
 import CustomerAddModal    from "./CustomerAddModal";
 import CustomerEditModal   from "./CustomerEditModal";
-import CustomerDeleteModal from "./CustomerDeleteModal";
+import CustomerDeleteModal from "./Customerdeletemodal";
 import AddLoyaltyPointsModal from "./AddLoyaltyPointsModal";
 
 function CustomerListPage() {
