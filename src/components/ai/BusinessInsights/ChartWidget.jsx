@@ -56,8 +56,9 @@ const ChartWidget = ({ darkMode }) => {
           granularity = 'week';
         }
 
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
         const res = await fetch(
-          `http://localhost:5000/api/recommendations/sales-chart?fromDate=${fromDate}&toDate=${toDate}&granularity=${granularity}`
+          `${baseUrl}/recommendations/sales-chart?fromDate=${fromDate}&toDate=${toDate}&granularity=${granularity}`
         );
         const json = await res.json();
 
