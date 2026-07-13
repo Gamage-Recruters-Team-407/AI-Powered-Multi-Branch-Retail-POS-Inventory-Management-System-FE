@@ -1,6 +1,19 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export const InventoryTable = ({ items, onRowClick }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [items]);
+
+  const totalItems = items.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = items.slice(startIndex, endIndex);
+
   return (
     <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-tertiary)]/50">
@@ -21,15 +34,15 @@ export const InventoryTable = ({ items, onRowClick }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border-color)]">
-            {items.length === 0 ? (
+            {currentItems.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-12 text-center text-[var(--text-muted)] font-semibold">
                   No inventory records match the selected filter presets.
                 </td>
               </tr>
             ) : (
-              items.map((item) => {
-                const isLow = item.quantity <= (item.product?.reorderLevel || 0);
+              currentItems.map((item) => {
+                const isLow = item.quantity < 50;
                 return (
                   <tr
                     key={item._id}
@@ -48,7 +61,7 @@ export const InventoryTable = ({ items, onRowClick }) => {
                       {(item.quantity || 0).toLocaleString()} units
                     </td>
                     <td className="px-4 py-4 text-right font-bold text-[var(--text-muted)]">
-                      {(item.product?.reorderLevel || 0).toLocaleString()} units
+                      50 units
                     </td>
                     <td className="px-5 py-4 text-center">
                       <span
@@ -68,6 +81,65 @@ export const InventoryTable = ({ items, onRowClick }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-5 py-4 border-t border-[var(--border-color)] flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-[var(--bg-tertiary)]/30 text-xs font-semibold">
+          <div className="text-[var(--text-muted)] font-bold text-center sm:text-left">
+            Showing <span className="text-[var(--text-primary)]">{startIndex + 1}</span> to{" "}
+            <span className="text-[var(--text-primary)]">{Math.min(endIndex, totalItems)}</span> of{" "}
+            <span className="text-[var(--text-primary)]">{totalItems}</span> records
+          </div>
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] transition disabled:opacity-40 disabled:hover:bg-transparent font-extrabold cursor-pointer"
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {[...Array(totalPages)].map((_, index) => {
+                const pageNumber = index + 1;
+                if (
+                  totalPages > 5 &&
+                  pageNumber !== 1 &&
+                  pageNumber !== totalPages &&
+                  Math.abs(pageNumber - currentPage) > 1
+                ) {
+                  if (pageNumber === 2 && currentPage > 3) {
+                    return <span key="dots-start" className="px-1 text-[var(--text-muted)] font-bold">...</span>;
+                  }
+                  if (pageNumber === totalPages - 1 && currentPage < totalPages - 2) {
+                    return <span key="dots-end" className="px-1 text-[var(--text-muted)] font-bold">...</span>;
+                  }
+                  return null;
+                }
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => setCurrentPage(pageNumber)}
+                    className={`h-7 w-7 rounded-lg flex items-center justify-center transition border font-extrabold text-[11px] cursor-pointer ${
+                      currentPage === pageNumber
+                        ? "bg-[var(--accent-color)] border-[var(--accent-color)] text-white shadow-xs"
+                        : "border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] transition disabled:opacity-40 disabled:hover:bg-transparent font-extrabold cursor-pointer"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

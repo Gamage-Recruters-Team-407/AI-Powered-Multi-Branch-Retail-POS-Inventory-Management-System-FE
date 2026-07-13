@@ -4,7 +4,7 @@ import { useCustomers } from "../../context/CustomerContext";
 import CustomerViewModal   from "./CustomerViewModal";
 import CustomerAddModal    from "./CustomerAddModal";
 import CustomerEditModal   from "./CustomerEditModal";
-import CustomerDeleteModal from "./CustomerDeleteModal";
+import CustomerDeleteModal from "./Customerdeletemodal";
 import AddLoyaltyPointsModal from "./AddLoyaltyPointsModal";
 
 function CustomerListPage() {
@@ -1458,7 +1458,7 @@ function CustomerListPage() {
         .pg-info { font-size: 0.74rem; font-weight: 700; color: #64748b; }
         .pg-btns { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
         .pg-btn { padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.65); font-size: 0.72rem; font-weight: 750; color: #0f172a; cursor: pointer; transition: all 0.18s ease; white-space: nowrap; font-family: inherit; }
-        .pg-btn:hover:not(:disabled) { background: #fff; border-color: rgba(0,0,0,0.15); }
+        .pg-btn:hover:not(:disabled):not(.active) { background: #fff; border-color: rgba(0,0,0,0.15); }
         .pg-btn.active { background: linear-gradient(135deg,#3b82f6,#1d4ed8); color: #fff; border: none; box-shadow: 0 3px 8px rgba(37,99,235,0.2); }
         .pg-btn.active.active-loyalty { background: linear-gradient(135deg,#7e22ce,#6d28d9); box-shadow: 0 3px 8px rgba(126,34,206,0.2); }
         .pg-btn.active.active-analytics { background: linear-gradient(135deg,#0369a1,#075985); box-shadow: 0 3px 8px rgba(3,105,161,0.2); }

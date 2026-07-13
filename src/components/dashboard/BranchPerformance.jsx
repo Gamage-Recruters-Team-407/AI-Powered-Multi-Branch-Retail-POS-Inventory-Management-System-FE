@@ -1,17 +1,72 @@
-import React from 'react';
+import React from "react";
 
 const DEMO_BRANCHES = [
-  { branch_id: 1, branch_name: 'Colombo Head Office', location: 'Colombo 03', status: 'active', staff_count: 24, products_count: 486, total_stock: 12840, low_stock_items: 3, revenue: '$18,420', growth: 14.2 },
-  { branch_id: 2, branch_name: 'Kandy City Branch', location: 'Kandy', status: 'active', staff_count: 14, products_count: 312, total_stock: 7620, low_stock_items: 8, revenue: '$11,640', growth: -2.1 },
-  { branch_id: 3, branch_name: 'Galle Fort Branch', location: 'Galle', status: 'active', staff_count: 10, products_count: 248, total_stock: 5840, low_stock_items: 1, revenue: '$8,720', growth: 22.8 },
-  { branch_id: 4, branch_name: 'Negombo Branch', location: 'Negombo', status: 'active', staff_count: 8, products_count: 198, total_stock: 4210, low_stock_items: 5, revenue: '$5,820', growth: 7.3 },
-  { branch_id: 5, branch_name: 'Matara Branch', location: 'Matara', status: 'inactive', staff_count: 6, products_count: 140, total_stock: 2100, low_stock_items: 0, revenue: '$2,400', growth: -8.4 },
+  {
+    branch_id: 1,
+    branch_name: "Colombo Head Office",
+    location: "Colombo 03",
+    status: "active",
+    staff_count: 24,
+    products_count: 486,
+    total_stock: 12840,
+    low_stock_items: 3,
+    revenue: "Rs.18,420",
+    growth: 14.2,
+  },
+  {
+    branch_id: 2,
+    branch_name: "Kandy City Branch",
+    location: "Kandy",
+    status: "active",
+    staff_count: 14,
+    products_count: 312,
+    total_stock: 7620,
+    low_stock_items: 8,
+    revenue: "Rs.11,640",
+    growth: -2.1,
+  },
+  {
+    branch_id: 3,
+    branch_name: "Galle Fort Branch",
+    location: "Galle",
+    status: "active",
+    staff_count: 10,
+    products_count: 248,
+    total_stock: 5840,
+    low_stock_items: 1,
+    revenue: "Rs.8,720",
+    growth: 22.8,
+  },
+  {
+    branch_id: 4,
+    branch_name: "Negombo Branch",
+    location: "Negombo",
+    status: "active",
+    staff_count: 8,
+    products_count: 198,
+    total_stock: 4210,
+    low_stock_items: 5,
+    revenue: "Rs.5,820",
+    growth: 7.3,
+  },
+  {
+    branch_id: 5,
+    branch_name: "Matara Branch",
+    location: "Matara",
+    status: "inactive",
+    staff_count: 6,
+    products_count: 140,
+    total_stock: 2100,
+    low_stock_items: 0,
+    revenue: "Rs.2,400",
+    growth: -8.4,
+  },
 ];
 
 const BranchCard = ({ branch }) => {
   const maxStock = 15000;
   const stockPct = Math.round((branch.total_stock / maxStock) * 100);
-  
+
   return (
     <div className="branch-card">
       <div className="branch-card-top">
@@ -22,12 +77,15 @@ const BranchCard = ({ branch }) => {
             <div className="branch-location">📍 {branch.location}</div>
           </div>
         </div>
-        <span className={`branch-status ${branch.status}`}>{branch.status}</span>
+        <span className={`branch-status ${branch.status}`}>
+          {branch.status}
+        </span>
       </div>
 
       <div className="branch-revenue">{branch.revenue}</div>
-      <div className={`branch-growth ${branch.growth >= 0 ? 'up' : 'down'}`}>
-        {branch.growth >= 0 ? '↑' : '↓'} {Math.abs(branch.growth)}% vs last period
+      <div className={`branch-growth ${branch.growth >= 0 ? "up" : "down"}`}>
+        {branch.growth >= 0 ? "↑" : "↓"} {Math.abs(branch.growth)}% vs last
+        period
       </div>
 
       <div className="branch-stock-bar">
@@ -50,7 +108,7 @@ const BranchCard = ({ branch }) => {
           <div className="bm-val">{branch.total_stock.toLocaleString()}</div>
           <div className="bm-label">Stock</div>
         </div>
-        <div className={`bm ${branch.low_stock_items > 0 ? 'warn' : ''}`}>
+        <div className={`bm ${branch.low_stock_items > 0 ? "warn" : ""}`}>
           <div className="bm-val">{branch.low_stock_items}</div>
           <div className="bm-label">Low Stock</div>
         </div>
@@ -101,12 +159,16 @@ const BranchPerformance = ({ data }) => {
       <div className="section-header">
         <div>
           <h2 className="section-title">Branch Performance</h2>
-          <p className="section-sub">{branches.length} branches • Real-time data</p>
+          <p className="section-sub">
+            {branches.length} branches • Real-time data
+          </p>
         </div>
-        <button className="view-all-btn">View All Branches →</button>
       </div>
+
       <div className="branch-grid">
-        {branches.map(b => <BranchCard key={b.branch_id} branch={b} />)}
+        {branches.map((b) => (
+          <BranchCard key={b.branch_id} branch={b} />
+        ))}
       </div>
       <style>{`
         .branch-section {}

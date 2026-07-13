@@ -3,9 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { addProduct } from "../../services/productManagementApi";
 import { getAllCategories } from "../../services/categoryManagementApi";
 import { getAllSuppliers } from "../../services/supplierManagementApi";
+import { getBranches } from "../../services/inventoryService";
 import toast from "react-hot-toast";
 
-function AddProductPage({onBack}) {
+const baseControlClass =
+  "pm-control w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition";
+
+const getInputClass = (hasError) =>
+  `${baseControlClass} ${
+    hasError
+      ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+      : "border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+  }`;
+
+function AddProductPage({ onBack }) {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -19,10 +30,13 @@ function AddProductPage({onBack}) {
     costPrice: "",
     reorderLevel: "",
     unit: "",
+    quantity: "",
+    branch: "",
   });
 
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [branches, setBranches] = useState([]);
 
   const [image, setImage] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
@@ -34,12 +48,24 @@ function AddProductPage({onBack}) {
   const fetchDropdownData = async () => {
     try {
       setDataLoading(true);
+      setMessage("");
 
       const categoryResponse = await getAllCategories();
       const supplierResponse = await getAllSuppliers();
 
+      // try {
+      //   const branchResponse = await getBranches();
+      //   if (branchResponse && branchResponse.success) {
+      //     setBranches(branchResponse.data || []);
+      //   }
+      // } catch (bErr) {
+      //   console.error("Failed to load branches:", bErr.message);
+      // }
+
       setCategories(categoryResponse.data.categories || []);
-      setSuppliers(supplierResponse.data.data || []);
+      setSuppliers(
+        supplierResponse.data.data || supplierResponse.data.suppliers || []
+      );
     } catch (error) {
       setMessage("Failed to load categories or suppliers");
     } finally {
@@ -51,18 +77,26 @@ function AddProductPage({onBack}) {
     fetchDropdownData();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (previewImage) {
+        URL.revokeObjectURL(previewImage);
+      }
+    };
+  }, [previewImage]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
 
-    setErrors({
-      ...errors,
+    setErrors((prev) => ({
+      ...prev,
       [name]: "",
-    });
+    }));
 
     setMessage("");
   };
@@ -80,10 +114,10 @@ function AddProductPage({onBack}) {
     if (!allowedTypes.includes(selectedImage.type)) {
       setImage(null);
       setPreviewImage("");
-      setErrors({
-        ...errors,
+      setErrors((prev) => ({
+        ...prev,
         image: "Only JPG, PNG, and WEBP images are allowed",
-      });
+      }));
       toast.error("Only JPG, PNG, and WEBP images are allowed");
       return;
     }
@@ -91,20 +125,22 @@ function AddProductPage({onBack}) {
     if (selectedImage.size > maxSize) {
       setImage(null);
       setPreviewImage("");
-      setErrors({
-        ...errors,
+      setErrors((prev) => ({
+        ...prev,
         image: "Image size must be less than 2MB",
-      });
+      }));
       toast.error("Image size must be less than 2MB");
       return;
     }
 
     setImage(selectedImage);
     setPreviewImage(URL.createObjectURL(selectedImage));
-    setErrors({
-      ...errors,
+
+    setErrors((prev) => ({
+      ...prev,
       image: "",
-    });
+    }));
+
     setMessage("");
   };
 
@@ -167,6 +203,17 @@ function AddProductPage({onBack}) {
       newErrors.reorderLevel = "Reorder level must be a whole number";
     }
 
+    if (formData.quantity && Number(formData.quantity) < 0) {
+      newErrors.quantity = "Initial stock quantity cannot be negative";
+    }
+
+    if (
+      formData.quantity &&
+      !Number.isInteger(Number(formData.quantity))
+    ) {
+      newErrors.quantity = "Initial stock quantity must be a whole number";
+    }
+
     if (formData.brand.trim().length > 50) {
       newErrors.brand = "Brand cannot exceed 50 characters";
     }
@@ -187,7 +234,6 @@ function AddProductPage({onBack}) {
     }
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
@@ -213,9 +259,12 @@ function AddProductPage({onBack}) {
       productFormData.append("brand", formData.brand.trim());
       productFormData.append("description", formData.description.trim());
       productFormData.append("price", formData.price);
-      productFormData.append("costPrice", formData.costPrice);
-      productFormData.append("reorderLevel", formData.reorderLevel);
+      productFormData.append("costPrice", formData.costPrice || "");
+      productFormData.append("reorderLevel", formData.reorderLevel || "");
       productFormData.append("unit", formData.unit.trim());
+
+      productFormData.append("quantity", formData.quantity || "0");
+      productFormData.append("branch", formData.branch || "");
 
       if (formData.category) {
         productFormData.append("category", formData.category);
@@ -235,11 +284,16 @@ function AddProductPage({onBack}) {
       setMessage("Product added successfully");
 
       setTimeout(() => {
-        navigate("/products");
+        if (typeof onBack === "function") {
+          onBack();
+        } else {
+          navigate("/dashboard");
+        }
       }, 800);
     } catch (error) {
       const errorMessage =
         error.response?.data?.message || "Failed to add product";
+
       toast.error(errorMessage);
       setMessage(errorMessage);
     } finally {
@@ -249,7 +303,36 @@ function AddProductPage({onBack}) {
 
   if (dataLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
+      <div className="add-product-page min-h-screen bg-slate-50 p-6 text-slate-900">
+        <style>
+          {`
+            .add-product-page .pm-control {
+              color: #0f172a !important;
+              background-color: #ffffff !important;
+              -webkit-text-fill-color: #0f172a !important;
+            }
+
+            .add-product-page .pm-control::placeholder {
+              color: #94a3b8 !important;
+              opacity: 1 !important;
+              -webkit-text-fill-color: #94a3b8 !important;
+            }
+
+            .add-product-page .pm-control option {
+              color: #0f172a !important;
+              background-color: #ffffff !important;
+              -webkit-text-fill-color: #0f172a !important;
+            }
+
+            .add-product-page .pm-control:-webkit-autofill,
+            .add-product-page .pm-control:-webkit-autofill:hover,
+            .add-product-page .pm-control:-webkit-autofill:focus {
+              -webkit-text-fill-color: #0f172a !important;
+              box-shadow: 0 0 0px 1000px #ffffff inset !important;
+            }
+          `}
+        </style>
+
         <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-slate-600">Loading product form data...</p>
         </div>
@@ -258,7 +341,51 @@ function AddProductPage({onBack}) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
+    <div className="add-product-page min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+      <style>
+        {`
+          .add-product-page .pm-control {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .add-product-page textarea.pm-control {
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .add-product-page .pm-control::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #94a3b8 !important;
+          }
+
+          .add-product-page .pm-control option {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            -webkit-text-fill-color: #0f172a !important;
+          }
+
+          .add-product-page .pm-control:-webkit-autofill,
+          .add-product-page .pm-control:-webkit-autofill:hover,
+          .add-product-page .pm-control:-webkit-autofill:focus {
+            -webkit-text-fill-color: #0f172a !important;
+            box-shadow: 0 0 0px 1000px #ffffff inset !important;
+          }
+
+          .add-product-page input[type="file"]::file-selector-button {
+            color: #0f172a !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            padding: 6px 12px !important;
+            margin-right: 12px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+          }
+        `}
+      </style>
+
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-bold text-slate-900">
@@ -296,11 +423,7 @@ function AddProductPage({onBack}) {
                   onChange={handleInputChange}
                   placeholder="Example: Coca Cola"
                   maxLength={80}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.name
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.name)}
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -321,11 +444,7 @@ function AddProductPage({onBack}) {
                   placeholder="Example: 123456789111"
                   maxLength={14}
                   inputMode="numeric"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.barcode
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.barcode)}
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   Optional. Barcode should be 8 to 14 digits.
@@ -345,11 +464,7 @@ function AddProductPage({onBack}) {
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.category
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.category)}
                 >
                   <option value="">Select category</option>
                   {categories.map((category) => (
@@ -373,11 +488,7 @@ function AddProductPage({onBack}) {
                   name="supplier"
                   value={formData.supplier}
                   onChange={handleInputChange}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.supplier
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.supplier)}
                 >
                   <option value="">Select supplier</option>
                   {suppliers
@@ -406,11 +517,7 @@ function AddProductPage({onBack}) {
                   onChange={handleInputChange}
                   placeholder="Example: Coca Cola"
                   maxLength={50}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.brand
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.brand)}
                 />
                 {errors.brand && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -430,11 +537,7 @@ function AddProductPage({onBack}) {
                   onChange={handleInputChange}
                   placeholder="Example: bottle, packet, kg, pcs"
                   maxLength={20}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.unit
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.unit)}
                 />
                 {errors.unit && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -455,11 +558,7 @@ function AddProductPage({onBack}) {
                   placeholder="Example: 250"
                   min="0"
                   step="0.01"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.price
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.price)}
                 />
                 {errors.price && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -480,11 +579,7 @@ function AddProductPage({onBack}) {
                   placeholder="Example: 180"
                   min="0"
                   step="0.01"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.costPrice
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.costPrice)}
                 />
                 {errors.costPrice && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -505,11 +600,7 @@ function AddProductPage({onBack}) {
                   placeholder="Example: 20"
                   min="0"
                   step="1"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.reorderLevel
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.reorderLevel)}
                 />
                 {errors.reorderLevel && (
                   <p className="mt-1 text-xs font-medium text-red-600">
@@ -517,6 +608,54 @@ function AddProductPage({onBack}) {
                   </p>
                 )}
               </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Initial Stock Quantity
+                </label>
+                <input
+                  type="number"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  placeholder="Example: 100"
+                  min="0"
+                  step="1"
+                  className={getInputClass(errors.quantity)}
+                />
+                {errors.quantity && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.quantity}
+                  </p>
+                )}
+              </div>
+
+              {/* 
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Target Branch
+                </label>
+                <select
+                  name="branch"
+                  value={formData.branch}
+                  onChange={handleInputChange}
+                  className={getInputClass(errors.branch)}
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.branch && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {errors.branch}
+                  </p>
+                )}
+              </div>
+
+              */}
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -529,11 +668,7 @@ function AddProductPage({onBack}) {
                   rows="4"
                   placeholder="Enter product description"
                   maxLength={500}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                    errors.description
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
-                  }`}
+                  className={getInputClass(errors.description)}
                 />
 
                 <div className="mt-1 flex items-center justify-between">
@@ -583,7 +718,7 @@ function AddProductPage({onBack}) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageChange}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600"
+                className="pm-control w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
               />
 
               <p className="mt-3 text-xs text-slate-500">
@@ -609,6 +744,7 @@ function AddProductPage({onBack}) {
               <button
                 type="button"
                 onClick={onBack}
+                disabled={loading}
                 className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Back to Products

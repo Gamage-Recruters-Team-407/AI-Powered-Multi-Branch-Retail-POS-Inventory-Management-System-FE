@@ -1,258 +1,1779 @@
-import React, { useState, useEffect } from "react";
-import { getAllUsers, createUser, updateUser, deleteUser, searchUsers } from "../../services/userApi";
-const ROLES = ["admin", "manager", "cashier"];
-const emptyForm = { name: "", email: "", password: "", role: "cashier", phone: "", address: "", status: "active" };
+﻿import React, { useState, useEffect } from "react";
+import {
+  getAllUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  approveUser,
+  rejectUser,
+} from "../../services/userApi";
+import { useBranches } from "../../context/BranchContext";
+
+const ROLES = ["user", "cashier", "manager", "admin"];
+
+const emptyForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  role: "cashier",
+  phone: "",
+  address: "",
+  status: "active",
+  branch: "",
+};
+
+const USERS_PER_PAGE = 6;
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
+  const { branches, fetchBranches: loadBranches } = useBranches();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
+
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewUser, setViewUser] = useState(null);
+  const [actionLoading, setActionLoading] = useState("");
 
   const fetchUsers = async () => {
-    try { setLoading(true); const res = await getAllUsers(); setUsers(res.data.data || []); }
-    catch { setError("Failed to load users."); }
-    finally { setLoading(false); }
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await getAllUsers();
+      setUsers(res.data?.data || []);
+    } catch {
+      setError("Failed to load users.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    loadBranches?.();
+  }, []);
 
-  const handleSearch = async (e) => {
-    const q = e.target.value; setSearch(q);
-    if (!q.trim()) { fetchUsers(); return; }
-    try { const res = await searchUsers(q); setUsers(res.data.data || res.data || []); } catch (err) { console.error("Search error:", err); fetchUsers(); }
+  const getUserFullName = (user) => {
+    return user.firstName
+      ? `${user.firstName} ${user.lastName || ""}`.trim()
+      : user.name || "";
   };
 
-  const openAdd = () => { setEditUser(null); setForm(emptyForm); setFormError(""); setShowModal(true); };
-  const openEdit = (u) => { setEditUser(u); setForm({ name: u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.name || "", email:u.email||"", password:"", role:u.role||"cashier", phone:u.phone||"", address:u.address||"", status:u.status||"active" }); setFormError(""); setShowModal(true); };
-  const handleFormChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const getApprovalStatus = (user) => {
+    return user.approvalStatus || "APPROVED";
+  };
+
+  const getApprovalStyle = (status) => {
+    if (status === "PENDING") {
+      return {
+        border: "#facc15",
+        color: "#a16207",
+        bg: "#fefce8",
+        dot: "#eab308",
+      };
+    }
+
+    if (status === "REJECTED") {
+      return {
+        border: "#fca5a5",
+        color: "#dc2626",
+        bg: "#fef2f2",
+        dot: "#dc2626",
+      };
+    }
+
+    return {
+      border: "#86efac",
+      color: "#16a34a",
+      bg: "#f0fdf4",
+      dot: "#16a34a",
+    };
+  };
+
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const openAdd = () => {
+    setEditUser(null);
+    setForm(emptyForm);
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const openEdit = (u) => {
+    setEditUser(u);
+
+    setForm({
+      firstName: u.firstName || (u.name ? u.name.split(" ")[0] : ""),
+      lastName: u.lastName || (u.name ? u.name.split(" ").slice(1).join(" ") : ""),
+      email: u.email || "",
+      password: "",
+      role: ROLES.includes((u.role || "").toLowerCase())
+        ? (u.role || "").toLowerCase()
+        : "user",
+      phone: u.phone || "",
+      address: u.address || "",
+      status: u.isActive === false ? "inactive" : "active",
+      branch: u.branch?._id || u.branch || "",
+    });
+
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const openView = (u) => {
+    setViewUser(u);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, phone: digitsOnly });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
+  };
 
   const handleSave = async () => {
-    if (!form.name || !form.email || (!editUser && !form.password)) { setFormError("Name, Email and Password are required."); return; }
-    setSaving(true); setFormError("");
+    if (!form.firstName || !form.lastName || !form.email || (!editUser && !form.password)) {
+      setFormError("First Name, Last Name, Email and Password are required.");
+      return;
+    }
+
+    if (form.password && (form.password.length < 6 || form.password.length > 12)) {
+      setFormError("Password must be between 6 and 12 characters.");
+      return;
+    }
+
+    if (form.phone && form.phone.length < 10) {
+      setFormError("Phone number must be 10 digits.");
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+
     try {
+      const fullName = `${form.firstName} ${form.lastName}`.trim();
+
       const payload = {
-        firstName: form.name.split(' ')[0],
-        lastName: form.name.split(' ')[1] || '',
+        name: fullName,
+        firstName: form.firstName,
+        lastName: form.lastName,
         email: form.email,
         password: form.password,
         phone: form.phone,
         address: form.address,
         role: form.role,
-        isActive: form.status === 'active',
+        isActive: form.status === "active",
+        branch: form.branch || undefined,
       };
-      if (editUser && !payload.password) delete payload.password;
-      editUser ? await updateUser(editUser._id, payload) : await createUser(payload);
-      setShowModal(false); fetchUsers();
-    } catch (err) { setFormError(err?.response?.data?.message || "Save failed."); }
-    finally { setSaving(false); }
+
+      if (editUser && !payload.password) {
+        delete payload.password;
+      }
+
+      if (editUser) {
+        await updateUser(editUser._id, payload);
+      } else {
+        await createUser(payload);
+      }
+
+      setShowModal(false);
+      setSuccess(editUser ? "User updated successfully." : "User created successfully.");
+      await fetchUsers();
+      setCurrentPage(1);
+    } catch (err) {
+      setFormError(err?.response?.data?.message || "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleApprove = async (user) => {
+    const ok = window.confirm(`Approve ${getUserFullName(user) || user.email}?`);
+
+    if (!ok) return;
+
+    try {
+      setActionLoading(user._id);
+      setError("");
+      setSuccess("");
+
+      await approveUser(user._id);
+
+      setSuccess("User approved successfully.");
+      await fetchUsers();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to approve user.");
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const handleReject = async (user) => {
+    const ok = window.confirm(`Reject ${getUserFullName(user) || user.email}?`);
+
+    if (!ok) return;
+
+    try {
+      setActionLoading(user._id);
+      setError("");
+      setSuccess("");
+
+      await rejectUser(user._id);
+
+      setSuccess("User rejected successfully.");
+      await fetchUsers();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to reject user.");
+    } finally {
+      setActionLoading("");
+    }
   };
 
   const handleDelete = async (id) => {
-    try { await deleteUser(id); setDeleteConfirm(null); fetchUsers(); }
-    catch { alert("Delete failed."); }
+    try {
+      await deleteUser(id);
+      setDeleteConfirm(null);
+      setSuccess("User deleted successfully.");
+      await fetchUsers();
+    } catch {
+      alert("Delete failed.");
+    }
   };
 
-  const roleConfig = { admin: { bg:"#fef2f2", color:"#dc2626", dot:"#dc2626" }, manager: { bg:"#eff6ff", color:"#2563eb", dot:"#2563eb" }, cashier: { bg:"#f0fdf4", color:"#16a34a", dot:"#16a34a" } };
-  const getRoleStyle = (r) => roleConfig[r] || roleConfig.cashier;
+  const roleConfig = {
+    super_admin: { bg: "#f5f3ff", color: "#7c3aed", dot: "#7c3aed" },
+    admin: { bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+    manager: { bg: "#eff6ff", color: "#2563eb", dot: "#2563eb" },
+    cashier: { bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+    user: { bg: "#f8fafc", color: "#475569", dot: "#64748b" },
+  };
+
+  const getRoleStyle = (r) => roleConfig[r] || roleConfig.user;
+
+  const filteredUsers = users.filter((u) => {
+    if (!search.trim()) return true;
+
+    const q = search.toLowerCase();
+    const fullName = getUserFullName(u);
+
+    return (
+      fullName.toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      (u.phone || "").toLowerCase().includes(q) ||
+      (u.role || "").toLowerCase().includes(q) ||
+      getApprovalStatus(u).toLowerCase().includes(q)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * USERS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+
+      if (safePage > 3) pages.push("...");
+
+      const start = Math.max(2, safePage - 1);
+      const end = Math.min(totalPages - 1, safePage + 1);
+
+      for (let i = start; i <= end; i++) pages.push(i);
+
+      if (safePage < totalPages - 2) pages.push("...");
+
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
 
   return (
-    <div style={{ padding:"32px", maxWidth:"1200px", margin:"0 auto" }}>
+    <div
+      className="user-page-container"
+      style={{ padding: "32px", maxWidth: "1200px", margin: "0 auto" }}
+    >
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      `}</style>
 
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"32px" }}>
+      <div
+        className="user-header-flex"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "24px",
+          background: "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+          padding: "24px 28px",
+        }}
+      >
         <div>
-          <h1 style={{ fontSize:"26px", fontWeight:"700", color:"#0f172a", margin:0, letterSpacing:"-0.5px" }}>User Management</h1>
-          <p style={{ fontSize:"14px", color:"#64748b", margin:"6px 0 0" }}>Manage system users, roles and permissions</p>
+          <h1
+            style={{
+              fontSize: "26px",
+              fontWeight: "700",
+              color: "#0f172a",
+              margin: 0,
+              letterSpacing: "-0.5px",
+            }}
+          >
+            User Management
+          </h1>
+          <p style={{ fontSize: "14px", color: "#64748b", margin: "6px 0 0" }}>
+            Manage system users, roles, branches, permissions and approval status
+          </p>
         </div>
-        <button onClick={openAdd} style={{ display:"flex", alignItems:"center", gap:"8px", padding:"11px 22px", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", border:"none", borderRadius:"12px", fontWeight:"600", cursor:"pointer", fontSize:"14px", boxShadow:"0 4px 14px rgba(37,99,235,0.35)", transition:"all 0.2s" }}>
-          <span style={{ fontSize:"18px", lineHeight:1 }}>+</span> Add User
+
+        <button
+          onClick={openAdd}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "11px 22px",
+            background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "12px",
+            fontWeight: "600",
+            cursor: "pointer",
+            fontSize: "14px",
+            boxShadow: "0 4px 14px rgba(37,99,235,0.35)",
+            transition: "all 0.2s",
+          }}
+        >
+          <span style={{ fontSize: "18px", lineHeight: 1 }}>+</span> Add User
         </button>
       </div>
 
       {/* Search & Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:"16px", alignItems:"center", marginBottom:"24px" }}>
-        <div style={{ position:"relative" }}>
-          <span style={{ position:"absolute", left:"14px", top:"50%", transform:"translateY(-50%)", color:"#94a3b8", fontSize:"16px" }}>🔍</span>
-          <input type="text" placeholder="Search users by name or email..." value={search} onChange={handleSearch}
-            style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:"12px", border:"1.5px solid #e2e8f0", fontSize:"14px", background:"rgba(255,255,255,0.9)", color:"#1e293b", boxSizing:"border-box", outline:"none", backdropFilter:"blur(8px)" }} />
+      <div
+        className="user-stats-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr auto auto auto",
+          gap: "16px",
+          alignItems: "center",
+          marginBottom: "24px",
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: "14px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#94a3b8",
+              fontSize: "16px",
+            }}
+          >
+            🔍
+          </span>
+
+          <input
+            type="text"
+            placeholder="Search users by name, email, phone, role or approval status..."
+            value={search}
+            onChange={handleSearch}
+            style={{
+              width: "100%",
+              padding: "11px 14px 11px 40px",
+              borderRadius: "12px",
+              border: "1.5px solid #e2e8f0",
+              fontSize: "14px",
+              background: "rgba(255,255,255,0.9)",
+              color: "#1e293b",
+              boxSizing: "border-box",
+              outline: "none",
+              backdropFilter: "blur(8px)",
+            }}
+          />
         </div>
-        {["admin","manager","cashier"].map(r => (
-          <div key={r} style={{ padding:"8px 16px", borderRadius:"10px", background:"rgba(255,255,255,0.8)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.6)", textAlign:"center", minWidth:"80px" }}>
-            <div style={{ fontSize:"18px", fontWeight:"700", color:"#1e293b" }}>{users.filter(u => u.role?.toLowerCase()===r).length}</div>
-            <div style={{ fontSize:"11px", color:"#64748b", textTransform:"capitalize" }}>{r}s</div>
+
+        {["admin", "manager", "cashier"].map((r) => (
+          <div
+            key={r}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "10px",
+              background: "rgba(255,255,255,0.8)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.6)",
+              textAlign: "center",
+              minWidth: "80px",
+            }}
+          >
+            <div style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b" }}>
+              {users.filter((u) => u.role?.toLowerCase() === r).length}
+            </div>
+            <div style={{ fontSize: "11px", color: "#64748b", textTransform: "capitalize" }}>
+              {r}s
+            </div>
           </div>
         ))}
       </div>
 
       {error && (
-        <div style={{ padding:"14px 18px", background:"rgba(254,226,226,0.9)", backdropFilter:"blur(8px)", borderRadius:"12px", color:"#dc2626", marginBottom:"20px", border:"1px solid rgba(252,165,165,0.5)", fontSize:"14px", display:"flex", alignItems:"center", gap:"8px" }}>
+        <div
+          style={{
+            padding: "14px 18px",
+            background: "rgba(254,226,226,0.9)",
+            backdropFilter: "blur(8px)",
+            borderRadius: "12px",
+            color: "#dc2626",
+            marginBottom: "20px",
+            border: "1px solid rgba(252,165,165,0.5)",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
           ⚠️ {error}
         </div>
       )}
 
+      {success && (
+        <div
+          style={{
+            padding: "14px 18px",
+            background: "rgba(220,252,231,0.9)",
+            backdropFilter: "blur(8px)",
+            borderRadius: "12px",
+            color: "#16a34a",
+            marginBottom: "20px",
+            border: "1px solid rgba(134,239,172,0.7)",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          ✅ {success}
+        </div>
+      )}
+
       {/* Table Card */}
-      <div style={{ background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", borderRadius:"20px", border:"1px solid rgba(255,255,255,0.7)", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", overflow:"hidden" }}>
+      <div
+        className="user-table-wrapper"
+        style={{
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+          overflowX: "auto",
+        }}
+      >
         {loading ? (
-          <div style={{ padding:"80px", textAlign:"center", color:"#94a3b8", fontSize:"15px" }}>
-            <div style={{ fontSize:"32px", marginBottom:"12px" }}>⏳</div>Loading users...
+          <div
+            style={{
+              padding: "80px",
+              textAlign: "center",
+              color: "#94a3b8",
+              fontSize: "15px",
+            }}
+          >
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
+            Loading users...
           </div>
         ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px" }}>
-            <thead>
-              <tr style={{ background:"rgba(248,250,252,0.8)" }}>
-                {["User","Email","Phone","Role","Status","Actions"].map(h => (
-                  <th key={h} style={{ padding:"14px 20px", textAlign:"left", fontWeight:"600", color:"#475569", fontSize:"12px", textTransform:"uppercase", letterSpacing:"0.5px", borderBottom:"1px solid rgba(226,232,240,0.8)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding:"60px", textAlign:"center", color:"#94a3b8" }}>
-                  <div style={{ fontSize:"40px", marginBottom:"12px" }}>👥</div>
-                  <div style={{ fontSize:"16px", fontWeight:"500" }}>No users found</div>
-                  <div style={{ fontSize:"13px", marginTop:"4px" }}>Add your first user to get started</div>
-                </td></tr>
-              ) : users.map((user, i) => (
-                <tr key={user._id} style={{ borderBottom:"1px solid rgba(241,245,249,0.8)", transition:"background 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background="rgba(248,250,252,0.6)"}
-                  onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                  <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-                      <div style={{ width:"38px", height:"38px", borderRadius:"12px", background:`linear-gradient(135deg, ${["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"][i%6]}, ${["#8b5cf6","#a78bfa","#f472b6","#fbbf24","#34d399","#60a5fa"][i%6]})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"15px", flexShrink:0 }}>
-                        {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight:"600", color:"#1e293b", fontSize:"14px" }}>{user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.name || ""}</div>
-                        <div style={{ fontSize:"12px", color:"#94a3b8", marginTop:"2px" }}>ID: {user._id?.slice(-6)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding:"16px 20px", color:"#475569" }}>{user.email}</td>
-                  <td style={{ padding:"16px 20px", color:"#64748b" }}>{user.phone || <span style={{ color:"#cbd5e1" }}>—</span>}</td>
-                  <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:getRoleStyle(user.role).bg, color:getRoleStyle(user.role).color }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:getRoleStyle(user.role).dot }}></span>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ padding:"16px 20px" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"4px 12px", borderRadius:"20px", fontSize:"12px", fontWeight:"600", background:user.isActive!==false?"#f0fdf4":"#f8fafc", color:user.isActive!==false?"#16a34a":"#94a3b8" }}>
-                      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:user.isActive!==false?"#16a34a":"#cbd5e1" }}></span>
-                      {user.isActive!==false?"active":"inactive"}
-                    </span>
-                  </td>
+          <div>
+            <div className="custom-scrollbar" style={{ overflowX: "auto", paddingBottom: "0px" }}>
+              <table
+                style={{
+                  width: "100%",
+                  minWidth: "930px",
+                  borderCollapse: "collapse",
+                  fontSize: "14px",
+                  tableLayout: "fixed",
+                }}
+              >
+                <thead>
+                  <tr style={{ background: "rgba(248,250,252,0.8)" }}>
+                    {["User", "Email", "Phone", "Role", "Status", "Approval", "Actions"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "left",
+                            fontWeight: "600",
+                            color: "#475569",
+                            fontSize: "12px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                            borderBottom: "1px solid #e2e8f0",
+                            ...(h === "User" && { width: "170px", maxWidth: "170px" }),
+                            ...(h === "Email" && { width: "190px", maxWidth: "190px" }),
+                            ...(h === "Phone" && { width: "115px", maxWidth: "115px" }),
+                            ...(h === "Role" && { width: "110px", maxWidth: "110px" }),
+                            ...(h === "Status" && { width: "90px", maxWidth: "90px" }),
+                            ...(h === "Approval" && { width: "115px", maxWidth: "115px" }),
+                            ...(h === "Actions" && { width: "260px", maxWidth: "260px" }),
+                          }}
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
 
-                  {/* ========== UPDATED BUTTONS ========== */}
-                  <td style={{ padding:"16px 20px" }}>
-                    <div style={{ display:"flex", gap:"8px" }}>
-                      <button onClick={()=>openEdit(user)}
-                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#475569", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
-                        onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        Edit
-                      </button>
-                      <button onClick={()=>setDeleteConfirm(user)}
-                        style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 16px", borderRadius:"8px", border:"1.5px solid #fecaca", background:"#fff5f5", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"#dc2626", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.currentTarget.style.background="#fef2f2"}}
-                        onMouseLeave={e=>{e.currentTarget.style.background="#fff5f5"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6M14 11v6"/>
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                  {/* ========== END UPDATED BUTTONS ========== */}
+                <tbody>
+                  {paginatedUsers.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        style={{ padding: "60px", textAlign: "center", color: "#94a3b8" }}
+                      >
+                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>👥</div>
+                        <div style={{ fontSize: "16px", fontWeight: "500" }}>No users found</div>
+                        <div style={{ fontSize: "13px", marginTop: "4px" }}>
+                          Add your first user to get started
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedUsers.map((user, i) => {
+                      const approvalStatus = getApprovalStatus(user);
+                      const approvalStyle = getApprovalStyle(approvalStatus);
 
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      return (
+                        <tr
+                          key={user._id}
+                          style={{ transition: "background 0.15s" }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "rgba(248,250,252,0.6)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }
+                        >
+                          {/* User */}
+                          <td style={{ padding: "14px 8px", width: "170px", maxWidth: "170px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div
+                                style={{
+                                  width: "38px",
+                                  height: "38px",
+                                  borderRadius: "12px",
+                                  background: `linear-gradient(135deg, ${
+                                    ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"][i % 6]
+                                  }, ${
+                                    ["#8b5cf6", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa"][i % 6]
+                                  })`,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "white",
+                                  fontWeight: "700",
+                                  fontSize: "15px",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {(user.firstName || user.name || "?").charAt(0).toUpperCase()}
+                              </div>
+
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: "600",
+                                    color: "#1e293b",
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  {getUserFullName(user)}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#94a3b8",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  ID: {user._id?.slice(-6)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td
+                            style={{
+                              padding: "14px 8px",
+                              color: "#475569",
+                              width: "190px",
+                              maxWidth: "190px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={user.email}
+                          >
+                            {user.email}
+                          </td>
+
+                          {/* Phone */}
+                          <td
+                            style={{
+                              padding: "14px 8px",
+                              width: "115px",
+                              maxWidth: "115px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {user.phone ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{ color: "#475569", fontSize: "13px" }}>{user.phone}</span>
+                              </div>
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#94a3b8",
+                                  fontSize: "13px",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                No phone
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Role */}
+                          <td style={{ padding: "14px 8px", width: "110px", maxWidth: "110px" }}>
+                            {(() => {
+                              const role = (user.role || "user").toLowerCase();
+                              const roleStyles = {
+                                super_admin: {
+                                  bg: "linear-gradient(135deg,#7c3aed,#5b21b6)",
+                                  shadow: "rgba(124,58,237,0.35)",
+                                  icon: "👑",
+                                },
+                                admin: {
+                                  bg: "linear-gradient(135deg,#dc2626,#991b1b)",
+                                  shadow: "rgba(220,38,38,0.35)",
+                                  icon: "🛡️",
+                                },
+                                manager: {
+                                  bg: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                                  shadow: "rgba(37,99,235,0.35)",
+                                  icon: "💼",
+                                },
+                                cashier: {
+                                  bg: "linear-gradient(135deg,#0891b2,#0e7490)",
+                                  shadow: "rgba(8,145,178,0.35)",
+                                  icon: "🏷️",
+                                },
+                                user: {
+                                  bg: "linear-gradient(135deg,#64748b,#475569)",
+                                  shadow: "rgba(100,116,139,0.35)",
+                                  icon: "👤",
+                                },
+                              };
+
+                              const s = roleStyles[role] || roleStyles.user;
+
+                              return (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    padding: "5px 10px",
+                                    borderRadius: "8px",
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    whiteSpace: "nowrap",
+                                    letterSpacing: "0.4px",
+                                    background: s.bg,
+                                    color: "#fff",
+                                    boxShadow: `0 3px 10px ${s.shadow}`,
+                                  }}
+                                >
+                                  <span style={{ fontSize: "11px", lineHeight: 1 }}>{s.icon}</span>
+                                  {(user.role || "user").toUpperCase()}
+                                </span>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Status */}
+                          <td style={{ padding: "14px 8px", width: "90px", maxWidth: "90px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                whiteSpace: "nowrap",
+                                border: `1.5px solid ${
+                                  user.isActive !== false ? "#16a34a" : "#94a3b8"
+                                }`,
+                                color: user.isActive !== false ? "#16a34a" : "#94a3b8",
+                                background: "transparent",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  background: user.isActive !== false ? "#16a34a" : "#cbd5e1",
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              {user.isActive !== false ? "active" : "inactive"}
+                            </span>
+                          </td>
+
+                          {/* Approval */}
+                          <td style={{ padding: "14px 8px", width: "115px", maxWidth: "115px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                whiteSpace: "nowrap",
+                                border: `1.5px solid ${approvalStyle.border}`,
+                                color: approvalStyle.color,
+                                background: approvalStyle.bg,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  background: approvalStyle.dot,
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              {approvalStatus}
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td style={{ padding: "14px 8px", width: "260px", maxWidth: "260px" }}>
+                            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                              {approvalStatus !== "APPROVED" && (
+                                <button
+                                  disabled={actionLoading === user._id}
+                                  onClick={() => handleApprove(user)}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "6px 9px",
+                                    borderRadius: "8px",
+                                    border: "1.5px solid #86efac",
+                                    background: "#f0fdf4",
+                                    cursor: actionLoading === user._id ? "not-allowed" : "pointer",
+                                    fontSize: "12px",
+                                    fontWeight: "500",
+                                    color: "#16a34a",
+                                    transition: "all 0.15s",
+                                    opacity: actionLoading === user._id ? 0.6 : 1,
+                                  }}
+                                >
+                                  ✓ Approve
+                                </button>
+                              )}
+
+                              {approvalStatus !== "REJECTED" && (
+                                <button
+                                  disabled={actionLoading === user._id}
+                                  onClick={() => handleReject(user)}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "6px 9px",
+                                    borderRadius: "8px",
+                                    border: "1.5px solid #fecaca",
+                                    background: "#fff5f5",
+                                    cursor: actionLoading === user._id ? "not-allowed" : "pointer",
+                                    fontSize: "12px",
+                                    fontWeight: "500",
+                                    color: "#dc2626",
+                                    transition: "all 0.15s",
+                                    opacity: actionLoading === user._id ? 0.6 : 1,
+                                  }}
+                                >
+                                  ✕ Reject
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => openView(user)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "6px 9px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid #e2e8f0",
+                                  background: "white",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  fontWeight: "500",
+                                  color: "#475569",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = "#16a34a";
+                                  e.currentTarget.style.color = "#16a34a";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = "#e2e8f0";
+                                  e.currentTarget.style.color = "#475569";
+                                }}
+                              >
+                                View
+                              </button>
+
+                              <button
+                                onClick={() => openEdit(user)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "6px 9px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid #e2e8f0",
+                                  background: "white",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  fontWeight: "500",
+                                  color: "#475569",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = "#2563eb";
+                                  e.currentTarget.style.color = "#2563eb";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = "#e2e8f0";
+                                  e.currentTarget.style.color = "#475569";
+                                }}
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                onClick={() => setDeleteConfirm(user)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "6px 9px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid #fecaca",
+                                  background: "#fff5f5",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  fontWeight: "500",
+                                  color: "#dc2626",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "#fef2f2";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "#fff5f5";
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              style={{
+                textAlign: "center",
+                padding: "2px 0 0",
+                fontSize: "11px",
+                color: "#94a3b8",
+              }}
+            >
+              ← scroll to see more →
+            </div>
+          </div>
+        )}
+
+        {!loading && users.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "16px 20px",
+              borderTop: "1px solid rgba(226,232,240,0.8)",
+              background: "rgba(248,250,252,0.6)",
+            }}
+          >
+            <div style={{ fontSize: "13px", color: "#64748b" }}>
+              Page {safePage} of {totalPages}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 1}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "8px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: safePage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "13px",
+                  fontWeight: "500",
+                  color: safePage === 1 ? "#cbd5e1" : "#475569",
+                }}
+              >
+                ← Prev
+              </button>
+
+              {getPageNumbers().map((p, idx) =>
+                p === "..." ? (
+                  <span
+                    key={`ellipsis-${idx}`}
+                    style={{ padding: "7px 6px", fontSize: "13px", color: "#94a3b8" }}
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    style={{
+                      padding: "7px 13px",
+                      borderRadius: "8px",
+                      border: "1.5px solid",
+                      borderColor: p === safePage ? "#2563eb" : "#e2e8f0",
+                      background: p === safePage ? "#2563eb" : "white",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: p === safePage ? "white" : "#475569",
+                      minWidth: "34px",
+                    }}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage === totalPages}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "8px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: safePage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "13px",
+                  fontWeight: "500",
+                  color: safePage === totalPages ? "#cbd5e1" : "#475569",
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
+      {/* View Modal */}
+      {viewUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(10,10,20,0.55)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewUser(null);
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "28px",
+              width: "480px",
+              maxWidth: "95vw",
+              boxShadow:
+                "0 30px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.6)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                background: "linear-gradient(135deg,#0f172a,#1e293b 60%,#312e81)",
+                padding: "32px 36px 28px",
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  width: "160px",
+                  height: "160px",
+                  background: "radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)",
+                }}
+              />
+
+              <button
+                onClick={() => setViewUser(null)}
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: "20px",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(255,255,255,0.08)",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", position: "relative" }}>
+                <div
+                  style={{
+                    width: "60px",
+                    height: "60px",
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg,#818cf8,#c084fc)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontWeight: "700",
+                    fontSize: "24px",
+                    boxShadow: "0 8px 20px rgba(129,140,248,0.4)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {(viewUser.firstName || viewUser.name || "?").charAt(0).toUpperCase()}
+                </div>
+
+                <div>
+                  <h2
+                    style={{
+                      fontSize: "20px",
+                      fontWeight: "700",
+                      color: "#fff",
+                      margin: 0,
+                      letterSpacing: "-0.3px",
+                    }}
+                  >
+                    {getUserFullName(viewUser)}
+                  </h2>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.55)",
+                      margin: "5px 0 0",
+                      fontFamily: "monospace",
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    ID • {viewUser._id?.slice(-10)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: "30px 36px 8px" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 14px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "0.6px",
+                    color: getRoleStyle((viewUser.role || "user").toLowerCase()).color,
+                    background: getRoleStyle((viewUser.role || "user").toLowerCase()).bg,
+                    border: `1px solid ${
+                      getRoleStyle((viewUser.role || "user").toLowerCase()).color
+                    }33`,
+                  }}
+                >
+                  {(viewUser.role || "user").toUpperCase()}
+                </span>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 14px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "0.6px",
+                    color: viewUser.isActive !== false ? "#16a34a" : "#94a3b8",
+                    background: viewUser.isActive !== false ? "#f0fdf4" : "#f8fafc",
+                    border: `1px solid ${
+                      viewUser.isActive !== false ? "#16a34a" : "#94a3b8"
+                    }33`,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "5px",
+                      height: "5px",
+                      borderRadius: "50%",
+                      background: viewUser.isActive !== false ? "#16a34a" : "#94a3b8",
+                    }}
+                  />
+                  {viewUser.isActive !== false ? "ACTIVE" : "INACTIVE"}
+                </span>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 14px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "0.6px",
+                    color: getApprovalStyle(getApprovalStatus(viewUser)).color,
+                    background: getApprovalStyle(getApprovalStatus(viewUser)).bg,
+                    border: `1px solid ${getApprovalStyle(getApprovalStatus(viewUser)).border}`,
+                  }}
+                >
+                  {getApprovalStatus(viewUser)}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {[
+                  { label: "Email", value: viewUser.email || "—", icon: "✉️" },
+                  { label: "Phone", value: viewUser.phone || "Not provided", icon: "📞" },
+                  { label: "Address", value: viewUser.address || "Not provided", icon: "📍" },
+                  {
+                    label: "Branch",
+                    value:
+                      branches.find((b) => b._id === (viewUser.branch?._id || viewUser.branch))
+                        ?.name ||
+                      viewUser.branch?.name ||
+                      "Not assigned",
+                    icon: "🏢",
+                  },
+                ].map((row, idx) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "16px 4px",
+                      borderBottom: idx < 3 ? "1px solid #f1f5f9" : "none",
+                      gap: "20px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#94a3b8",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span style={{ fontSize: "13px" }}>{row.icon}</span>
+                      {row.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        color: "#0f172a",
+                        fontWeight: "600",
+                        textAlign: "right",
+                      }}
+                    >
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                padding: "24px 36px 32px",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => setViewUser(null)}
+                style={{
+                  padding: "11px 24px",
+                  borderRadius: "12px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#64748b",
+                }}
+              >
+                Close
+              </button>
+
+              <button
+                onClick={() => {
+                  const u = viewUser;
+                  setViewUser(null);
+                  openEdit(u);
+                }}
+                style={{
+                  padding: "11px 26px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "linear-gradient(135deg,#1e293b,#312e81)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 8px 20px rgba(49,46,129,0.35)",
+                }}
+              >
+                Edit User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {showModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-          <div style={{ background:"rgba(255,255,255,0.98)", borderRadius:"24px", padding:"36px", width:"520px", maxWidth:"95vw", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", border:"1px solid rgba(255,255,255,0.8)" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"28px" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.5)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.98)",
+              borderRadius: "24px",
+              padding: "36px",
+              width: "520px",
+              maxWidth: "95vw",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.8)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "28px",
+              }}
+            >
               <div>
-                <h2 style={{ fontSize:"20px", fontWeight:"700", color:"#0f172a", margin:0 }}>{editUser ? "Edit User" : "Add New User"}</h2>
-                <p style={{ fontSize:"13px", color:"#94a3b8", margin:"4px 0 0" }}>{editUser ? "Update user information" : "Create a new system user"}</p>
+                <h2
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    margin: 0,
+                  }}
+                >
+                  {editUser ? "Edit User" : "Add New User"}
+                </h2>
+                <p style={{ fontSize: "13px", color: "#94a3b8", margin: "4px 0 0" }}>
+                  {editUser ? "Update user information" : "Create a new system user"}
+                </p>
               </div>
-              <button onClick={()=>setShowModal(false)} style={{ width:"32px", height:"32px", borderRadius:"8px", border:"1px solid #e2e8f0", background:"#f8fafc", cursor:"pointer", fontSize:"16px", color:"#64748b", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             {formError && (
-              <div style={{ padding:"12px 16px", background:"#fef2f2", borderRadius:"10px", color:"#dc2626", marginBottom:"20px", fontSize:"13px", border:"1px solid #fecaca" }}>⚠️ {formError}</div>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#fef2f2",
+                  borderRadius: "10px",
+                  color: "#dc2626",
+                  marginBottom: "20px",
+                  fontSize: "13px",
+                  border: "1px solid #fecaca",
+                }}
+              >
+                ⚠️ {formError}
+              </div>
             )}
 
-            <div style={{ display:"grid", gap:"18px" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Full Name",name:"name",type:"text",required:true},{label:"Email Address",name:"email",type:"email",required:true}].map(f => (
+            <div style={{ display: "grid", gap: "18px" }}>
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
+                {[
+                  { label: "First Name", name: "firstName", type: "text", required: true, placeholder: "John" },
+                  { label: "Last Name", name: "lastName", type: "text", required: true, placeholder: "Doe" },
+                ].map((f) => (
                   <div key={f.name}>
-                    <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label} {f.required && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.name==="name"?"John Doe":"john@example.com"}
-                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa", transition:"border 0.2s" }}
-                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                    <label
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#475569",
+                        display: "block",
+                        marginBottom: "8px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {f.label} {f.required && <span style={{ color: "#dc2626" }}>*</span>}
+                    </label>
+
+                    <input
+                      name={f.name}
+                      type={f.type}
+                      value={form[f.name]}
+                      onChange={handleFormChange}
+                      placeholder={f.placeholder}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e2e8f0",
+                        fontSize: "14px",
+                        color: "#1e293b",
+                        boxSizing: "border-box",
+                        outline: "none",
+                        background: "#fafafa",
+                        transition: "border 0.2s",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                      onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                    />
                   </div>
                 ))}
               </div>
 
               <div>
-                <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Password {!editUser && <span style={{ color:"#dc2626" }}>*</span>}</label>
-                <input name="password" type="password" value={form.password} onChange={handleFormChange} placeholder={editUser ? "Leave blank to keep current" : "Min 6 characters"}
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                  onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    display: "block",
+                    marginBottom: "8px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Email Address <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleFormChange}
+                  placeholder="john@example.com"
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    fontSize: "14px",
+                    color: "#1e293b",
+                    boxSizing: "border-box",
+                    outline: "none",
+                    background: "#fafafa",
+                    transition: "border 0.2s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                  onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                />
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-                {[{label:"Phone",name:"phone",type:"text",placeholder:"+94 77 123 4567"},{label:"Address",name:"address",type:"text",placeholder:"Colombo, Sri Lanka"}].map(f => (
-                  <div key={f.name}>
-                    <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>{f.label}</label>
-                    <input name={f.name} type={f.type} value={form[f.name]} onChange={handleFormChange} placeholder={f.placeholder}
-                      style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", boxSizing:"border-box", outline:"none", background:"#fafafa" }}
-                      onFocus={e=>e.target.style.borderColor="#2563eb"} onBlur={e=>e.target.style.borderColor="#e2e8f0"} />
-                  </div>
-                ))}
+              <div>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: formError.toLowerCase().includes("password") ? "#dc2626" : "#475569",
+                    display: "block",
+                    marginBottom: "8px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Password {!editUser && <span style={{ color: "#dc2626" }}>*</span>}
+                </label>
+
+                <input
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleFormChange}
+                  placeholder={editUser ? "Leave blank to keep current" : "6-12 characters"}
+                  maxLength={12}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: formError.toLowerCase().includes("password")
+                      ? "1.5px solid #dc2626"
+                      : "1.5px solid #e2e8f0",
+                    fontSize: "14px",
+                    color: "#1e293b",
+                    boxSizing: "border-box",
+                    outline: "none",
+                    background: formError.toLowerCase().includes("password") ? "#fef2f2" : "#fafafa",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                  onBlur={(e) =>
+                    (e.target.style.borderColor = formError.toLowerCase().includes("password")
+                      ? "#dc2626"
+                      : "#e2e8f0")
+                  }
+                />
+
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: formError.toLowerCase().includes("password") ? "#dc2626" : "#94a3b8",
+                    margin: "6px 0 0",
+                  }}
+                >
+                  Must be 6-12 characters
+                </p>
               </div>
 
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
+                {[
+                  { label: "Phone", name: "phone", type: "text", placeholder: "07XXXXXXXX" },
+                  { label: "Address", name: "address", type: "text", placeholder: "Colombo, Sri Lanka" },
+                ].map((f) => {
+                  const isPhoneError = f.name === "phone" && formError.toLowerCase().includes("phone");
+
+                  return (
+                    <div key={f.name}>
+                      <label
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: isPhoneError ? "#dc2626" : "#475569",
+                          display: "block",
+                          marginBottom: "8px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        {f.label}
+                      </label>
+
+                      <input
+                        name={f.name}
+                        type={f.type}
+                        value={form[f.name]}
+                        onChange={handleFormChange}
+                        placeholder={f.placeholder}
+                        maxLength={f.name === "phone" ? 10 : undefined}
+                        inputMode={f.name === "phone" ? "numeric" : undefined}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          border: isPhoneError ? "1.5px solid #dc2626" : "1.5px solid #e2e8f0",
+                          fontSize: "14px",
+                          color: "#1e293b",
+                          boxSizing: "border-box",
+                          outline: "none",
+                          background: isPhoneError ? "#fef2f2" : "#fafafa",
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                        onBlur={(e) =>
+                          (e.target.style.borderColor = isPhoneError ? "#dc2626" : "#e2e8f0")
+                        }
+                      />
+
+                      {isPhoneError && (
+                        <p style={{ fontSize: "11px", color: "#dc2626", margin: "6px 0 0" }}>
+                          Must be 10 digits
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div
+                className="user-modal-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}
+              >
                 <div>
-                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Role</label>
-                  <select name="role" value={form.role} onChange={handleFormChange}
-                    style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
-                    {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#475569",
+                      display: "block",
+                      marginBottom: "8px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Role
+                  </label>
+
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={handleFormChange}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1.5px solid #e2e8f0",
+                      fontSize: "14px",
+                      color: "#1e293b",
+                      background: "#fafafa",
+                      outline: "none",
+                    }}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
-                  <label style={{ fontSize:"12px", fontWeight:"600", color:"#475569", display:"block", marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Status</label>
-                  <select name="status" value={form.status} onChange={handleFormChange}
-                    style={{ width:"100%", padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e2e8f0", fontSize:"14px", color:"#1e293b", background:"#fafafa", outline:"none" }}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#475569",
+                      display: "block",
+                      marginBottom: "8px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Branch
+                  </label>
+
+                  <select
+                    name="branch"
+                    value={form.branch}
+                    onChange={handleFormChange}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1.5px solid #e2e8f0",
+                      fontSize: "14px",
+                      color: "#1e293b",
+                      background: "#fafafa",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="">Select Branch</option>
+                    {branches?.map((b) => (
+                      <option key={b._id} value={b._id}>
+                        {b.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    display: "block",
+                    marginBottom: "8px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Status
+                </label>
+
+                <select
+                  name="status"
+                  value={form.status}
+                  onChange={handleFormChange}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    fontSize: "14px",
+                    color: "#1e293b",
+                    background: "#fafafa",
+                    outline: "none",
+                  }}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </div>
 
-            <div style={{ display:"flex", gap:"12px", marginTop:"28px", justifyContent:"flex-end" }}>
-              <button onClick={()=>setShowModal(false)} style={{ padding:"10px 22px", borderRadius:"10px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"500", color:"#64748b" }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding:"10px 22px", borderRadius:"10px", border:"none", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 4px 14px rgba(37,99,235,0.35)", opacity:saving?0.7:1 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                marginTop: "28px",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#64748b",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 4px 14px rgba(37,99,235,0.35)",
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
                 {saving ? "Saving..." : editUser ? "Update User" : "Create User"}
               </button>
             </div>
@@ -262,18 +1783,112 @@ export default function UserListPage() {
 
       {/* Delete Confirm */}
       {deleteConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.5)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-          <div style={{ background:"white", borderRadius:"20px", padding:"32px", width:"400px", boxShadow:"0 25px 60px rgba(0,0,0,0.2)", textAlign:"center" }}>
-            <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:"24px" }}>🗑️</div>
-            <h3 style={{ fontSize:"18px", fontWeight:"700", color:"#0f172a", margin:"0 0 8px" }}>Delete User</h3>
-            <p style={{ fontSize:"14px", color:"#64748b", margin:"0 0 24px" }}>Are you sure you want to delete <strong style={{ color:"#1e293b" }}>{deleteConfirm.firstName || deleteConfirm.name}</strong>? This action cannot be undone.</p>
-            <div style={{ display:"flex", gap:"12px", justifyContent:"center" }}>
-              <button onClick={()=>setDeleteConfirm(null)} style={{ padding:"10px 24px", borderRadius:"10px", border:"1.5px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:"14px", fontWeight:"500", color:"#64748b" }}>Cancel</button>
-              <button onClick={()=>handleDelete(deleteConfirm._id)} style={{ padding:"10px 24px", borderRadius:"10px", border:"none", background:"linear-gradient(135deg,#dc2626,#b91c1c)", color:"#fff", cursor:"pointer", fontSize:"14px", fontWeight:"600", boxShadow:"0 4px 14px rgba(220,38,38,0.3)" }}>Delete</button>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.5)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "20px",
+              padding: "32px",
+              width: "400px",
+              maxWidth: "100%",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.2)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: "#fef2f2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+                fontSize: "24px",
+              }}
+            >
+              🗑️
+            </div>
+
+            <h3
+              style={{
+                fontSize: "18px",
+                fontWeight: "700",
+                color: "#0f172a",
+                margin: "0 0 8px",
+              }}
+            >
+              Delete User
+            </h3>
+
+            <p style={{ fontSize: "14px", color: "#64748b", margin: "0 0 24px" }}>
+              Are you sure you want to delete{" "}
+              <strong style={{ color: "#1e293b" }}>
+                {deleteConfirm.firstName || deleteConfirm.name}
+              </strong>
+              ? This action cannot be undone.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e2e8f0",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#64748b",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => handleDelete(deleteConfirm._id)}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg,#dc2626,#b91c1c)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  boxShadow: "0 4px 14px rgba(220,38,38,0.3)",
+                }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .user-page-container { padding: 16px !important; }
+          .user-header-flex { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+          .user-stats-grid { grid-template-columns: 1fr !important; }
+          .user-modal-grid { grid-template-columns: 1fr !important; }
+          .user-table-wrapper { border-radius: 12px !important; }
+        }
+      `}</style>
     </div>
   );
 }

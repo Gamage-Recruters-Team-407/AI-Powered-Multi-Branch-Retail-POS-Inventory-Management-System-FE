@@ -6,11 +6,11 @@ const formatMoney = (value) => {
   if (value === undefined || value === null || Number.isNaN(Number(value))) {
     return null;
   }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value));
+  return `Rs ${formatted}`;
 };
 
 const RecommendationCard = ({ product, rank, variant = 'seller', index = 0 }) => {

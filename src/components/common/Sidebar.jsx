@@ -48,6 +48,10 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
     }
     // Use React Router navigation instead of window.location
     navigate(item.path);
+    // Close sidebar automatically on mobile
+    if (window.innerWidth <= 768) {
+      setCollapsed(true);
+    }
   };
 
   // Handle logout
@@ -65,7 +69,17 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <>
+      {/* Mobile Hamburger & Overlay */}
+      <button className="mobile-hamburger" onClick={() => setCollapsed(false)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div 
+        className={`mobile-overlay ${!collapsed ? 'active' : ''}`} 
+        onClick={() => setCollapsed(true)} 
+      />
+
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${!collapsed ? 'mobile-open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="logo-icon">
@@ -85,6 +99,11 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
         <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>
           {collapsed ? '›' : '‹'}
         </button>
+        {!collapsed && (
+          <button className="mobile-close-sidebar-btn" onClick={() => setCollapsed(true)} title="Close Sidebar">
+            ✕
+          </button>
+        )}
       </div>
 
       {/* User role badge */}
@@ -171,8 +190,27 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
           transition: background 0.2s;
           border: none;
           cursor: pointer;
+          color: rgba(255,255,255,.5);
         }
-        .collapse-btn:hover { background: rgba(255,255,255,.12); }
+        .collapse-btn:hover { background: rgba(255,255,255,.1); color: white; }
+
+        .mobile-close-sidebar-btn {
+          display: none;
+          background: rgba(255,255,255,0.1);
+          border: none;
+          color: white;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        @media (max-width: 768px) {
+          .mobile-close-sidebar-btn { display: flex; }
+          .collapse-btn { display: none; }
+        }
 
         .sidebar-user-info {
           display: flex; align-items: center; gap: 10px;
@@ -271,6 +309,7 @@ const Sidebar = ({ activeRoute, onNavigate }) => {
         .sidebar.collapsed .logout-btn { justify-content: center; }
       `}</style>
     </aside>
+    </>
   );
 };
 

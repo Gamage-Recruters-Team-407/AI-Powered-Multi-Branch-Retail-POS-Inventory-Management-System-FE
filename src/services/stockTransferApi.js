@@ -386,7 +386,12 @@ export const getBranchInventory = async (branchId) => {
 // ——— Stock transfers ———
 
 export const listTransfers = (params = {}) =>
-  api.get('/stock-transfers', { params }).then((res) => {
+  api
+    .get('/stock-transfers', {
+      params,
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    })
+    .then((res) => {
     const body = res.data ?? {};
     const data = unwrap(res);
     const items = Array.isArray(data)

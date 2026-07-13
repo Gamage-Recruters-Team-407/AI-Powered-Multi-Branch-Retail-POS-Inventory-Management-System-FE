@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000/api/warehouses";
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/warehouses`;
 
 const getToken = () => localStorage.getItem("token");
 const headers = () => ({ Authorization: `Bearer ${getToken()}` });
@@ -15,6 +15,30 @@ export const getWarehouseById = async (id) => {
   const response = await axios.get(`${API_BASE_URL}/${id}`, { headers: headers() });
   return response.data;
 };
+
+// ── NEW: Main Warehouse ────────────────────────────────────────
+// Kalin thiyana (main) warehouse eka return karanawa.
+// isMain=true warehouse eka nathnam, first active warehouse eka use karanawa.
+export const getMainWarehouse = async () => {
+  const response = await axios.get(`${API_BASE_URL}/main`, { headers: headers() });
+  return response.data;
+};
+
+// Main warehouse eke product list + stock (search, pagination, lowStock filter)
+export const getMainWarehouseProducts = async (params = {}) => {
+  const response = await axios.get(`${API_BASE_URL}/main/products`, {
+    params,
+    headers: headers(),
+  });
+  return response.data;
+};
+
+// Warehouse ekak main widihata set karanawa (ADMIN only)
+export const setMainWarehouse = async (warehouseId) => {
+  const response = await axios.put(`${API_BASE_URL}/${warehouseId}/set-main`, {}, { headers: headers() });
+  return response.data;
+};
+// ──────────────────────────────────────────────────────────────
 
 export const createWarehouse = async (data) => {
   const response = await axios.post(API_BASE_URL, data, { headers: headers() });

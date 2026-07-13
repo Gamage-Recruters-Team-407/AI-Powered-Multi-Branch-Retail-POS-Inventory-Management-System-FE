@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = 'http://localhost:5000/api/chat';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/chat`;
 const SESSION_ID = 'test-session-12345'; // Hardcoded for this demo, should be dynamic in production
 
 const ChatHistoryPanel = () => {

@@ -40,7 +40,15 @@ export const EmployeeProvider = ({ children }) => {
     if (!silent) setEmployeesLoading(true);
     try {
       const res = await getAllEmployees();
-      setEmployees(res.data.employees || []);
+      const employeeData = res.data.employees || [];
+      console.log("✅ Employees loaded:", employeeData.length);
+      console.log("📋 Employee list:", employeeData.map(e => ({ 
+        id: e._id, 
+        name: `${e.firstName} ${e.lastName}`,
+        email: e.email,
+        role: e.role
+      })));
+      setEmployees(employeeData);
       setEmployeesError(null);
     } catch (err) {
       console.error("Failed to load employees:", err);

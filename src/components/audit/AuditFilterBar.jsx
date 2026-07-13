@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { ThemeContext } from '../../pages/audit/AuditSecurityPage';
 
 const MODULE_OPTIONS = [
   'All Modules', 'Auth', 'POS', 'Inventory', 'Products',
@@ -13,8 +14,10 @@ const ACTION_OPTIONS = [
 
 const SEVERITY_OPTIONS = ['All Severities', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
+const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading, theme }) => {
   const [expanded, setExpanded] = useState(false);
+  const context = useContext(ThemeContext);
+  const currentTheme = context?.theme || theme || 'light';
 
   const handleChange = (key, value) => {
     onChange({ ...filters, [key]: value });
@@ -128,7 +131,7 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
 
       <style>{`
         .audit-filter-bar {
-          background: white;
+          background: #ffffff;
           border: 1.5px solid #e2e8f0;
           border-radius: 14px;
           padding: 16px 20px;
@@ -136,12 +139,14 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           flex-direction: column;
           gap: 14px;
         }
+
         .filter-main-row {
           display: flex;
           gap: 12px;
           align-items: center;
           flex-wrap: wrap;
         }
+
         .filter-search-wrap {
           flex: 1;
           min-width: 240px;
@@ -149,12 +154,14 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           display: flex;
           align-items: center;
         }
+
         .search-icon {
           position: absolute;
           left: 12px;
           font-size: .95rem;
           pointer-events: none;
         }
+
         .filter-search {
           width: 100%;
           padding: 9px 36px 9px 36px;
@@ -166,25 +173,51 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           transition: border-color .15s;
           outline: none;
         }
-        .filter-search:focus { border-color: #3b82f6; background: white; }
+
+        .filter-search:focus {
+          border-color: #3b82f6;
+          background: #ffffff;
+        }
+
         .search-clear {
-          position: absolute; right: 10px;
-          color: #94a3b8; font-size: .8rem;
-          background: none; border: none; cursor: pointer;
+          position: absolute;
+          right: 10px;
+          color: #94a3b8;
+          font-size: .8rem;
+          background: none;
+          border: none;
+          cursor: pointer;
           padding: 4px;
         }
-        .filter-quick-btns { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+        .filter-quick-btns {
+          display: flex;
+          gap: 8px;
+          flex-shrink: 0;
+          flex-wrap: wrap;
+        }
+
         .filter-btn-search {
           padding: 9px 20px;
           background: #1e3a5f;
           color: white;
+          border: none;
           border-radius: 9px;
           font-size: .875rem;
           font-weight: 600;
           transition: background .15s;
+          cursor: pointer;
         }
-        .filter-btn-search:hover:not(:disabled) { background: #2563eb; }
-        .filter-btn-search:disabled { opacity: .6; cursor: not-allowed; }
+
+        .filter-btn-search:hover:not(:disabled) {
+          background: #2563eb;
+        }
+
+        .filter-btn-search:disabled {
+          opacity: .6;
+          cursor: not-allowed;
+        }
+
         .filter-btn-toggle {
           padding: 9px 16px;
           border: 1.5px solid #e2e8f0;
@@ -192,19 +225,28 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           font-size: .875rem;
           font-weight: 500;
           color: #475569;
-          background: white;
+          background: #ffffff;
           position: relative;
           transition: border-color .15s, background .15s;
+          cursor: pointer;
         }
-        .filter-btn-toggle.active { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+        .filter-btn-toggle.active {
+          border-color: #3b82f6;
+          color: #3b82f6;
+          background: #eff6ff;
+        }
+
         .filter-dot {
           display: inline-block;
-          width: 7px; height: 7px;
+          width: 7px;
+          height: 7px;
           background: #ef4444;
           border-radius: 50%;
           margin-left: 5px;
           vertical-align: middle;
         }
+
         .filter-btn-reset {
           padding: 9px 14px;
           border: 1.5px solid #fee2e2;
@@ -214,8 +256,13 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           color: #ef4444;
           background: #fff5f5;
           transition: background .15s;
+          cursor: pointer;
         }
-        .filter-btn-reset:hover { background: #fee2e2; }
+
+        .filter-btn-reset:hover {
+          background: #fee2e2;
+        }
+
         .filter-expanded {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -223,8 +270,21 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           padding-top: 12px;
           border-top: 1px solid #f1f5f9;
         }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-label { font-size: .72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+
+        .filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .filter-label {
+          font-size: .72rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+        }
+
         .filter-select {
           padding: 8px 10px;
           border: 1.5px solid #e2e8f0;
@@ -235,7 +295,32 @@ const AuditFilterBar = ({ filters, onChange, onSearch, onReset, loading }) => {
           outline: none;
           transition: border-color .15s;
         }
-        .filter-select:focus { border-color: #3b82f6; background: white; }
+
+        .filter-select:focus {
+          border-color: #3b82f6;
+          background: #ffffff;
+        }
+
+        .filter-select option {
+          background: #ffffff;
+          color: #0f172a;
+        }
+
+        @media (max-width: 600px) {
+          .filter-main-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .filter-quick-btns {
+            justify-content: stretch;
+          }
+
+          .filter-quick-btns button {
+            flex: 1;
+            justify-content: center;
+          }
+        }
       `}</style>
     </div>
   );

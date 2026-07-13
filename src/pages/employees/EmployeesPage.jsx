@@ -4,6 +4,25 @@ import { useBranches } from "../../context/BranchContext";
 import { EmployeeCard, EmployeeDetailModal } from "../../components/employees/Employee";
 import SchedulePlanner from "../../components/employees/SchedulePlanner";
 import { useAuth } from "../../context/AuthContext";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+
+const getGradientForId = (id) => {
+  const gradients = [
+    ["#6366f1", "#8b5cf6"],
+    ["#8b5cf6", "#a78bfa"],
+    ["#ec4899", "#f472b6"],
+    ["#f59e0b", "#fbbf24"],
+    ["#10b981", "#34d399"],
+    ["#3b82f6", "#60a5fa"]
+  ];
+  if (!id) return `linear-gradient(135deg, ${gradients[0][0]}, ${gradients[0][1]})`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % gradients.length;
+  return `linear-gradient(135deg, ${gradients[idx][0]}, ${gradients[idx][1]})`;
+};
 
 export default function EmployeesPage() {
   const {
@@ -47,6 +66,14 @@ export default function EmployeesPage() {
   const [attStatusFilter, setAttStatusFilter] = useState("All");
   const [attDateFilter, setAttDateFilter] = useState(getTodayLocalDateStr());
   const [attDateError, setAttDateError] = useState("");
+  const [attCurrentPage, setAttCurrentPage] = useState(1);
+  const ATT_LOGS_PER_PAGE = 8;
+  const [perfCurrentPage, setPerfCurrentPage] = useState(1);
+  const PERF_LEADERBOARD_PER_PAGE = 9;
+
+  useEffect(() => {
+    setAttCurrentPage(1);
+  }, [attSearchQuery, attStatusFilter, attDateFilter]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -105,6 +132,33 @@ export default function EmployeesPage() {
     return true;
   });
 
+  const attTotalPages = Math.max(1, Math.ceil(activeAttendanceLogs.length / ATT_LOGS_PER_PAGE));
+  const attSafePage = Math.min(attCurrentPage, attTotalPages);
+  const attStartIndex = (attSafePage - 1) * ATT_LOGS_PER_PAGE;
+  const paginatedAttendanceLogs = activeAttendanceLogs.slice(attStartIndex, attStartIndex + ATT_LOGS_PER_PAGE);
+
+  const goToAttPage = (page) => {
+    if (page < 1 || page > attTotalPages) return;
+    setAttCurrentPage(page);
+  };
+
+  const getAttPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (attTotalPages <= maxButtons) {
+      for (let i = 1; i <= attTotalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (attSafePage > 3) pages.push("...");
+      const start = Math.max(2, attSafePage - 1);
+      const end = Math.min(attTotalPages - 1, attSafePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (attSafePage < attTotalPages - 2) pages.push("...");
+      pages.push(attTotalPages);
+    }
+    return pages;
+  };
+
   useEffect(() => {
     fetchBranches();
   }, []);
@@ -135,6 +189,12 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const EMPLOYEES_PER_PAGE = 9;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRole, selectedBranch]);
 
   // Selection & Form Modals State
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -143,12 +203,21 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPerfSubmitting, setIsPerfSubmitting] = useState(false);
 
+  // Fetch metrics silently when an employee is selected to view details
+  useEffect(() => {
+    if (selectedEmployee) {
+      loadPerformance(true);
+      loadSchedules(true);
+      loadAttendance(true);
+    }
+  }, [selectedEmployee]);
+
   // Performance Form State
   const [perfEmpId, setPerfEmpId] = useState("");
-  const [perfPunctuality, setPerfPunctuality] = useState(90);
-  const [perfSales, setPerfSales] = useState(90);
-  const [perfRating, setPerfRating] = useState(4.5);
-  const [perfTasks, setPerfTasks] = useState(90);
+  const [perfPunctuality, setPerfPunctuality] = useState(0);
+  const [perfSales, setPerfSales] = useState(0);
+  const [perfRating, setPerfRating] = useState(0.0);
+  const [perfTasks, setPerfTasks] = useState(0);
 
   // Form Fields State
   const [formData, setFormData] = useState({
@@ -206,29 +275,10 @@ export default function EmployeesPage() {
         }
         break;
       case "hireDate":
-        if (!value) {
-          error = "Hire date is required.";
-        } else {
+        if (value) {
           const inputDate = new Date(value);
           if (isNaN(inputDate.getTime())) {
             error = "Please enter a valid date.";
-          }
-        }
-        break;
-      case "photo":
-        if (value) {
-          if (typeof value === "string" && value.trim()) {
-            const isDataUri = value.trim().startsWith('data:image/');
-            const urlRegex = /^(https?:\/\/|\/?uploads\/).*\.(?:png|jpg|jpeg|gif|webp)/i;
-            if (!isDataUri && !urlRegex.test(value.trim())) {
-              error = "Must be a valid image URL (ending in .png, .jpg, .jpeg, or .webp).";
-            }
-          } else if (value instanceof File) {
-            if (!value.type.startsWith("image/")) {
-              error = "Only image files are allowed.";
-            } else if (value.size > 5 * 1024 * 1024) {
-              error = "Image size must be less than 5MB.";
-            }
           }
         }
         break;
@@ -282,37 +332,21 @@ export default function EmployeesPage() {
     }
     
     // Hire Date
-    if (!formData.hireDate) {
-      errors.hireDate = "Hire date is required.";
-    } else {
+    if (formData.hireDate) {
       const inputDate = new Date(formData.hireDate);
       if (isNaN(inputDate.getTime())) {
         errors.hireDate = "Please enter a valid date.";
       }
     }
     
-    // Profile Photo (Optional)
-    if (formData.photo) {
-      if (typeof formData.photo === "string" && formData.photo.trim()) {
-        const isDataUri = formData.photo.trim().startsWith('data:image/');
-        const urlRegex = /^(https?:\/\/|\/?uploads\/).*\.(?:png|jpg|jpeg|gif|webp)/i;
-        if (!isDataUri && !urlRegex.test(formData.photo.trim())) {
-          errors.photo = "Must be a valid image URL (ending in .png, .jpg, .jpeg, or .webp).";
-        }
-      } else if (formData.photo instanceof File) {
-        if (!formData.photo.type.startsWith("image/")) {
-          errors.photo = "Only image files are allowed.";
-        } else if (formData.photo.size > 5 * 1024 * 1024) {
-          errors.photo = "Image size must be less than 5MB.";
-        }
-      }
-    }
+    // Profile Photo validation removed
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };  const formatPhoneNumber = (value) => {
     let cleaned = value.replace(/[^\d+]/g, "");
     if (cleaned.startsWith("+94")) {
+      cleaned = cleaned.slice(0, 12);
       const parts = [];
       const code = cleaned.slice(0, 3);
       const rest = cleaned.slice(3);
@@ -321,22 +355,19 @@ export default function EmployeesPage() {
       if (rest.length > 5) parts.push(rest.slice(5, 9));
       return `${code} ${parts.join(" ")}`.trim();
     } else if (cleaned.startsWith("0")) {
+      cleaned = cleaned.slice(0, 10);
       const parts = [];
       if (cleaned.length > 0) parts.push(cleaned.slice(0, 3));
       if (cleaned.length > 3) parts.push(cleaned.slice(3, 6));
       if (cleaned.length > 6) parts.push(cleaned.slice(6, 10));
       return parts.join(" ");
     }
-    return value;
+    return cleaned.slice(0, 12);
   };
 
 
 
-  useEffect(() => {
-    if (branches.length > 0 && !formData.branch) {
-      setFormData(prev => ({ ...prev, branch: branches[0]._id }));
-    }
-  }, [branches, formData.branch]);
+
 
   const branchNames = {
     "1": "Colombo Head Office",
@@ -355,10 +386,9 @@ export default function EmployeesPage() {
       email: "",
       phone: "",
       role: "cashier",
-      branch: branches[0]?._id || "1",
+      branch: "",
       salary: "",
       hireDate: "",
-      photo: "",
     });
     setIsFormOpen(true);
   };
@@ -369,7 +399,7 @@ export default function EmployeesPage() {
     setIsSubmitting(false);
 
     let formattedDate = "";
-    const rawDate = emp.hireDate || emp.joiningDate;
+    const rawDate = emp.joiningDate || emp.hireDate;
     if (rawDate) {
       try {
         formattedDate = new Date(rawDate).toISOString().substring(0, 10);
@@ -382,12 +412,12 @@ export default function EmployeesPage() {
       firstName: emp.firstName || "",
       lastName: emp.lastName || "",
       email: emp.email || "",
-      phone: emp.phone || "",
-      role: emp.role || "cashier",
-      branch: emp.branch || "",
+      phone: (!emp.phone || emp.phone.toLowerCase() === "no phone") ? "" : emp.phone,
+      role: emp.role ? emp.role.toLowerCase() : "cashier",
+      // branch: emp.branch || "",
+      branch: (typeof emp.branch === 'object' ? emp.branch?._id : (emp.branch && emp.branch !== "Not Assigned" ? emp.branch : "")) || "",
       salary: emp.salary || "",
       hireDate: formattedDate,
-      photo: emp.photo || "",
     });
     setIsFormOpen(true);
   };
@@ -397,23 +427,21 @@ export default function EmployeesPage() {
     if (!validateForm() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const submitData = new FormData();
-      submitData.append("firstName", formData.firstName);
-      submitData.append("lastName", formData.lastName);
-      submitData.append("email", formData.email);
-      submitData.append("phone", formData.phone);
-      submitData.append("role", formData.role);
-      submitData.append("branch", formData.branch);
-      submitData.append("salary", formData.salary);
-      submitData.append("hireDate", formData.hireDate);
-      if (formData.photo !== undefined && formData.photo !== null) {
-        submitData.append("photo", formData.photo);
-      }
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        branch: formData.branch,
+        salary: formData.salary,
+        hireDate: formData.hireDate
+      };
 
       if (formEmployee) {
-        await updateEmployee(formEmployee._id, submitData);
+        await updateEmployee(formEmployee._id, payload);
       } else {
-        await registerEmployee(submitData);
+        await registerEmployee(payload);
       }
       setIsFormOpen(false);
     } catch (err) {
@@ -421,6 +449,32 @@ export default function EmployeesPage() {
       alert(errMsg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEmployeeSelect = (empId) => {
+    setPerfEmpId(empId);
+    if (!empId) {
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
+      return;
+    }
+    const empMetrics = performanceMetrics
+      .filter((m) => m.employeeId === empId)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    if (empMetrics.length > 0) {
+      const latest = empMetrics[0];
+      setPerfPunctuality(latest.punctuality || 0);
+      setPerfSales(latest.salesAchievement || 0);
+      setPerfRating(latest.customerRating || 0.0);
+      setPerfTasks(latest.taskCompletion || 0);
+    } else {
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
     }
   };
 
@@ -437,9 +491,12 @@ export default function EmployeesPage() {
         taskCompletion: parseInt(perfTasks),
         date: new Date().toISOString().substring(0, 7),
       });
-      alert("Performance record updated successfully!");
       // Reset
       setPerfEmpId("");
+      setPerfPunctuality(0);
+      setPerfSales(0);
+      setPerfRating(0.0);
+      setPerfTasks(0);
     } catch (err) {
       console.error("Performance log submission error:", err);
       alert("Error logging performance details");
@@ -447,6 +504,15 @@ export default function EmployeesPage() {
       setIsPerfSubmitting(false);
     }
   };
+
+  // Extract all unique roles present in the live employees database
+  const liveRoles = Array.from(
+    new Set(
+      employees
+        .map((emp) => (emp.role ? emp.role.trim().toLowerCase() : ""))
+        .filter((r) => r !== "")
+    )
+  ).sort();
 
   // Filters logic
   const filteredEmployees = employees.filter((emp) => {
@@ -457,9 +523,40 @@ export default function EmployeesPage() {
                           (emp.email && emp.email.toLowerCase().includes(cleanSearch)) ||
                           (emp.phone && emp.phone.includes(cleanSearch));
     const matchesRole = selectedRole === "all" || (emp.role && emp.role.toLowerCase() === selectedRole.toLowerCase());
-    const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    // const matchesBranch = selectedBranch === "all" || emp.branch === selectedBranch;
+    const matchesBranch = selectedBranch === "all" || 
+    (typeof emp.branch === 'object' 
+        ? emp.branch?._id === selectedBranch 
+        : emp.branch === selectedBranch);
     return matchesSearch && matchesRole && matchesBranch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / EMPLOYEES_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * EMPLOYEES_PER_PAGE;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + EMPLOYEES_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 3) pages.push("...");
+      const start = Math.max(2, safePage - 1);
+      const end = Math.min(totalPages - 1, safePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safePage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   // Calculate Leaderboard metrics
   const getLeaderboard = () => {
@@ -467,6 +564,33 @@ export default function EmployeesPage() {
   };
 
   const leaderboard = getLeaderboard();
+
+  const perfTotalPages = Math.max(1, Math.ceil(leaderboard.length / PERF_LEADERBOARD_PER_PAGE));
+  const perfSafePage = Math.min(perfCurrentPage, perfTotalPages);
+  const perfStartIndex = (perfSafePage - 1) * PERF_LEADERBOARD_PER_PAGE;
+  const paginatedLeaderboard = leaderboard.slice(perfStartIndex, perfStartIndex + PERF_LEADERBOARD_PER_PAGE);
+
+  const goToPerfPage = (page) => {
+    if (page < 1 || page > perfTotalPages) return;
+    setPerfCurrentPage(page);
+  };
+
+  const getPerfPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (perfTotalPages <= maxButtons) {
+      for (let i = 1; i <= perfTotalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (perfSafePage > 3) pages.push("...");
+      const start = Math.max(2, perfSafePage - 1);
+      const end = Math.min(perfTotalPages - 1, perfSafePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (perfSafePage < perfTotalPages - 2) pages.push("...");
+      pages.push(perfTotalPages);
+    }
+    return pages;
+  };
 
   // Print summary report
   const triggerPrint = () => {
@@ -501,7 +625,10 @@ export default function EmployeesPage() {
             <tbody>
               ${employees.map(emp => {
                 const branchObj = branches.find(b => b._id === emp.branch);
-                const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                // const displayBranch = branchObj ? branchObj.name : (branchNames[emp.branch] || "Not Assigned");
+                const displayBranch = typeof emp.branch === 'object'
+                ? emp.branch?.name
+                : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned");
                 return `
                   <tr>
                     <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
@@ -621,9 +748,6 @@ export default function EmployeesPage() {
             <h1>Employee Management</h1>
             <p>Register staff, set schedules, track shift punctuality, and evaluate performance benchmarks.</p>
           </div>
-          <button onClick={handleOpenRegister} className="emp-register-btn">
-            + Employee Registration
-          </button>
         </div>
 
         {/* Tab Selection */}
@@ -678,9 +802,11 @@ export default function EmployeesPage() {
                     onChange={(e) => setSelectedRole(e.target.value)}
                   >
                     <option value="all">All Roles</option>
-                    <option value="admin">Administrator</option>
-                    <option value="manager">Manager</option>
-                    <option value="cashier">Cashier</option>
+                    {liveRoles.map((role) => (
+                      <option key={role} value={role}>
+                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -710,18 +836,56 @@ export default function EmployeesPage() {
                   No employees match the specified filters.
                 </div>
               ) : (
-                <div className="emp-grid-container">
-                  <div className="emp-grid">
-                    {filteredEmployees.map((emp) => (
-                      <EmployeeCard
-                        key={emp._id}
-                        employee={emp}
-                        onViewDetails={setSelectedEmployee}
-                        onEdit={handleOpenEdit}
-                      />
-                    ))}
+                <>
+                  <div className="emp-grid-container">
+                    <div className="emp-grid">
+                      {paginatedEmployees.map((emp) => (
+                        <EmployeeCard
+                          key={emp._id}
+                          employee={emp}
+                          onViewDetails={setSelectedEmployee}
+                          onEdit={handleOpenEdit}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="emp-pagination-container">
+                      <div className="emp-pagination-info">
+                        Page {safePage} of {totalPages}
+                      </div>
+                      <div className="emp-pagination-buttons">
+                        <button 
+                          onClick={() => goToPage(safePage - 1)} 
+                          disabled={safePage === 1}
+                          className="emp-pagination-btn"
+                        >
+                          ← Prev
+                        </button>
+                        {getPageNumbers().map((p, idx) => p === "..." ? (
+                          <span key={`ellipsis-${idx}`} style={{ padding: "7px 6px", fontSize: "13px", color: "#94a3b8" }}>...</span>
+                        ) : (
+                          <button 
+                            key={p} 
+                            onClick={() => goToPage(p)}
+                            className={`emp-pagination-btn ${p === safePage ? "active" : ""}`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                        <button 
+                          onClick={() => goToPage(safePage + 1)} 
+                          disabled={safePage === totalPages}
+                          className="emp-pagination-btn"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
             </div>
@@ -773,7 +937,7 @@ export default function EmployeesPage() {
                     <div className="space-y-6">
                       
                       {/* Stats row */}
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Present Ratio</span>
                           <span className="block text-2xl font-black text-slate-800 mt-1">
@@ -798,10 +962,10 @@ export default function EmployeesPage() {
 
                       {/* Standalone Filters Card */}
                       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                        <div className="flex flex-col md:flex-row md:items-end gap-4 w-full">
+                        <div className="flex flex-wrap items-end gap-4 w-full">
                           
                           {/* Search box */}
-                          <div className="flex flex-col relative flex-1">
+                          <div className="flex flex-col relative flex-1 min-w-[200px]">
                             <div className="flex justify-between items-center mb-1.5">
                               <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Search Staff</label>
                               {attSearchError && (
@@ -818,7 +982,7 @@ export default function EmployeesPage() {
                           </div>
 
                           {/* Status dropdown */}
-                          <div className="flex flex-col w-full md:w-48">
+                          <div className="flex flex-col w-full sm:w-48">
                             <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 block">Filter Verdict</label>
                             <select
                               value={attStatusFilter}
@@ -834,7 +998,7 @@ export default function EmployeesPage() {
                           </div>
 
                           {/* Date filter */}
-                          <div className="flex flex-col relative w-full md:w-48">
+                          <div className="flex flex-col relative w-full sm:w-48">
                             <div className="flex justify-between items-center mb-1.5">
                               <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Filter Date</label>
                               {attDateError && (
@@ -860,7 +1024,7 @@ export default function EmployeesPage() {
                                 setAttDateError("");
                                 setAttSearchError("");
                               }}
-                              className="w-full md:w-auto rounded-xl border border-blue-100 bg-blue-50 text-blue-600 px-5 py-2.5 text-xs font-bold hover:bg-blue-100 transition whitespace-nowrap"
+                              className="w-full sm:w-auto rounded-xl border border-blue-100 bg-blue-50 text-blue-600 px-5 py-2.5 text-xs font-bold hover:bg-blue-100 transition whitespace-nowrap"
                               title="Clear all filters"
                             >
                               Clear
@@ -875,7 +1039,7 @@ export default function EmployeesPage() {
                         <div className="px-5 py-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                           <h3 className="text-sm font-extrabold text-slate-700">Attendance Log History</h3>
                         </div>
-                        <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+                        <div className="overflow-x-auto">
                           <table className="w-full text-left border-collapse text-xs">
                             <thead>
                               <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-extrabold uppercase text-[10px]">
@@ -892,12 +1056,21 @@ export default function EmployeesPage() {
                                   <td colSpan={5} className="p-8 text-center text-slate-400">No shift logs found.</td>
                                 </tr>
                               ) : (
-                                activeAttendanceLogs.map((log) => {
+                                paginatedAttendanceLogs.map((log) => {
                                   const emp = employees.find(e => e._id === log.employeeId) || { firstName: "Deleted", lastName: "Staff", photo: "" };
                                   return (
                                     <tr key={log._id} className="hover:bg-slate-50/50">
                                       <td className="px-5 py-3.5 flex items-center gap-2.5">
-                                        <img src={emp.photo} alt={emp.firstName} className="h-6 w-6 rounded-md object-cover" />
+                                        {emp.photo ? (
+                                          <img src={emp.photo} alt={emp.firstName} className="h-6 w-6 rounded-md object-cover" />
+                                        ) : (
+                                          <div 
+                                            className="h-6 w-6 rounded-md flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0"
+                                            style={{ background: getGradientForId(emp._id || log.employeeId) }}
+                                          >
+                                            {(emp.firstName || "?").charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
                                         <span className="font-bold text-slate-700">{emp.firstName} {emp.lastName}</span>
                                       </td>
                                       <td className="px-4 py-3.5 font-medium text-slate-500">{log.date}</td>
@@ -915,6 +1088,42 @@ export default function EmployeesPage() {
                             </tbody>
                           </table>
                         </div>
+
+                        {/* Pagination Footer Controls */}
+                        {attTotalPages > 1 && (
+                          <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50 flex-wrap gap-3">
+                            <div className="text-[11px] font-bold text-slate-500">
+                              Page {attSafePage} of {attTotalPages}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <button 
+                                onClick={() => goToAttPage(attSafePage - 1)} 
+                                disabled={attSafePage === 1}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                ← Prev
+                              </button>
+                              {getAttPageNumbers().map((p, idx) => p === "..." ? (
+                                <span key={`ellipsis-${idx}`} className="px-2 text-xs font-bold text-slate-400">...</span>
+                              ) : (
+                                <button 
+                                  key={p} 
+                                  onClick={() => goToAttPage(p)}
+                                  className={`rounded-xl border px-3 py-1.5 text-[11px] font-bold transition ${p === attSafePage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                              <button 
+                                onClick={() => goToAttPage(attSafePage + 1)} 
+                                disabled={attSafePage === attTotalPages}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Next →
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                     </div>
@@ -997,21 +1206,36 @@ export default function EmployeesPage() {
                   <p className="text-[10px] text-slate-400 font-semibold">Rankings are evaluated dynamically based on customer reviews and operational reliability.</p>
                 </div>
                 
-                <div className="space-y-3 overflow-y-auto max-h-[550px] pr-1">
-                  {leaderboard.map((emp, index) => {
-                    const rankMedal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}th`;
+                <div className="space-y-3 pr-1">
+                  {paginatedLeaderboard.map((emp, index) => {
+                    const overallIndex = perfStartIndex + index;
+                    const rankMedal = overallIndex === 0 ? "🥇" : overallIndex === 1 ? "🥈" : overallIndex === 2 ? "🥉" : `${overallIndex + 1}th`;
                     return (
-                      <div key={emp._id} className="flex items-center justify-between p-3.5 border border-slate-100 rounded-2xl hover:bg-slate-50/50 transition">
+                      <div 
+                        key={emp._id} 
+                        className="flex items-center justify-between p-3.5 bg-white border border-slate-100/80 rounded-2xl shadow-[0_2px_5px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:shadow-md hover:border-slate-200/80 transition-all duration-200"
+                      >
                         <div className="flex items-center gap-3.5">
                           <span className="text-sm font-black text-slate-500 w-6 text-center">{rankMedal}</span>
-                          <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
+                          {emp.photo ? (
+                            <img src={emp.photo} alt={emp.firstName} className="h-10 w-10 rounded-xl object-cover" />
+                          ) : (
+                            <div 
+                              className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                              style={{ background: getGradientForId(emp._id) }}
+                            >
+                              {(emp.firstName || "?").charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div>
                             <span className="font-extrabold text-slate-800 block text-xs">{emp.firstName} {emp.lastName}</span>
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">{emp.role} • Branch {emp.branch}</span>
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">
+                              {emp.role} • {typeof emp.branch === 'object' ? emp.branch?.name : (branches.find(b => b._id === emp.branch)?.name || "Not Assigned")}
+                            </span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl">
+                          <span className="inline-flex items-center justify-center gap-1 text-xs font-black text-slate-800 bg-gradient-to-br from-white to-slate-50 border border-slate-100 w-[68px] py-1.5 rounded-xl shadow-sm">
                             <span className="text-amber-400">★</span> {emp.performanceScore}
                           </span>
                         </div>
@@ -1019,84 +1243,348 @@ export default function EmployeesPage() {
                     );
                   })}
                 </div>
-              </div>
 
-              {/* Right Column: Add rating review */}
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-xl">✍️</span>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-slate-800">Evaluate Performance</h3>
-                    <p className="text-[10px] text-slate-400 font-semibold">Submit manager review scorecards for personnel.</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handlePerfSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Employee</label>
-                    <select
-                      value={perfEmpId}
-                      onChange={e => setPerfEmpId(e.target.value)}
-                      required
-                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
-                    >
-                      <option value="">-- Choose Employee --</option>
-                      {employees.map(e => (
-                        <option key={e._id} value={e._id}>{e.firstName} {e.lastName}</option>
+                {/* Pagination Footer Controls */}
+                {perfTotalPages > 1 && (
+                  <div className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl bg-slate-50/50 flex-wrap gap-3 mt-4">
+                    <div className="text-xs font-bold text-slate-500">
+                      Page {perfSafePage} of {perfTotalPages}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button 
+                        onClick={() => goToPerfPage(perfSafePage - 1)} 
+                        disabled={perfSafePage === 1}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ← Prev
+                      </button>
+                      {getPerfPageNumbers().map((p, idx) => p === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-xs font-bold text-slate-400">...</span>
+                      ) : (
+                        <button 
+                          key={p} 
+                          onClick={() => goToPerfPage(p)}
+                          className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${p === perfSafePage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                        >
+                          {p}
+                        </button>
                       ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1 font-bold">
-                      <span className="text-slate-500">Punctuality Score</span>
-                      <span className="text-blue-600">{perfPunctuality}%</span>
+                      <button 
+                        onClick={() => goToPerfPage(perfSafePage + 1)} 
+                        disabled={perfSafePage === perfTotalPages}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next →
+                      </button>
                     </div>
-                    <input type="range" min="10" max="100" value={perfPunctuality} onChange={e => setPerfPunctuality(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
                   </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1 font-bold">
-                      <span className="text-slate-500">Productivity Targets Achievement</span>
-                      <span className="text-emerald-600">{perfSales}%</span>
-                    </div>
-                    <input type="range" min="10" max="100" value={perfSales} onChange={e => setPerfSales(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1 font-bold">
-                      <span className="text-slate-500">Customer Rating (Avg)</span>
-                      <span className="text-amber-600">{perfRating} ★</span>
-                    </div>
-                    <input type="range" min="1" max="5" step="0.1" value={perfRating} onChange={e => setPerfRating(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1 font-bold">
-                      <span className="text-slate-500">Task Completion Rate</span>
-                      <span className="text-purple-600">{perfTasks}%</span>
-                    </div>
-                    <input type="range" min="10" max="100" value={perfTasks} onChange={e => setPerfTasks(e.target.value)} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={!perfEmpId || isPerfSubmitting}
-                    className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isPerfSubmitting ? (
-                      <>
-                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        <span>Saving Review...</span>
-                      </>
-                    ) : (
-                      "Save Review Metrics"
-                    )}
-                  </button>
-
-                </form>
+                )}
               </div>
 
+              {/* Right Column */}
+              {(() => {
+                // Calculate dynamic segment shares for selected employee KPI chart
+                const val1 = parseInt(perfPunctuality) || 0;
+                const val2 = parseInt(perfSales) || 0;
+                const val3 = Math.round((parseFloat(perfRating) || 0) * 20); // Scale 5-star to 100%
+                const val4 = parseInt(perfTasks) || 0;
+
+                const rawTotal = val1 + val2 + val3 + val4;
+                const total = rawTotal > 0 ? rawTotal : 400; // default to equal shares if all are 0
+
+                const share1 = (val1 / total) * 100;
+                const share2 = (val2 / total) * 100;
+                const share3 = (val3 / total) * 100;
+                const share4 = (val4 / total) * 100;
+
+                const C = 314.16; // Circumference for radius 50
+                const size1 = (share1 / 100) * C;
+                const size2 = (share2 / 100) * C;
+                const size3 = (share3 / 100) * C;
+                const size4 = (share4 / 100) * C;
+
+                const offset2 = -size1;
+                const offset3 = -(size1 + size2);
+                const offset4 = -(size1 + size2 + size3);
+
+                const overallScore = Math.round((val1 + val2 + val3 + val4) / 4);
+
+                const isEmptyState = !perfEmpId || rawTotal === 0;
+                const chartData = isEmptyState
+                  ? [{ name: "Skeleton", value: 100, color: "#cbd5e1" }]
+                  : [
+                      { name: "Punctuality", value: share1, color: "#3b82f6" },
+                      { name: "Productivity", value: share2, color: "#10b981" },
+                      { name: "Customer Rating", value: share3, color: "#f59e0b" },
+                      { name: "Task Completion", value: share4, color: "#8b5cf6" }
+                    ];
+
+                return (
+                  <div className="h-full flex flex-col gap-6">
+                    <style>{`
+                      .kpi-range-input::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        width: 0px;
+                        height: 0px;
+                        background: transparent;
+                        border: none;
+                      }
+                      .kpi-range-input::-moz-range-thumb {
+                        width: 0px;
+                        height: 0px;
+                        background: transparent;
+                        border: none;
+                      }
+                      .kpi-chart-container:hover .kpi-center-text {
+                        opacity: 0;
+                        visibility: hidden;
+                      }
+                      .kpi-center-text {
+                        transition: opacity 0.2s ease, visibility 0.2s ease;
+                      }
+                      .kpi-select-dropdown optgroup {
+                        background-color: rgba(59, 130, 246, 0.08);
+                        color: #1e3a8a;
+                        font-weight: 800;
+                      }
+                      .kpi-select-dropdown option {
+                        background-color: #ffffff;
+                        color: #334155;
+                        font-weight: 500;
+                      }
+                    `}</style>
+                    {/* Evaluate Performance Form Card */}
+                    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                      <div className="flex items-center mb-4">
+                        <div>
+                          <h3 className="text-sm font-extrabold text-slate-800">Evaluate Performance</h3>
+                          <p className="text-[10px] text-slate-400 font-semibold">Submit manager review scorecards for personnel.</p>
+                        </div>
+                      </div>
+
+                      <form onSubmit={handlePerfSubmit} className="space-y-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Employee</label>
+                          <select
+                            value={perfEmpId}
+                            onChange={e => handleEmployeeSelect(e.target.value)}
+                            required
+                            className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 kpi-select-dropdown"
+                          >
+                            <option value="">-- Choose Employee --</option>
+                            {(() => {
+                              // Sort employees alphabetically by first and last name
+                              const sortedEmployees = [...employees].sort((a, b) => 
+                                `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+                              );
+
+                              // Group by branch
+                              const groupedByBranch = sortedEmployees.reduce((groups, emp) => {
+                                let branchName = "Unassigned / Not Assigned";
+                                if (emp.branch) {
+                                  if (typeof emp.branch === "object" && emp.branch.name) {
+                                    branchName = emp.branch.name;
+                                  } else {
+                                    const foundBranch = branches.find(b => b._id === emp.branch);
+                                    if (foundBranch) {
+                                      branchName = foundBranch.name;
+                                    }
+                                  }
+                                }
+                                if (!groups[branchName]) groups[branchName] = [];
+                                groups[branchName].push(emp);
+                                return groups;
+                              }, {});
+
+                              return Object.keys(groupedByBranch).sort().map(branchName => (
+                                <optgroup key={branchName} label={`🏢 ${branchName.toUpperCase()}`}>
+                                  {groupedByBranch[branchName].map(e => (
+                                    <option key={e._id} value={e._id}>
+                                      {e.firstName} {e.lastName} ({(e.role || "Staff").toUpperCase()})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ));
+                            })()}
+                          </select>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 font-bold">
+                            <span className="text-slate-500">Punctuality Score</span>
+                            <span className="text-blue-600">{perfPunctuality}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            value={perfPunctuality} 
+                            onChange={e => setPerfPunctuality(e.target.value)} 
+                            className="w-full h-2.5 bg-transparent rounded-lg appearance-none cursor-pointer kpi-range-input" 
+                            style={{
+                              background: `linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%), linear-gradient(to right, #3b82f6 0%, #3b82f6 ${Math.max(0, perfPunctuality - 1.5)}%, #0f172a ${Math.max(0, perfPunctuality - 1.5)}%, #0f172a ${perfPunctuality}%, #e2e8f0 ${perfPunctuality}%, #e2e8f0 100%)`,
+                              boxShadow: "inset 0 1.5px 3px rgba(0, 0, 0, 0.15)"
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 font-bold">
+                            <span className="text-slate-500">Productivity Targets Achievement</span>
+                            <span className="text-emerald-600">{perfSales}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            value={perfSales} 
+                            onChange={e => setPerfSales(e.target.value)} 
+                            className="w-full h-2.5 bg-transparent rounded-lg appearance-none cursor-pointer kpi-range-input" 
+                            style={{
+                              background: `linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%), linear-gradient(to right, #10b981 0%, #10b981 ${Math.max(0, perfSales - 1.5)}%, #0f172a ${Math.max(0, perfSales - 1.5)}%, #0f172a ${perfSales}%, #e2e8f0 ${perfSales}%, #e2e8f0 100%)`,
+                              boxShadow: "inset 0 1.5px 3px rgba(0, 0, 0, 0.15)"
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 font-bold">
+                            <span className="text-slate-500">Customer Rating (Avg)</span>
+                            <span className="text-amber-600">{perfRating} ★</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="5" 
+                            step="0.1" 
+                            value={perfRating} 
+                            onChange={e => setPerfRating(e.target.value)} 
+                            className="w-full h-2.5 bg-transparent rounded-lg appearance-none cursor-pointer kpi-range-input" 
+                            style={{
+                              background: `linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%), linear-gradient(to right, #f59e0b 0%, #f59e0b ${Math.max(0, (perfRating / 5) * 100 - 1.5)}%, #0f172a ${Math.max(0, (perfRating / 5) * 100 - 1.5)}%, #0f172a ${(perfRating / 5) * 100}%, #e2e8f0 ${(perfRating / 5) * 100}%, #e2e8f0 100%)`,
+                              boxShadow: "inset 0 1.5px 3px rgba(0, 0, 0, 0.15)"
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 font-bold">
+                            <span className="text-slate-500">Task Completion Rate</span>
+                            <span className="text-purple-600">{perfTasks}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            value={perfTasks} 
+                            onChange={e => setPerfTasks(e.target.value)} 
+                            className="w-full h-2.5 bg-transparent rounded-lg appearance-none cursor-pointer kpi-range-input" 
+                            style={{
+                              background: `linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%), linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${Math.max(0, perfTasks - 1.5)}%, #0f172a ${Math.max(0, perfTasks - 1.5)}%, #0f172a ${perfTasks}%, #e2e8f0 ${perfTasks}%, #e2e8f0 100%)`,
+                              boxShadow: "inset 0 1.5px 3px rgba(0, 0, 0, 0.15)"
+                            }}
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={!perfEmpId || isPerfSubmitting}
+                          className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isPerfSubmitting ? (
+                            <>
+                              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              <span>Saving Review...</span>
+                            </>
+                          ) : (
+                            "Save Review Metrics"
+                          )}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* KPI Breakdown Donut/Pie Chart Card */}
+                    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4 flex-1 flex flex-col justify-between">
+                      <div className="text-left">
+                        <h3 className="text-sm font-extrabold text-slate-800">Performance KPI Share</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-1">Distribution weight share of current evaluated metrics</p>
+                      </div>
+                      
+                      <div className="relative flex justify-center items-center h-40 w-full kpi-chart-container">
+                        <ResponsiveContainer width="100%" height={160}>
+                          <PieChart>
+                            {/* SVG Defs for 3D Drop Shadow Filter */}
+                            <defs>
+                              <filter id="kpi-3d-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#000000" floodOpacity="0.18" />
+                              </filter>
+                            </defs>
+                            <Pie
+                              data={chartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={70}
+                              paddingAngle={isEmptyState ? 0 : 3}
+                              dataKey="value"
+                              isAnimationActive={!isEmptyState}
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.color} 
+                                  stroke="none" 
+                                  style={{ filter: "url(#kpi-3d-shadow)" }}
+                                />
+                              ))}
+                            </Pie>
+                            {/* Hover Tooltip Box (visible only when employee is selected) */}
+                            {!isEmptyState && (
+                              <Tooltip 
+                                formatter={(v) => `${Math.round(v)}%`}
+                                contentStyle={{ 
+                                  borderRadius: 8, 
+                                  border: 'none', 
+                                  background: '#172554', 
+                                  color: '#93c5fd',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold'
+                                }} 
+                              />
+                            )}
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Overall score inside the donut */}
+                        <div className="absolute text-center kpi-center-text" style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                          <span className="block text-2xl font-black text-slate-800">{overallScore}%</span>
+                          <span className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">KPI Rating</span>
+                        </div>
+                      </div>
+
+                      {/* Metrics Legend keys */}
+                      <div className="space-y-2.5 text-[11px] font-bold text-slate-600 border-t border-slate-50 pt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#3b82f6]" /> Punctuality Share</span>
+                          <span>{Math.round(share1)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#10b981]" /> Productivity Share</span>
+                          <span>{Math.round(share2)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" /> Customer Rating Share</span>
+                          <span>{Math.round(share3)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#8b5cf6]" /> Task Completion Share</span>
+                          <span>{Math.round(share4)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )
         )}
@@ -1105,9 +1593,9 @@ export default function EmployeesPage() {
           {activeTab === "reports" && (
             <div className="grid gap-6 sm:grid-cols-2">
               
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+              <div className="rounded-2xl border border-slate-100/80 bg-white p-5 shadow-[0_4px_15px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-lg hover:border-slate-200/80 transition-all duration-300 space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl w-10 text-center font-bold text-lg flex-shrink-0">📄</div>
+                  <div className="flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl w-10 h-10 font-bold text-lg flex-shrink-0">📄</div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-800">Staff Master Directory</h3>
                     <p className="text-[10px] text-slate-400 font-semibold mt-1">Export a master file containing active roles, branches, email directories, and contact info.</p>
@@ -1115,15 +1603,15 @@ export default function EmployeesPage() {
                 </div>
                 <button
                   onClick={triggerPrint}
-                  className="rounded-xl border border-blue-200 text-blue-600 hover:bg-blue-50 px-4 py-2.5 text-xs font-bold w-full transition"
+                  className="rounded-xl border border-blue-100/80 bg-gradient-to-br from-white to-blue-50/30 text-blue-600 shadow-sm hover:bg-blue-50/50 hover:shadow hover:border-blue-200 px-4 py-2.5 text-xs font-black w-full transition-all duration-200"
                 >
                   Print Summary Report
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+              <div className="rounded-2xl border border-slate-100/80 bg-white p-5 shadow-[0_4px_15px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-lg hover:border-slate-200/80 transition-all duration-300 space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl w-10 text-center font-bold text-lg flex-shrink-0">📊</div>
+                  <div className="flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl w-10 h-10 font-bold text-lg flex-shrink-0">📊</div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-800">Operational Shift Summary</h3>
                     <p className="text-[10px] text-slate-400 font-semibold mt-1">Preview a list of monthly attendance rates, tardiness flags, and calculated payroll estimates.</p>
@@ -1131,7 +1619,7 @@ export default function EmployeesPage() {
                 </div>
                 <button
                   onClick={triggerExcelExport}
-                  className="rounded-xl border border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-4 py-2.5 text-xs font-bold w-full transition"
+                  className="rounded-xl border border-emerald-100/80 bg-gradient-to-br from-white to-emerald-50/30 text-emerald-600 shadow-sm hover:bg-emerald-50/50 hover:shadow hover:border-emerald-200 px-4 py-2.5 text-xs font-black w-full transition-all duration-200"
                 >
                   Export Metrics to Excel
                 </button>
@@ -1169,6 +1657,15 @@ export default function EmployeesPage() {
                 ✕
               </button>
             </div>
+
+            {!formEmployee && (
+              <div className="mb-4 rounded-xl bg-blue-50/80 border border-blue-200/50 p-3 text-[11px] text-blue-700 leading-normal flex gap-2">
+                <span className="text-sm select-none">💡</span>
+                <div>
+                  <span className="font-bold">Notice:</span> Registering a new employee automatically generates a user login account (if it doesn't already exist). The employee can log in using the default temporary password: <code className="bg-rose-50 text-rose-600 border border-rose-200/60 px-1.5 py-0.5 rounded font-mono font-bold select-all">tempPassword123</code>, which they can update later through the User Settings.
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleFormSubmit} className="space-y-4 flex-1">
               <div className="grid grid-cols-2 gap-3">
@@ -1252,9 +1749,11 @@ export default function EmployeesPage() {
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                   >
-                    <option value="admin">Administrator</option>
-                    <option value="manager">Manager</option>
-                    <option value="cashier">Cashier</option>
+                    {liveRoles.map(role => (
+                      <option key={role} value={role}>
+                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1264,6 +1763,7 @@ export default function EmployeesPage() {
                     onChange={e => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                   >
+                    <option value="" disabled hidden>Not Assigned</option>
                     {branches.length > 0 ? (
                       branches.map((b) => (
                         <option key={b._id} value={b._id}>{b.name}</option>
@@ -1324,7 +1824,6 @@ export default function EmployeesPage() {
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Hire Date</label>
                   <input
                     type="date"
-                    required
                     placeholder="e.g., Select hiring date"
                     value={formData.hireDate}
                     onChange={e => setFormData({ ...formData, hireDate: e.target.value })}
@@ -1339,36 +1838,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Profile Photo (Optional)</label>
-                {formData.photo && (
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <img 
-                      src={typeof formData.photo === "string" ? formData.photo : URL.createObjectURL(formData.photo)} 
-                      alt="Profile preview" 
-                      className="h-12 w-12 rounded-xl object-cover border border-slate-200" 
-                    />
-                    <span className="text-[10px] text-slate-500 font-semibold">Selected profile image preview</span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setFormData({ ...formData, photo: file });
-                      validateField("photo", file);
-                    }
-                  }}
-                  className={`w-full rounded-xl border px-3.5 py-2 text-xs font-medium outline-none bg-slate-50 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
-                    formErrors.photo ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
-                  }`}
-                />
-                {formErrors.photo && (
-                  <p className="text-[10px] text-rose-500 font-semibold mt-1">{formErrors.photo}</p>
-                )}
-              </div>
+
 
               <div className="pt-6 border-t border-slate-100 flex gap-2">
                 <button
@@ -1606,24 +2076,59 @@ export default function EmployeesPage() {
         }
 
         .emp-grid-container {
-          max-height: 60vh;
-          overflow-y: auto;
-          padding-right: 6px;
           padding-bottom: 12px;
         }
-        .emp-grid-container::-webkit-scrollbar {
-          width: 6px;
+
+        /* Pagination Styles */
+        .emp-pagination-container {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 24px;
+          margin-top: 24px;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
+          border-radius: 16px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+          flex-wrap: wrap;
+          gap: 12px;
         }
-        .emp-grid-container::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.03);
-          border-radius: 99px;
+        .emp-pagination-info {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          font-weight: 750;
         }
-        .emp-grid-container::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.12);
-          border-radius: 99px;
+        .emp-pagination-buttons {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
         }
-        .emp-grid-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 0, 0, 0.24);
+        .emp-pagination-btn {
+          padding: 7px 14px;
+          border-radius: 8px;
+          border: 1.5px solid rgba(0, 0, 0, 0.08);
+          background: white;
+          cursor: pointer;
+          font-size: 0.8rem;
+          font-weight: 750;
+          color: var(--text-secondary);
+          transition: all 0.2s ease;
+        }
+        .emp-pagination-btn:hover:not(:disabled) {
+          background: rgba(0, 0, 0, 0.02);
+          border-color: rgba(0, 0, 0, 0.15);
+        }
+        .emp-pagination-btn:disabled {
+          cursor: not-allowed;
+          color: #cbd5e1;
+          border-color: rgba(0, 0, 0, 0.04);
+        }
+        .emp-pagination-btn.active {
+          background: #2563eb;
+          color: white;
+          border-color: #2563eb;
         }
 
         /* Employee Grid & Cards */
@@ -1656,8 +2161,10 @@ export default function EmployeesPage() {
         .emp-card-avatar {
           position: relative;
           flex-shrink: 0;
+          width: 60px;
+          height: 60px;
         }
-        .emp-card-avatar img {
+        .emp-card-avatar img, .emp-card-avatar .emp-avatar-fallback {
           width: 60px;
           height: 60px;
           border-radius: 12px;
@@ -1697,10 +2204,13 @@ export default function EmployeesPage() {
           width: fit-content;
           letter-spacing: 0.05em;
         }
-        .emp-role-tag.admin { background: rgba(126, 34, 206, 0.15); color: #7e22ce; border: 1px solid rgba(126, 34, 206, 0.3); }
-        .emp-role-tag.manager { background: rgba(5, 150, 105, 0.15); color: #059669; border: 1px solid rgba(5, 150, 105, 0.3); }
-        .emp-role-tag.cashier { background: rgba(37, 99, 235, 0.15); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.3); }
-        .emp-role-tag.inventory { background: rgba(217, 119, 6, 0.15); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.3); }
+        .emp-role-tag.super-admin, .emp-role-tag.superadmin { background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); } /* Indigo */
+        .emp-role-tag.admin { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); } /* Purple */
+        .emp-role-tag.manager { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); } /* Emerald Green */
+        .emp-role-tag.cashier { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); } /* Blue */
+        .emp-role-tag.inventory { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); } /* Amber / Orange */
+        .emp-role-tag.employee { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); } /* Rose / Pink */
+        .emp-role-tag.user { background: rgba(100, 116, 139, 0.15); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.3); } /* Slate Grey */
 
         .emp-card-name {
           font-size: 0.95rem;

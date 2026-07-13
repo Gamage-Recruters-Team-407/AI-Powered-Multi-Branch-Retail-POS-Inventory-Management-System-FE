@@ -25,7 +25,8 @@ export default function StockForm({ mode, zones, stocks, onSubmit, onClose, load
         setLoadingProducts(true);
         try {
           const token = localStorage.getItem('token') || '';
-          const response = await fetch("http://localhost:5000/api/products", {
+          const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+          const response = await fetch(`${baseUrl}/products`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           const result = await response.json();

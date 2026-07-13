@@ -36,7 +36,7 @@ const handleRequest = async (apiCall, fallbackFn) => {
       ? "Session expired or invalid token (using mock data)" 
       : error.message || "Connection failed";
     return { 
-      data: fallbackFn(), 
+      data: await fallbackFn(), 
       isMock: true, 
       success: true, 
       warning: warningMsg 
@@ -64,7 +64,7 @@ const MOCK_ALERTS = [
     _id: "inv_alert_2",
     product: { _id: "prod_2", name: "Premium Basmati Rice", reorderLevel: 80 },
     branch: { _id: "1", name: "Colombo Head Office" },
-    quantity: 50,
+    quantity: 49,
     lowStockAlert: true
   }
 ];
@@ -73,37 +73,79 @@ const MOCK_INVENTORY = [
   {
     _id: "inv_1",
     product: { _id: "prod_1", name: "Organic Coconut Oil", reorderLevel: 50, costPrice: 4.5 },
-    branch: { _id: "1", name: "Colombo Head Office" },
+    branch: { _id: "6a1fece6983e24ace0ffcd88", name: "Main HQ" },
     quantity: 23,
     lowStockAlert: true
   },
   {
     _id: "inv_2",
     product: { _id: "prod_2", name: "Premium Basmati Rice", reorderLevel: 80, costPrice: 2.2 },
-    branch: { _id: "1", name: "Colombo Head Office" },
+    branch: { _id: "6a21c977a35d66a48d86876c", name: "Branch Alpha" },
     quantity: 50,
-    lowStockAlert: true
+    lowStockAlert: false
   },
   {
     _id: "inv_3",
     product: { _id: "prod_3", name: "Ceylon Tea Gift Pack", reorderLevel: 20, costPrice: 12.0 },
-    branch: { _id: "1", name: "Colombo Head Office" },
+    branch: { _id: "6a21c977a35d66a48d86876c", name: "Branch Alpha" },
     quantity: 120,
     lowStockAlert: false
   },
   {
     _id: "inv_4",
     product: { _id: "prod_4", name: "Fresh Milk (1L)", reorderLevel: 40, costPrice: 1.8 },
-    branch: { _id: "2", name: "Kandy City Branch" },
+    branch: { _id: "6a21c977a35d66a48d86876d", name: "Branch Beta" },
     quantity: 15,
     lowStockAlert: true
   },
   {
     _id: "inv_5",
     product: { _id: "prod_5", name: "Spice Assortment Pack", reorderLevel: 30, costPrice: 6.0 },
-    branch: { _id: "3", name: "Galle Fort Branch" },
+    branch: { _id: "6a2262089540b4850c3230e8", name: "homagama" },
     quantity: 85,
     lowStockAlert: false
+  },
+  {
+    _id: "inv_6",
+    product: { _id: "prod_1", name: "Organic Coconut Oil", reorderLevel: 50, costPrice: 4.5 },
+    branch: { _id: "6a22d102f805ca0e7b28759b", name: "kottawa" },
+    quantity: 60,
+    lowStockAlert: false
+  },
+  {
+    _id: "inv_7",
+    product: { _id: "prod_3", name: "Ceylon Tea Gift Pack", reorderLevel: 20, costPrice: 12.0 },
+    branch: { _id: "6a23e7941058daad8dae4816", name: "kaluthara" },
+    quantity: 18,
+    lowStockAlert: true
+  },
+  {
+    _id: "inv_8",
+    product: { _id: "prod_2", name: "Premium Basmati Rice", reorderLevel: 80, costPrice: 2.2 },
+    branch: { _id: "6a23f188fc96c21cc1a583ee", name: "Anuradhapura" },
+    quantity: 90,
+    lowStockAlert: false
+  },
+  {
+    _id: "inv_9",
+    product: { _id: "prod_4", name: "Fresh Milk (1L)", reorderLevel: 40, costPrice: 1.8 },
+    branch: { _id: "6a32402c243e791734f47647", name: "Ampara" },
+    quantity: 12,
+    lowStockAlert: true
+  },
+  {
+    _id: "inv_10",
+    product: { _id: "prod_5", name: "Spice Assortment Pack", reorderLevel: 30, costPrice: 6.0 },
+    branch: { _id: "6a33dfa5d34cf228f042aa0e", name: "gampaha" },
+    quantity: 75,
+    lowStockAlert: false
+  },
+  {
+    _id: "inv_11",
+    product: { _id: "prod_1", name: "Organic Coconut Oil", reorderLevel: 50, costPrice: 4.5 },
+    branch: { _id: "6a351e5062bd3a427e9d60ab", name: "Panadura" },
+    quantity: 8,
+    lowStockAlert: true
   }
 ];
 
@@ -143,39 +185,148 @@ const MOCK_HISTORY = [
 ];
 
 const MOCK_BRANCHES = [
-  { _id: "1", name: "Colombo Head Office" },
-  { _id: "2", name: "Kandy City Branch" },
-  { _id: "3", name: "Galle Fort Branch" },
-  { _id: "4", name: "Negombo Branch" }
+  { _id: "6a1fece6983e24ace0ffcd88", name: "Main HQ", code: "BR-HQ", city: "Colombo" },
+  { _id: "6a21c977a35d66a48d86876c", name: "Branch Alpha", code: "BR-A", city: "Colombo" },
+  { _id: "6a21c977a35d66a48d86876d", name: "Branch Beta", code: "BR-B", city: "Kandy" },
+  { _id: "6a2262089540b4850c3230e8", name: "homagama", code: "HH-001", city: "homagama" },
+  { _id: "6a22d102f805ca0e7b28759b", name: "kottawa", code: "KT-001", city: "kottawa" },
+  { _id: "6a23e7941058daad8dae4816", name: "kaluthara", code: "K-001", city: "kaluthara" },
+  { _id: "6a23f188fc96c21cc1a583ee", name: "Anuradhapura", code: "AP-001", city: "Anuradhapura" },
+  { _id: "6a32402c243e791734f47647", name: "Ampara", code: "DT-0002", city: "kalmunai" },
+  { _id: "6a33dfa5d34cf228f042aa0e", name: "gampaha", code: "gp-991", city: "gampaha" },
+  { _id: "6a351e5062bd3a427e9d60ab", name: "Panadura", code: "PD-001", city: "Panadura" }
 ];
 
-export const getInventory = (branchId = "", lowStock = false) => {
+// Dynamic product-based inventory generator helper
+const generateProductInventory = async () => {
+  let branches = MOCK_BRANCHES;
+  const token = localStorage.getItem("token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  try {
+    const branchRes = await axios.get(`${API_BASE_URL}/branches`, { headers });
+    if (branchRes.data && branchRes.data.success) {
+      branches = branchRes.data.data;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch branches, using fallback branches:", err.message);
+  }
+
+  const productRes = await axios.get(`${API_BASE_URL}/products/status/active`, { headers });
+  const products = productRes.data?.products || [];
+
+  const inventoryList = [];
+  products.forEach(product => {
+    const stockCount = Number(
+      product.stock ??
+      product.quantity ??
+      product.availableStock ??
+      product.reorderLevel ??
+      0
+    );
+
+    branches.forEach(branch => {
+      inventoryList.push({
+        _id: `inv_${product._id}_${branch._id}`,
+        product: {
+          _id: product._id,
+          name: product.name,
+          reorderLevel: product.reorderLevel || 0,
+          costPrice: product.costPrice || 0
+        },
+        branch: {
+          _id: branch._id,
+          name: branch.name
+        },
+        quantity: stockCount,
+        lowStockAlert: stockCount < 50
+      });
+    });
+  });
+
+  return inventoryList;
+};
+
+export const getInventory = async (branchId = "", lowStock = false) => {
   return handleRequest(
-    () => inventoryApi.get("/", { params: { branch: branchId || undefined, lowStock: lowStock ? "true" : undefined } }),
-    () => {
-      let filtered = [...MOCK_INVENTORY];
-      if (branchId) {
-        filtered = filtered.filter(item => item.branch._id === branchId);
+    () => inventoryApi.get("/", {
+      params: {
+        branch: branchId || undefined,
+        lowStock: lowStock ? "true" : undefined
       }
-      if (lowStock) {
-        filtered = filtered.filter(item => item.lowStockAlert);
+    }),
+    async () => {
+      try {
+        const inventoryList = await generateProductInventory();
+        let filtered = inventoryList;
+        if (branchId) {
+          filtered = filtered.filter(item => item.branch._id === branchId);
+        }
+        if (lowStock) {
+          filtered = filtered.filter(item => item.lowStockAlert);
+        }
+        return filtered;
+      } catch (error) {
+        console.error("Failed to generate product-based inventory list:", error.message);
+        let filtered = [...MOCK_INVENTORY];
+        if (branchId) {
+          filtered = filtered.filter(item => item.branch._id === branchId);
+        }
+        if (lowStock) {
+          filtered = filtered.filter(item => item.lowStockAlert);
+        }
+        return filtered;
       }
-      return filtered;
     }
   );
 };
 
-export const getInventorySummary = () => {
+export const getInventorySummary = async () => {
   return handleRequest(
     () => inventoryApi.get("/summary"),
-    () => MOCK_SUMMARY
+    async () => {
+      try {
+        const inventoryList = await generateProductInventory();
+        const uniqueProducts = new Set();
+        let totalStockValue = 0;
+        let totalQuantity = 0;
+        let lowStockCount = 0;
+
+        inventoryList.forEach(item => {
+          uniqueProducts.add(item.product._id);
+          totalStockValue += item.quantity * (item.product.costPrice || 0);
+          totalQuantity += item.quantity;
+          if (item.lowStockAlert) {
+            lowStockCount++;
+          }
+        });
+
+        return {
+          totalStockValue,
+          totalUniqueItems: uniqueProducts.size,
+          totalQuantity,
+          lowStockCount
+        };
+      } catch (error) {
+        console.error("Failed to compute inventory summary:", error.message);
+        return MOCK_SUMMARY;
+      }
+    }
   );
 };
 
-export const getLowStockAlerts = () => {
+export const getLowStockAlerts = async () => {
   return handleRequest(
     () => inventoryApi.get("/alerts"),
-    () => MOCK_ALERTS
+    async () => {
+      try {
+        const inventoryList = await generateProductInventory();
+        return inventoryList.filter(item => item.lowStockAlert);
+      } catch (error) {
+        console.error("Failed to fetch low stock alerts:", error.message);
+        return MOCK_ALERTS;
+      }
+    }
   );
 };
 
@@ -206,7 +357,14 @@ export const getMovementHistory = (inventoryId = "", branchId = "", startDate = 
 };
 
 export const getBranches = () => {
-  return axios.get(`${API_BASE_URL}/branches`)
-    .then(res => res.data)
+  const token = localStorage.getItem("token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  return axios.get(`${API_BASE_URL}/branches`, { headers })
+    .then(res => {
+      const raw = res.data;
+      // Normalize: API may return plain array or { data: [], success: true }
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+      return { data: list, success: true };
+    })
     .catch(() => ({ data: MOCK_BRANCHES, success: true }));
 };
