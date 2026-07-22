@@ -39,7 +39,8 @@ const EmbeddedChat = ({ darkMode, nlQuery, onQueryHandled }) => {
     setIsTyping(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/chat/send', {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${baseUrl}/chat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

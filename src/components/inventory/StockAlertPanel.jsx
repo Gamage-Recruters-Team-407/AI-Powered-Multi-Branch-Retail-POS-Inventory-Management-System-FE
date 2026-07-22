@@ -68,7 +68,7 @@ export const StockAlertPanel = ({ alerts, onAlertClick }) => {
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-500 font-bold flex-shrink-0 text-sm">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--danger-light)] text-[var(--danger-color)] font-bold flex-shrink-0 text-sm">
                   ⚠️
                 </span>
                 <div className="min-w-0">
@@ -85,7 +85,7 @@ export const StockAlertPanel = ({ alerts, onAlertClick }) => {
                 <div className="text-[10px] text-[var(--text-muted)] font-semibold">
                   Limit: <span className="text-[var(--text-primary)] font-bold">{alert.product?.reorderLevel || 0}</span>
                 </div>
-                <div className="rounded-lg bg-red-50 dark:bg-red-950/30 px-3 py-1.5 border border-red-100 dark:border-red-900/50">
+                <div className="rounded-lg bg-[var(--danger-light)] px-3 py-1.5 border border-[var(--danger-color)]/20">
                   <span className="text-[var(--danger-color)] font-black text-xs">
                     {alert.quantity} left
                   </span>
