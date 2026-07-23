@@ -1,9 +1,23 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Unauthorized = () => {
   const navigate  = useNavigate();
   const { user }  = useAuth();
+
+  const getErrorMessage = () => {
+    if (!user) return "Please sign in to continue.";
+    
+    if (user.approvalStatus === "PENDING") {
+      return "Your account is pending admin approval. Please wait.";
+    }
+    
+    if (user.approvalStatus === "REJECTED") {
+      return "Your account registration was rejected. Please contact admin.";
+    }
+    
+    return `Your current role is "${user.role}". You don't have permission to view this page.`;
+  };
 
   return (
     <div style={{ display:"flex", minHeight:"100vh",
@@ -27,10 +41,7 @@ const Unauthorized = () => {
         </h1>
         <p style={{ fontSize:13, color:"#4a6090",
                     marginBottom:32, lineHeight:1.6 }}>
-          You don't have permission to view this page.<br />
-          {user
-            ? `Your current role is "${user.role}".`
-            : "Please sign in to continue."}
+          {getErrorMessage()}
         </p>
 
         <div style={{ display:"flex", gap:10,
@@ -45,16 +56,32 @@ const Unauthorized = () => {
             <i className="ti ti-arrow-left" />
             Go back
           </button>
-          <button onClick={() => navigate("/dashboard")}
-            style={{ height:42, padding:"0 20px",
-                     background:"#3b82f6", border:"none",
-                     borderRadius:9, color:"#fff",
-                     fontSize:13, fontWeight:600,
-                     cursor:"pointer",
-                     display:"flex", alignItems:"center", gap:6 }}>
-            <i className="ti ti-home" />
-            Dashboard
-          </button>
+          <Link to="/dashboard">
+            <button
+              style={{ height:42, padding:"0 20px",
+                       background:"#3b82f6", border:"none",
+                       borderRadius:9, color:"#fff",
+                       fontSize:13, fontWeight:600,
+                       cursor:"pointer",
+                       display:"flex", alignItems:"center", gap:6 }}>
+              <i className="ti ti-home" />
+              Dashboard
+            </button>
+          </Link>
+          {(!user || user.approvalStatus !== "APPROVED") && (
+            <Link to="/login">
+              <button
+                style={{ height:42, padding:"0 20px",
+                         background:"rgba(239,68,68,.1)",
+                         border:"1px solid rgba(239,68,68,.2)",
+                         borderRadius:9, color:"#f87171",
+                         fontSize:13, cursor:"pointer",
+                         display:"flex", alignItems:"center", gap:6 }}>
+                <i className="ti ti-login" />
+                Login
+              </button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

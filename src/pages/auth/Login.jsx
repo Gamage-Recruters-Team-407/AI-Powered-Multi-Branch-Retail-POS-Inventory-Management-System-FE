@@ -16,6 +16,7 @@ const Login = () => {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [remainingAttempts, setRemainingAttempts] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -25,6 +26,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setRemainingAttempts(null);
     setLoading(true);
     try {
       const { data } = await api.post("/auth/login", form);
@@ -40,7 +42,43 @@ const Login = () => {
       login(data.user, data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || err.message || "Login failed");
+      const status = err.response?.status;
+      const errorData = err.response?.data;
+
+      // ✅ 403 Forbidden - Approval Status
+      if (status === 403) {
+        if (errorData?.approvalStatus === "PENDING") {
+          setError("⏳ Your account is pending admin approval. Please wait for admin to approve your account.");
+        } else if (errorData?.approvalStatus === "REJECTED") {
+          setError("❌ Your account registration was rejected. Please contact admin.");
+        } else if (errorData?.message?.includes("blacklist") || errorData?.message?.includes("blacklisted")) {
+          setError("🚫 Your IP has been blacklisted. Please contact admin.");
+        } else {
+          setError(errorData?.message || "Access denied. You don't have permission.");
+        }
+      }
+      // ✅ 429 Too Many Requests - Account Locked
+      else if (status === 429) {
+        const mins = errorData?.remainingMinutes || 30;
+        const attempts = errorData?.failedAttempts || 20;
+        setError(`⏰ Account temporarily locked due to ${attempts} failed login attempts. Try again in ${mins} minutes.`);
+      }
+      // ✅ 401 Unauthorized - Invalid credentials
+      else if (status === 401) {
+        const remaining = errorData?.remainingAttempts;
+        if (remaining !== undefined && remaining > 0) {
+          setError(`❌ Invalid credentials. ${remaining} attempts remaining before account lock.`);
+          setRemainingAttempts(remaining);
+        } else if (remaining === 0) {
+          setError("❌ Invalid credentials. Your account will be locked after next failed attempt.");
+        } else {
+          setError("❌ Invalid email or password. Please try again.");
+        }
+      }
+      // ✅ Other errors
+      else {
+        setError(errorData?.message || errorData?.error || err.message || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -226,17 +264,31 @@ const Login = () => {
             </p>
           </div>
 
-          {/* Error */}
+          {/* ✅ Error with remaining attempts */}
           {error && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, fontSize: 12,
+              display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12,
               background: "rgba(239,68,68,.08)",
               border: "1px solid rgba(239,68,68,.2)",
               color: "#f87171", borderRadius: 8,
               padding: "10px 12px", marginBottom: 16,
+              flexDirection: "column",
             }}>
-              <i className="ti ti-alert-circle" />
-              {error}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <i className="ti ti-alert-circle" />
+                {error}
+              </div>
+              {remainingAttempts !== null && remainingAttempts > 0 && (
+                <div style={{
+                  fontSize: 11, color: "#fbbf24",
+                  background: "rgba(251,191,36,.1)",
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  marginTop: 4,
+                }}>
+                  ⚠️ {remainingAttempts} attempts remaining
+                </div>
+              )}
             </div>
           )}
 
