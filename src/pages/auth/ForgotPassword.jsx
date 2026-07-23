@@ -10,13 +10,24 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage(""); setError("");
+    setMessage(""); 
+    setError("");
     setLoading(true);
     try {
       const { data } = await api.post("/auth/forgot-password", { email });
-      setMessage(data.message);
+      setMessage("✅ " + data.message);
+      setEmail("");
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      const status = err.response?.status;
+      const errorData = err.response?.data;
+      
+      if (status === 404) {
+        setError("❌ No account found with this email address.");
+      } else if (status === 429) {
+        setError("⏰ Too many requests. Please wait before trying again.");
+      } else {
+        setError(errorData?.message || "❌ Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -38,13 +49,13 @@ const ForgotPassword = () => {
         {message && (
           <div className="bg-green-50 border border-green-200 text-green-700 
                           rounded-lg px-4 py-3 mb-5 text-sm">
-            ✅ {message}
+            {message}
           </div>
         )}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 
                           rounded-lg px-4 py-3 mb-5 text-sm">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -61,6 +72,7 @@ const ForgotPassword = () => {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg 
                          text-sm focus:outline-none focus:ring-2 
                          focus:ring-amber-400 focus:border-transparent transition"
+              disabled={loading}
               required
             />
           </div>
