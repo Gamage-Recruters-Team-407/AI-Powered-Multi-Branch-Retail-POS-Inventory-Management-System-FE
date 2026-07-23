@@ -29,11 +29,24 @@ const Register = () => {
 
       setTimeout(() => navigate("/login"), 2500);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Registration failed"
-      );
+      const status = err.response?.status;
+      const errorData = err.response?.data;
+      
+      if (status === 400) {
+        if (errorData?.errors) {
+          setError(`❌ ${errorData.errors.join(" ")}`);
+        } else {
+          setError(errorData?.message || "Registration failed. Please check your details.");
+        }
+      } else if (status === 409) {
+        setError("❌ Email already registered. Please use a different email or login.");
+      } else {
+        setError(
+          errorData?.message ||
+          errorData?.error ||
+          "Registration failed. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -365,10 +378,10 @@ const Register = () => {
               }} />
               <input type={showPass ? "text" : "password"} name="password"
                 value={form.password} onChange={handleChange}
-                placeholder="Min. 6 characters" style={inputBase}
+                placeholder="Min. 8 characters" style={inputBase}
                 onFocus={e => e.target.style.borderColor = "#3b82f6"}
                 onBlur={e => e.target.style.borderColor = "#1a3060"}
-                minLength={6} required />
+                minLength={8} required />
               <button type="button" onClick={() => setShowPass(!showPass)}
                 style={{
                   position: "absolute", right: 13, top: "50%",
@@ -380,7 +393,7 @@ const Register = () => {
               </button>
             </div>
 
-            {/* ✅ Role hidden — default "user" */}
+            {/* Role hidden */}
             <input type="hidden" name="role" value="user" />
 
             {/* Role info badge */}
