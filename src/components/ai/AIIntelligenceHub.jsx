@@ -295,8 +295,8 @@ const InlineChatPanelConnected = ({ messages, setMessages, input, setInput, isTy
     setIsTyping(true);
     
     try {
-      // Hit the real backend API
-      const response = await axios.post('http://localhost:5000/api/chat/send', {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.post(`${baseUrl}/chat/send`, {
         message: text.trim(),
         sessionId: 'test-session-12345'
       });

@@ -34,7 +34,10 @@ export const NotificationProvider = ({ children }) => {
 
     useEffect(() => {
         // Connect to the backend Socket.io server
-        const socket = io('http://localhost:5000');
+        const wsUrl = (import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+        const socket = io(wsUrl, {
+            transports: ['websocket'],
+        });
         
         setSocketInstance(socket);
 

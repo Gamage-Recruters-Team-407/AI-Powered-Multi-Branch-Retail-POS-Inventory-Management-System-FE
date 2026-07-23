@@ -2,6 +2,24 @@ import React, { useState } from "react";
 import { useEmployees } from "../../context/EmployeeContext";
 import { useBranches } from "../../context/BranchContext";
 
+const getGradientForId = (id) => {
+  const gradients = [
+    ["#6366f1", "#8b5cf6"],
+    ["#8b5cf6", "#a78bfa"],
+    ["#ec4899", "#f472b6"],
+    ["#f59e0b", "#fbbf24"],
+    ["#10b981", "#34d399"],
+    ["#3b82f6", "#60a5fa"]
+  ];
+  if (!id) return `linear-gradient(135deg, ${gradients[0][0]}, ${gradients[0][1]})`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % gradients.length;
+  return `linear-gradient(135deg, ${gradients[idx][0]}, ${gradients[idx][1]})`;
+};
+
 export const EmployeeCard = ({ employee, onViewDetails, onEdit }) => {
   const { role, branch, status, firstName, lastName, performanceScore, photo, phone, email, name } = employee;
   const { branches } = useBranches();
@@ -30,16 +48,31 @@ export const EmployeeCard = ({ employee, onViewDetails, onEdit }) => {
     <div className="emp-card">
       <div className="emp-card-header">
         <div className="emp-card-avatar">
-          <img
-            src={photo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop"}
-            alt={empName}
-          />
+          {photo ? (
+            <img src={photo} alt={empName} />
+          ) : (
+            <div 
+              className="emp-avatar-fallback"
+              style={{
+                background: getGradientForId(employee._id),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontWeight: "700",
+                fontSize: "1.2rem",
+                boxSizing: "border-box"
+              }}
+            >
+              {(firstName || name || "?").charAt(0).toUpperCase()}
+            </div>
+          )}
           <span className={`emp-status-dot ${status === "Active" ? "active" : "inactive"}`} />
         </div>
 
         <div className="emp-card-info">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "6px" }}>
-            <span className={`emp-role-tag ${role ? role.toLowerCase() : ""}`}>
+            <span className={`emp-role-tag ${role ? role.toLowerCase().replace(/[\s_]+/g, '-') : ""}`}>
               {role}
             </span>
             <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 600 }}>
@@ -89,13 +122,19 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
 
   // Filter logs specific to this employee
   const employeeLogs = attendanceLogs.filter(log => log.employeeId === _id);
-  const employeeSchedules = schedules.filter(sch => sch.employeeId === _id).sort((a, b) => new Date(b.date) - new Date(a.date));
-  const performanceInfo = performanceMetrics.find(p => p.employeeId === _id) || {
-    punctuality: 80,
-    salesAchievement: 85,
-    customerRating: 4.0,
-    taskCompletion: 80,
-  };
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+  const employeeSchedules = schedules
+    .filter(sch => sch.employeeId === _id && sch.date >= todayStr)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const empMetrics = performanceMetrics.filter(p => p.employeeId === _id);
+  const performanceInfo = empMetrics.length > 0
+    ? [...empMetrics].sort((a, b) => b.date.localeCompare(a.date))[0]
+    : {
+        punctuality: 0,
+        salesAchievement: 0,
+        customerRating: 0.0,
+        taskCompletion: 0,
+      };
 
   const branchNames = {
     "1": "Colombo Head Office",
@@ -111,7 +150,7 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
 
   const attendanceRate = employeeLogs.length > 0 
     ? Math.round((employeeLogs.filter(l => l.status === "Present").length / employeeLogs.length) * 100)
-    : 100;
+    : 0;
 
   const handleDelete = async () => {
     try {
@@ -154,11 +193,24 @@ export const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
             {/* Left Column: Avatar & Basic Stats */}
             <div className="flex flex-col items-center text-center">
               <div className="relative">
-                <img
-                  src={photo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop"}
-                  alt={empName}
-                  className="h-40 w-40 rounded-3xl object-cover border-4 border-white shadow-md"
-                />
+                 {photo ? (
+                  <img
+                    src={photo}
+                    alt={empName}
+                    className="h-40 w-40 rounded-3xl object-cover border-4 border-white shadow-md"
+                  />
+                ) : (
+                  <div 
+                    className="h-40 w-40 rounded-3xl border-4 border-white shadow-md flex items-center justify-center text-white"
+                    style={{
+                      background: getGradientForId(_id),
+                      fontWeight: "700",
+                      fontSize: "4rem"
+                    }}
+                  >
+                    {(firstName || name || "?").charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <span className={`absolute bottom-2 right-2 h-5 w-5 rounded-full border-4 border-white ${status === "Active" ? "bg-green-500" : "bg-red-400"}`} />
               </div>
 
