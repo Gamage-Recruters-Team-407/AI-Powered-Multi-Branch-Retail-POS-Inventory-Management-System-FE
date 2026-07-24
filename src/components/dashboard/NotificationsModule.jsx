@@ -88,6 +88,18 @@ const NotificationsModule = () => {
   const [sendCustomerViaEmail, setSendCustomerViaEmail] = useState(false);
   const [sendingCustomerNotif, setSendingCustomerNotif] = useState(false);
 
+  
+
+useEffect(() => {
+  sessionStorage.setItem("dashboard_activeModule", "notifications");
+  sessionStorage.setItem("dashboard_visibleModule", "notifications");
+
+  return () => {
+    sessionStorage.removeItem("dashboard_activeModule");
+    sessionStorage.removeItem("dashboard_visibleModule");
+  };
+}, []);
+
   async function fetchData() {
     setLoading(true);
     try {
