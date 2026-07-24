@@ -5,8 +5,6 @@ node_modules/
 dist/
 
 # Local env files
-.env
-.env.*
 !.env.example
 
 # Logs
@@ -18,3 +16,4 @@ pnpm-debug.log*
 # Local nested workspaces/repos
 backend/
 frontend/
+config.bat
