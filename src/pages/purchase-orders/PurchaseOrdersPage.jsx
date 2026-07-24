@@ -233,6 +233,7 @@ const getWorkflowStage = (status) => {
 function PurchaseOrdersPage() {
   const [purchaseOrders, setPurchaseOrders] = useState(() => readCachedList(PURCHASE_ORDER_CACHE_KEY))
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(() => {
     const cachedOrders = readCachedList(PURCHASE_ORDER_CACHE_KEY)
     const cachedSelectedId = readCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY)
@@ -252,6 +253,9 @@ function PurchaseOrdersPage() {
   const [branchFilter, setBranchFilter] = useState('All')
   const [lastSync, setLastSync] = useState('Ready')
   const [apiMessage, setApiMessage] = useState('Loading MongoDB purchase order data...')
+  const [apiMessageTone, setApiMessageTone] = useState('info')
+  const [flashMessage, setFlashMessage] = useState(null)
+  const [createOrderSuccessMessage, setCreateOrderSuccessMessage] = useState('')
   const [form, setForm] = useState({
     supplierId: '',
     branchId: '',
@@ -265,6 +269,7 @@ function PurchaseOrdersPage() {
 
   const loadPurchaseOrders = useCallback(async () => {
     try {
+      setApiMessageTone('info')
       const response = await api.get('/purchase-orders')
       const orders = Array.isArray(response.data) ? response.data : []
       if (orders.length > 0) {
@@ -291,6 +296,7 @@ function PurchaseOrdersPage() {
             null,
           )
           setApiMessage('Showing the last successful purchase order snapshot while MongoDB reloads')
+          setApiMessageTone('warning')
           return
         }
 
@@ -298,6 +304,7 @@ function PurchaseOrdersPage() {
         setSelectedOrder(null)
       }
       setApiMessage('Connected to MongoDB purchase orders')
+      setApiMessageTone('success')
       setLastSync(`Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
     } catch (error) {
       const cachedOrders = readCachedList(PURCHASE_ORDER_CACHE_KEY)
@@ -310,6 +317,7 @@ function PurchaseOrdersPage() {
           null,
         )
         setApiMessage('Showing cached purchase orders because MongoDB could not be reached right now.')
+        setApiMessageTone('warning')
         return
       }
 
@@ -320,6 +328,7 @@ function PurchaseOrdersPage() {
         error?.response?.data?.error ||
         'Could not load purchase orders from MongoDB.',
       )
+      setApiMessageTone('error')
     }
   }, [])
 
@@ -355,6 +364,7 @@ function PurchaseOrdersPage() {
         error?.response?.data?.error ||
         'Could not load suppliers or branches from MongoDB.',
       )
+      setApiMessageTone('error')
     }
   }, [])
 
@@ -420,26 +430,31 @@ function PurchaseOrdersPage() {
 
       if (reorderResult.status === 'fulfilled' && reorderData.length > 0 && supplierResult.status === 'fulfilled') {
         setApiMessage('Connected to live reorder suggestions and supplier scorecards')
+        setApiMessageTone('success')
         return
       }
 
       if (normalizedRecommendations.length > 0 && supplierResult.status === 'fulfilled') {
         setApiMessage('Showing AI reorder suggestions from the recommendation engine and live supplier scorecards')
+        setApiMessageTone('success')
         return
       }
 
       if (resolvedRecommendations.length > 0 && resolvedSupplierScorecards.length > 0) {
         setApiMessage('Showing the last successful reorder suggestions and supplier scorecards while live data reloads')
+        setApiMessageTone('warning')
         return
       }
 
       if (supplierResult.status === 'fulfilled') {
         setApiMessage('Connected to live supplier scorecards. Reorder suggestions are unavailable right now')
+        setApiMessageTone('warning')
         return
       }
 
       if (resolvedRecommendations.length > 0) {
         setApiMessage('Connected to live reorder suggestions. Supplier scorecards are unavailable right now')
+        setApiMessageTone('warning')
         return
       }
 
@@ -458,6 +473,7 @@ function PurchaseOrdersPage() {
         error?.response?.data?.error ||
         'Could not load live reorder suggestions or supplier scorecards from MongoDB.',
       )
+      setApiMessageTone('error')
     }
   }, [])
 
@@ -480,6 +496,16 @@ function PurchaseOrdersPage() {
   useEffect(() => {
     writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, selectedOrder?.id ?? '')
   }, [selectedOrder])
+
+  useEffect(() => {
+    if (!flashMessage) return undefined
+
+    const timer = window.setTimeout(() => {
+      setFlashMessage(null)
+    }, 4000)
+
+    return () => window.clearTimeout(timer)
+  }, [flashMessage])
 
   const branchFilterOptions = useMemo(
     () => ['All', ...new Set(purchaseOrders.map((order) => order.branch).filter(Boolean))],
@@ -597,6 +623,7 @@ function PurchaseOrdersPage() {
   const updateOrderStatus = async (order, status) => {
     if (!order.id) {
       setApiMessage('Only MongoDB purchase orders can be updated.')
+      setApiMessageTone('warning')
       return
     }
 
@@ -611,6 +638,7 @@ function PurchaseOrdersPage() {
       setSelectedOrder(updatedOrder)
       writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, updatedOrder.id)
       setApiMessage(`${updatedOrder.po} saved as ${status}`)
+      setApiMessageTone('success')
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -618,6 +646,7 @@ function PurchaseOrdersPage() {
         error?.message ||
         'Could not save status. Check backend and MongoDB connection.'
       setApiMessage(message)
+      setApiMessageTone('error')
     }
   }
 
@@ -641,20 +670,36 @@ function PurchaseOrdersPage() {
 
     if (!orderPayload.supplier || !selectedBranch?.label || !orderPayload.date || orderPayload.amount <= 0) {
       setApiMessage('Select a MongoDB supplier, a MongoDB branch, and enter a valid amount.')
+      setApiMessageTone('warning')
       return
     }
 
     try {
+      setIsSubmittingOrder(true)
       const response = await api.post('/purchase-orders', orderPayload)
-      const createdOrder = normalizeOrder(response.data)
+      const createdOrder = normalizeOrder({
+        ...response.data,
+        supplier: response.data?.supplier || selectedSupplier?.label || orderPayload.supplier,
+        branch: response.data?.branch || selectedBranch?.label,
+      })
       setPurchaseOrders((orders) => {
-        const nextOrders = [createdOrder, ...orders]
+        const nextOrders = [
+          createdOrder,
+          ...orders.filter((item) => item.id !== createdOrder.id && item.po !== createdOrder.po),
+        ]
         writeCachedList(PURCHASE_ORDER_CACHE_KEY, nextOrders)
         return nextOrders
       })
       setSelectedOrder(createdOrder)
       writeCachedValue(PURCHASE_ORDER_SELECTION_CACHE_KEY, createdOrder.id)
-      setApiMessage(`${createdOrder.po} saved to MongoDB`)
+      const successMessage = `${createdOrder.po} added successfully and displayed in the list.`
+      setApiMessage(successMessage)
+      setApiMessageTone('success')
+      setFlashMessage({
+        tone: 'success',
+        text: successMessage,
+      })
+      setCreateOrderSuccessMessage(successMessage)
       setForm({
         supplierId: supplierOptions[0]?.id || '',
         branchId: branchOptions[0]?.id || '',
@@ -665,13 +710,20 @@ function PurchaseOrdersPage() {
         category: '',
         items: 1,
       })
-      setIsCreateOpen(false)
+      await loadPurchaseOrders()
+      window.setTimeout(() => {
+        setCreateOrderSuccessMessage('')
+        setIsCreateOpen(false)
+      }, 1800)
     } catch (error) {
       const message =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         'Purchase order was not saved to MongoDB.'
       setApiMessage(message)
+      setApiMessageTone('error')
+    } finally {
+      setIsSubmittingOrder(false)
     }
   }
 
@@ -697,10 +749,39 @@ function PurchaseOrdersPage() {
     link.click()
     URL.revokeObjectURL(url)
     setApiMessage(`Exported ${filteredOrders.length} purchase orders`)
+    setApiMessageTone('success')
   }
 
   return (
     <main className="min-h-svh bg-transparent p-3.5 md:p-7">
+      {flashMessage && (
+        <div className="pointer-events-none fixed right-4 top-4 z-[70] w-[min(420px,calc(100vw-2rem))]">
+          <div
+            className={cn(
+              'pointer-events-auto flex items-start justify-between gap-3 rounded-[18px] border px-4 py-3 shadow-[0_18px_38px_rgba(15,23,42,0.16)] backdrop-blur-sm',
+              flashMessage.tone === 'success' && 'border-[#bde5cb] bg-[rgba(238,250,242,0.96)] text-[#166534]',
+              flashMessage.tone === 'error' && 'border-[#f1b7b3] bg-[rgba(255,241,240,0.96)] text-[#9f1d2f]',
+              flashMessage.tone === 'warning' && 'border-[#f2d79a] bg-[rgba(255,248,232,0.96)] text-[#9a6700]',
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-2 text-sm font-black">
+              <FiCheckCircle aria-hidden="true" className={cn('mt-0.5 shrink-0', flashMessage.tone !== 'success' && 'hidden')} />
+              <span className="leading-5">{flashMessage.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFlashMessage(null)}
+              className="shrink-0 rounded-full px-2 py-1 text-xs font-black opacity-70 transition hover:opacity-100"
+              aria-label="Dismiss message"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="overflow-hidden rounded-[24px] border border-[#aec8ff] bg-[linear-gradient(135deg,#d4e4ff_0%,#bfd6ff_45%,#a8c8ff_100%)] text-[#162448] shadow-[0_16px_36px_rgba(63,95,215,0.14)]">
         <div className="pointer-events-none absolute" />
         <nav className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-3 border-b border-[#aecaee] px-5 py-3.5 md:flex-row md:items-center md:px-6" aria-label="Purchase order navigation">
@@ -752,9 +833,27 @@ function PurchaseOrdersPage() {
                 {activeBranchCount || 0} active branches are contributing to the current order queue.
               </small>
             </div>
-            <div className="rounded-[20px] border border-[#a7c4f6] bg-[linear-gradient(135deg,rgba(222,236,255,0.95)_0%,rgba(198,220,255,0.9)_100%)] p-4 text-[#26315a] shadow-[0_12px_28px_rgba(63,95,215,0.11)]">
-              <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#3059d2]">System status</span>
-              <small className="mt-2 block text-[12px] font-bold leading-5 text-[#4f6899]">{apiMessage}</small>
+            <div className={cn(
+              'rounded-[20px] border p-4 shadow-[0_12px_28px_rgba(63,95,215,0.11)]',
+              apiMessageTone === 'success' && 'border-[#bde5cb] bg-[linear-gradient(135deg,rgba(236,251,241,0.96)_0%,rgba(217,244,225,0.94)_100%)] text-[#174a31]',
+              apiMessageTone === 'warning' && 'border-[#f2d79a] bg-[linear-gradient(135deg,rgba(255,249,232,0.96)_0%,rgba(255,241,205,0.94)_100%)] text-[#6d4b02]',
+              apiMessageTone === 'error' && 'border-[#f1b7b3] bg-[linear-gradient(135deg,rgba(255,241,240,0.96)_0%,rgba(255,225,222,0.94)_100%)] text-[#7f1d1d]',
+              apiMessageTone === 'info' && 'border-[#a7c4f6] bg-[linear-gradient(135deg,rgba(222,236,255,0.95)_0%,rgba(198,220,255,0.9)_100%)] text-[#26315a]',
+            )}>
+              <span className={cn(
+                'block text-[10px] font-black uppercase tracking-[0.08em]',
+                apiMessageTone === 'success' && 'text-[#12703d]',
+                apiMessageTone === 'warning' && 'text-[#9a6700]',
+                apiMessageTone === 'error' && 'text-[#b42318]',
+                apiMessageTone === 'info' && 'text-[#3059d2]',
+              )}>System status</span>
+              <small className={cn(
+                'mt-2 block text-[12px] font-bold leading-5',
+                apiMessageTone === 'success' && 'text-[#2d6a4f]',
+                apiMessageTone === 'warning' && 'text-[#8a6112]',
+                apiMessageTone === 'error' && 'text-[#9f1d2f]',
+                apiMessageTone === 'info' && 'text-[#4f6899]',
+              )}>{apiMessage}</small>
             </div>
           </div>
         </div>
@@ -778,44 +877,78 @@ function PurchaseOrdersPage() {
         })}
       </section>
 
-      <section className={cn(panelClass, 'mx-auto mb-5 flex w-full max-w-[1440px] flex-col items-stretch gap-3.5 p-4 lg:flex-row lg:items-center')} aria-label="Purchase order filters">
-        <label className="flex min-h-[50px] flex-1 basis-80 items-center gap-2.5 rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-4 text-[#7a88ae]">
-          <FiSearch aria-hidden="true" />
-          <input className="w-full border-0 bg-transparent font-bold text-[#1b2340] outline-none placeholder:text-[#94a2c5]" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search PO, supplier, branch, owner..." />
-        </label>
-        <div className="inline-flex shrink-0 gap-1 overflow-x-auto rounded-2xl bg-[#eef2ff] p-1.5" role="tablist" aria-label="Filter by order status">
-          {statuses.map((status) => (
-            <button
-              className={cn('min-h-9 rounded-xl border-0 px-3 text-sm font-black text-[#7582a8]', statusFilter === status && 'bg-[#4f46e5] text-white shadow-[0_10px_24px_rgba(79,70,229,0.24)]')}
-              key={status}
-              type="button"
-              onClick={() => setStatusFilter(status)}
-            >
-              {status}
-            </button>
-          ))}
+      <section className={cn(panelClass, 'mx-auto mb-5 w-full max-w-[1440px] overflow-hidden border-[#d7e4fb] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] p-3.5 md:p-4')} aria-label="Purchase order filters">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <label className="group flex min-h-[52px] w-full min-w-0 max-w-[620px] items-center gap-3 rounded-[18px] border border-[#dbe5f6] bg-white px-3.5 shadow-[0_8px_20px_rgba(96,120,182,0.06)] transition focus-within:border-[#7d8fff] focus-within:shadow-[0_0_0_4px_rgba(125,143,255,0.12)]">
+              <span className="inline-grid size-8 shrink-0 place-items-center rounded-full bg-[#eef3ff] text-[#5d73d8] transition group-focus-within:bg-[#dfe7ff]">
+                <FiSearch aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#8a97bb]">Search orders</span>
+                <input
+                  className="mt-0.5 w-full border-0 bg-transparent text-[14px] font-bold text-[#1b2340] outline-none placeholder:text-[#a0adca]"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="PO number, supplier, branch, or owner"
+                />
+              </div>
+            </label>
+            <div className={cn(
+              'inline-flex min-h-[40px] items-center gap-2 self-start rounded-full px-3.5 text-[13px] font-black shadow-sm',
+              apiMessageTone === 'success' && 'bg-[#e8f8ef] text-[#0f7b45]',
+              apiMessageTone === 'warning' && 'bg-[#fff4db] text-[#9a6700]',
+              apiMessageTone === 'error' && 'bg-[#ffe8e8] text-[#b42318]',
+              apiMessageTone === 'info' && 'bg-[#edf0ff] text-[#4f46e5]',
+            )}>
+              <FiFilter aria-hidden="true" /> {filteredOrders.length} results
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(190px,0.85fr)_minmax(190px,0.85fr)_minmax(190px,0.85fr)]">
+            <label className="flex min-h-[88px] flex-col justify-between rounded-[18px] border border-[#dde6f8] bg-white px-3.5 py-3 shadow-[0_8px_20px_rgba(96,120,182,0.06)]">
+                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8191b7]">Status</span>
+                <select
+                  className="min-h-[42px] w-full rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-3.5 text-sm font-black text-[#1b2340] outline-none transition focus:border-[#5b7cff] focus:shadow-[0_0_0_4px_rgba(91,124,255,0.14)]"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  aria-label="Filter by order status"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>{status === 'All' ? 'All statuses' : status}</option>
+                  ))}
+                </select>
+            </label>
+
+            <label className="flex min-h-[88px] flex-col justify-between rounded-[18px] border border-[#dde6f8] bg-white px-3.5 py-3 shadow-[0_8px_20px_rgba(96,120,182,0.06)]">
+                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8191b7]">Branch</span>
+                <select
+                  className="min-h-[42px] w-full rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-3.5 text-sm font-black text-[#1b2340] outline-none transition focus:border-[#5b7cff] focus:shadow-[0_0_0_4px_rgba(91,124,255,0.14)]"
+                  value={branchFilter}
+                  onChange={(event) => setBranchFilter(event.target.value)}
+                  aria-label="Filter by branch"
+                >
+                  {branchFilterOptions.map((branch) => (
+                    <option key={branch} value={branch}>{branch === 'All' ? 'All branches' : branch}</option>
+                  ))}
+                </select>
+            </label>
+
+            <label className="flex min-h-[88px] flex-col justify-between rounded-[18px] border border-[#dde6f8] bg-white px-3.5 py-3 shadow-[0_8px_20px_rgba(96,120,182,0.06)]">
+                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8191b7]">Priority</span>
+                <select
+                  className="min-h-[42px] w-full rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-3.5 text-sm font-black text-[#1b2340] outline-none transition focus:border-[#5b7cff] focus:shadow-[0_0_0_4px_rgba(91,124,255,0.14)]"
+                  value={priorityFilter}
+                  onChange={(event) => setPriorityFilter(event.target.value)}
+                  aria-label="Filter by priority"
+                >
+                  {priorities.map((priority) => (
+                    <option key={priority} value={priority}>{priority === 'All' ? 'All priorities' : `${priority} priority`}</option>
+                  ))}
+                </select>
+            </label>
+          </div>
         </div>
-        <select
-          className="min-h-[50px] rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-4 text-sm font-black text-[#1b2340] outline-none transition focus:border-[#5b7cff] focus:shadow-[0_0_0_4px_rgba(91,124,255,0.14)]"
-          value={branchFilter}
-          onChange={(event) => setBranchFilter(event.target.value)}
-          aria-label="Filter by branch"
-        >
-          {branchFilterOptions.map((branch) => (
-            <option key={branch} value={branch}>{branch === 'All' ? 'All branches' : branch}</option>
-          ))}
-        </select>
-        <select
-          className="min-h-[50px] rounded-2xl border border-[#dbe5f6] bg-[#f8fbff] px-4 text-sm font-black text-[#1b2340] outline-none transition focus:border-[#5b7cff] focus:shadow-[0_0_0_4px_rgba(91,124,255,0.14)]"
-          value={priorityFilter}
-          onChange={(event) => setPriorityFilter(event.target.value)}
-          aria-label="Filter by priority"
-        >
-          {priorities.map((priority) => (
-            <option key={priority} value={priority}>{priority === 'All' ? 'All priorities' : `${priority} priority`}</option>
-          ))}
-        </select>
-        <div className="inline-flex min-h-[42px] items-center gap-2 whitespace-nowrap rounded-full bg-[#edf0ff] px-4 text-[13px] font-black text-[#4f46e5]"><FiFilter aria-hidden="true" /> {filteredOrders.length} results</div>
       </section>
 
       <section className="mx-auto mb-5 grid w-full max-w-[1440px] grid-cols-1 gap-3 md:grid-cols-3" aria-label="Procurement pulse">
@@ -1027,18 +1160,31 @@ function PurchaseOrdersPage() {
       {isCreateOpen && (
         <div className="fixed inset-0 z-20 grid place-items-center bg-[rgba(15,23,42,0.32)] p-4 backdrop-blur-md" role="presentation">
           <section className="w-full max-w-[760px] max-h-[90vh] overflow-y-auto rounded-[24px] border border-[#dbe5f2] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-5 shadow-[0_24px_70px_rgba(15,23,42,0.16)] md:p-6" role="dialog" aria-modal="true" aria-labelledby="create-po-title">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <p className={sectionLabel}>New Supplier Order</p>
-                <h2 className={headingTwo} id="create-po-title">Create Purchase Order</h2>
-                <p className="mt-1 text-sm font-semibold text-[#6a7d9f]">Keep the order details compact and clear before saving to the system.</p>
+            {createOrderSuccessMessage ? (
+              <div className="grid min-h-[320px] place-items-center px-4 py-8 text-center">
+                <div className="w-full max-w-[420px] rounded-[28px] border border-[#bde5cb] bg-[linear-gradient(180deg,#f3fcf6_0%,#ebf8f0_100%)] p-8 shadow-[0_24px_60px_rgba(22,101,52,0.14)]">
+                  <div className="mx-auto inline-grid size-16 place-items-center rounded-full bg-[#dcfce7] text-[#15803d] shadow-[0_12px_30px_rgba(34,197,94,0.18)]">
+                    <FiCheckCircle aria-hidden="true" className="size-8" />
+                  </div>
+                  <h2 className="mt-5 text-[28px] font-black tracking-[-0.03em] text-[#14532d]">Added Successfully</h2>
+                  <p className="mt-3 text-[15px] font-bold leading-6 text-[#2f6a43]">{createOrderSuccessMessage}</p>
+                  <p className="mt-4 text-sm font-semibold text-[#5d7f69]">Returning to the purchase order page...</p>
+                </div>
               </div>
-              <button className="inline-grid size-10 place-items-center rounded-xl border border-[#dce5f2] bg-white text-[#60779b]" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
-                <FiXCircle aria-hidden="true" />
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <p className={sectionLabel}>New Supplier Order</p>
+                    <h2 className={headingTwo} id="create-po-title">Create Purchase Order</h2>
+                    <p className="mt-1 text-sm font-semibold text-[#6a7d9f]">Keep the order details compact and clear before saving to the system.</p>
+                  </div>
+                  <button className="inline-grid size-10 place-items-center rounded-xl border border-[#dce5f2] bg-white text-[#60779b]" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
+                    <FiXCircle aria-hidden="true" />
+                  </button>
+                </div>
 
-            <form className="grid gap-4" onSubmit={handleCreateOrder}>
+                <form className="grid gap-4" onSubmit={handleCreateOrder}>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-[20px] border border-[#e2e9f5] bg-[#f8fbff] p-4">
                   <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#4f6fe6]">Assignment</p>
@@ -1095,9 +1241,17 @@ function PurchaseOrdersPage() {
 
               <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#e6edf8] pt-2 md:flex-row">
                 <button className="min-h-11 rounded-[12px] border border-[#dce5f2] bg-white px-5 font-black text-[#586f94]" type="button" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-                <button className={cn(buttonBase, 'min-h-11 bg-[#3f5fd7] px-5 text-white shadow-[0_12px_24px_rgba(63,95,215,0.18)]')} type="submit"><FiPlus aria-hidden="true" /> Create Purchase Order</button>
+                <button
+                  className={cn(buttonBase, 'min-h-11 bg-[#3f5fd7] px-5 text-white shadow-[0_12px_24px_rgba(63,95,215,0.18)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70')}
+                  type="submit"
+                  disabled={isSubmittingOrder}
+                >
+                  <FiPlus aria-hidden="true" /> {isSubmittingOrder ? 'Saving...' : 'Create Purchase Order'}
+                </button>
               </div>
-            </form>
+                </form>
+              </>
+            )}
           </section>
         </div>
       )}

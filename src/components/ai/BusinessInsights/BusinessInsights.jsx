@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { BarChart3 } from 'lucide-react';
 import KpiCard from './KpiCard';
 import ChartWidget from './ChartWidget';
@@ -73,6 +74,24 @@ const BusinessInsights = ({ darkMode }) => {
         </div>
         <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: text }}>Business Insights</h2>
       </div>
+
+      {loading && (
+        <div className="loading-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                style={{ width: '10px', height: '10px', background: '#7C3AED', borderRadius: '50%' }}
+                animate={{ y: [0, -10, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+              />
+            ))}
+          </div>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: darkMode ? '#94A3B8' : '#64748B' }}>
+            Analyzing business data...
+          </span>
+        </div>
+      )}
 
       {!loading && data && (
         <>

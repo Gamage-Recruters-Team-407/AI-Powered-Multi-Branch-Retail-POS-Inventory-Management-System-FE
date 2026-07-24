@@ -49,7 +49,8 @@ const getCategoryName = (product) => {
 };
 
 const normalizeProduct = (product) => {
-  const stock = Number(product.reorderLevel || 0);
+  // Backend already sends branch-specific stock from Inventory
+  const stock = Number(product.stock ?? product.quantity ?? 0);
 
   return {
     ...product,
@@ -62,11 +63,9 @@ const normalizeProduct = (product) => {
 
     price: Number(product.price ?? product.sellingPrice ?? 0),
 
-    // You are using reorderLevel as stock count
     stock,
     quantity: stock,
     availableStock: stock,
-    reorderLevel: stock,
 
     image: product.image || product.imageUrl || "",
     imageUrl: product.imageUrl || product.image || "",
