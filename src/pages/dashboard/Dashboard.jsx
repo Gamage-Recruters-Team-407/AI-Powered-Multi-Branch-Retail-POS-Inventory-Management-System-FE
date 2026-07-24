@@ -537,8 +537,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return allowed.includes(role) ? stored : "dashboard";
 };
 
-  const [activeModule,  setActiveModule]  = useState(() => getValidatedStoredModule("dashboard_activeModule"));
-  const [visibleModule, setVisibleModule] = useState(() => getValidatedStoredModule("dashboard_visibleModule"));
+  // const [activeModule,  setActiveModule]  = useState(() => getValidatedStoredModule("dashboard_activeModule"));
+  // const [visibleModule, setVisibleModule] = useState(() => getValidatedStoredModule("dashboard_visibleModule"));
+
+const [activeModule, setActiveModule] = useState("dashboard");
+const [visibleModule, setVisibleModule] = useState("dashboard");
 
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [posView, setPosView] = useState("pos");
@@ -903,16 +906,32 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     }
   }, [selectedBranch, dateRange, token]);
 
+  // ── chart group-by handler ──────────
+const handleChartGroupBy = (g) => {
+  setChartGroupBy(g);
+  const now = new Date();
+  const end = now.toISOString().split('T')[0];
+  let start;
+  if (g === 'daily') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    start = d.toISOString().split('T')[0];
+  } else if (g === 'weekly') {
+    const d = new Date(now); d.setDate(d.getDate() - 84); // 12 weeks
+    start = d.toISOString().split('T')[0];
+  } else {
+    const d = new Date(now); d.setMonth(d.getMonth() - 12);
+    start = d.toISOString().split('T')[0];
+  }
+  setDateRange({ startDate: start, endDate: end });
+  setDatePreset('custom');
+};
+
   useEffect(() => {
     fetchData();
   }, [selectedBranch, dateRange, fetchData]);
 
 
-const handleChartGroupBy = (g) => {
-  setChartGroupBy(g);
-  setDateRange(_getChartDateRange(g));
-  setDatePreset('custom');
-};
+
 
   // ── chart group-by handler ──────────
 // const handleChartGroupBy = (g) => {
