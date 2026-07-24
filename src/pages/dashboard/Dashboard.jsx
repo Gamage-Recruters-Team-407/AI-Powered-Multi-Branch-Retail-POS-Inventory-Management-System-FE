@@ -537,8 +537,11 @@ const Dashboard = ({ viewRole, returnState, setReturnState }) => {
     return allowed.includes(role) ? stored : "dashboard";
 };
 
-  const [activeModule,  setActiveModule]  = useState(() => getValidatedStoredModule("dashboard_activeModule"));
-  const [visibleModule, setVisibleModule] = useState(() => getValidatedStoredModule("dashboard_visibleModule"));
+  // const [activeModule,  setActiveModule]  = useState(() => getValidatedStoredModule("dashboard_activeModule"));
+  // const [visibleModule, setVisibleModule] = useState(() => getValidatedStoredModule("dashboard_visibleModule"));
+
+const [activeModule, setActiveModule] = useState("dashboard");
+const [visibleModule, setVisibleModule] = useState("dashboard");
 
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [posView, setPosView] = useState("pos");
@@ -928,11 +931,7 @@ const handleChartGroupBy = (g) => {
   }, [selectedBranch, dateRange, fetchData]);
 
 
-const handleChartGroupBy = (g) => {
-  setChartGroupBy(g);
-  setDateRange(_getChartDateRange(g));
-  setDatePreset('custom');
-};
+
 
   // ── chart group-by handler ──────────
 // const handleChartGroupBy = (g) => {
