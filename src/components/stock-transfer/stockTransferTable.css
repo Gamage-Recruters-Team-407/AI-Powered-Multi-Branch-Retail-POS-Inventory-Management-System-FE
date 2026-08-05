@@ -1,0 +1,19 @@
+/* Custom horizontal scrollbar for stock transfer tables */
+.st-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.st-table-scroll::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+.st-table-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+.st-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+.st-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e2e8f0;
+}
