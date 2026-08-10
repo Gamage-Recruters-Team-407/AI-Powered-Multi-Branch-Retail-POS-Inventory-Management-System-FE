@@ -294,8 +294,7 @@ const Login = () => {
               )}
             </button>
           </form>
-
-         {/* ── Feature highlights divider ── */}
+          {/* ── Feature highlights divider ── */}
 <div style={{ display:"flex", alignItems:"center",
               gap:10, margin:"22px 0" }}>
   <hr style={{ flex:1, border:"none",
