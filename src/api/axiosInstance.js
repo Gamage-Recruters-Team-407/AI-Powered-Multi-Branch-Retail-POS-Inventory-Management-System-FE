@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// When VITE_API_URL is set (e.g. in Vercel frontend env vars), it uses that.
+// For local dev it falls back to localhost. For production builds it falls back to the Vercel BE URL.
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "https://pos-inventory-management-system-be.vercel.app/api");
 
 const isAuthPage = () => {
   const path = window.location.pathname;
